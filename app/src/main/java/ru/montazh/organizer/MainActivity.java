@@ -2,17 +2,22 @@ package ru.montazh.organizer;
 
 import android.app.Activity;
 import android.app.PendingIntent;
+import android.Manifest;
 import android.content.ActivityNotFoundException;
+import android.content.ContentValues;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageInstaller;
+import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.MediaStore;
 import android.provider.Settings;
+import android.util.Base64;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -26,6 +31,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -42,11 +49,15 @@ public class MainActivity extends Activity {
 
     private static final int REQ_SAVE = 1;
     private static final int REQ_OPEN = 2;
+    private static final int REQ_CAMERA = 3;
+    private static final int REQ_NOTIF = 4;
 
     private WebView web;
     private String pendingBackup;
     private ValueCallback<Uri[]> fileCallback;
     private volatile boolean downloading = false;
+    private Uri cameraUri;
+    private boolean notifAsked = false;
 
     private final BroadcastReceiver installReceiver = new BroadcastReceiver() {
         @Override
@@ -94,13 +105,32 @@ public class MainActivity extends Activity {
             public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
                 if (fileCallback != null) fileCallback.onReceiveValue(null);
                 fileCallback = callback;
-                Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-                i.addCategory(Intent.CATEGORY_OPENABLE);
-                i.setType("*/*");
+                boolean image = false;
+                String[] types = params.getAcceptTypes();
+                if (types != null) for (String t : types) if (t != null && t.startsWith("image")) image = true;
+                boolean multiple = params.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE;
                 try {
-                    startActivityForResult(i, REQ_OPEN);
-                } catch (ActivityNotFoundException e) {
+                    if (image && params.isCaptureEnabled() && Build.VERSION.SDK_INT >= 29) {
+                        ContentValues v = new ContentValues();
+                        v.put(MediaStore.Images.Media.DISPLAY_NAME, "object_" + System.currentTimeMillis() + ".jpg");
+                        v.put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg");
+                        v.put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/Органайзер");
+                        cameraUri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, v);
+                        Intent i = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+                        i.putExtra(MediaStore.EXTRA_OUTPUT, cameraUri);
+                        i.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        startActivityForResult(i, REQ_CAMERA);
+                    } else {
+                        Intent i = new Intent(image ? Intent.ACTION_GET_CONTENT : Intent.ACTION_OPEN_DOCUMENT);
+                        i.addCategory(Intent.CATEGORY_OPENABLE);
+                        i.setType(image ? "image/*" : "*/*");
+                        if (multiple) i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+                        startActivityForResult(i, REQ_OPEN);
+                    }
+                } catch (Exception e) {
+                    if (cameraUri != null) { try { getContentResolver().delete(cameraUri, null, null); } catch (Exception ignored) { } cameraUri = null; }
                     fileCallback = null;
+                    Toast.makeText(MainActivity.this, "Не удалось открыть камеру или галерею", Toast.LENGTH_SHORT).show();
                     return false;
                 }
                 return true;
@@ -160,6 +190,45 @@ public class MainActivity extends Activity {
     private class Bridge {
         @JavascriptInterface
         public int versionCode() { return currentVersion(); }
+
+        /* ---- напоминания ---- */
+        @JavascriptInterface
+        public void setReminders(final String json) {
+            Reminders.apply(MainActivity.this, json);
+            if (Build.VERSION.SDK_INT >= 33 && !notifAsked && json.length() > 2
+                    && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                notifAsked = true;
+                runOnUiThread(() -> requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIF));
+            }
+        }
+
+        /* ---- фото объектов (хранятся во внутренней памяти приложения) ---- */
+        private File photoFile(String id) {
+            File dir = new File(getFilesDir(), "photos");
+            if (!dir.exists()) dir.mkdirs();
+            return new File(dir, id.replaceAll("[^A-Za-z0-9_-]", "") + ".jpg");
+        }
+
+        @JavascriptInterface
+        public boolean savePhoto(String id, String base64) {
+            try (FileOutputStream out = new FileOutputStream(photoFile(id))) {
+                out.write(Base64.decode(base64, Base64.DEFAULT));
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        @JavascriptInterface
+        public String photoUrl(String id) {
+            return Uri.fromFile(photoFile(id)).toString();
+        }
+
+        @JavascriptInterface
+        public void deletePhoto(String id) {
+            //noinspection ResultOfMethodCallIgnored
+            photoFile(id).delete();
+        }
 
         @JavascriptInterface
         public void saveBackup(final String fileName, final String json) {
@@ -292,9 +361,28 @@ public class MainActivity extends Activity {
         Uri uri = (resultCode == RESULT_OK && data != null) ? data.getData() : null;
         if (requestCode == REQ_OPEN) {
             if (fileCallback != null) {
-                fileCallback.onReceiveValue(uri != null ? new Uri[]{uri} : null);
+                Uri[] result = null;
+                if (resultCode == RESULT_OK && data != null && data.getClipData() != null) {
+                    int n = data.getClipData().getItemCount();
+                    result = new Uri[n];
+                    for (int i = 0; i < n; i++) result[i] = data.getClipData().getItemAt(i).getUri();
+                } else if (uri != null) {
+                    result = new Uri[]{uri};
+                }
+                fileCallback.onReceiveValue(result);
                 fileCallback = null;
             }
+        } else if (requestCode == REQ_CAMERA) {
+            if (fileCallback != null) {
+                if (resultCode == RESULT_OK && cameraUri != null) {
+                    fileCallback.onReceiveValue(new Uri[]{cameraUri});
+                } else {
+                    if (cameraUri != null) { try { getContentResolver().delete(cameraUri, null, null); } catch (Exception ignored) { } }
+                    fileCallback.onReceiveValue(null);
+                }
+                fileCallback = null;
+            }
+            cameraUri = null;
         } else if (requestCode == REQ_SAVE) {
             if (uri != null && pendingBackup != null) {
                 try (OutputStream out = getContentResolver().openOutputStream(uri)) {

@@ -183,6 +183,33 @@ textarea.field{min-height:120px;resize:vertical}
 .upd b{display:block;font-size:15px}
 .upd button{flex:none;border:0;border-radius:12px;padding:10px 14px;font-weight:600;background:var(--accent-ink);color:var(--accent)}
 .upd button:disabled{opacity:.7}
+.timer{background:var(--surface);border-radius:18px;padding:14px 16px;display:flex;align-items:center;gap:12px}
+.timer .tm{flex:1;min-width:0}
+.timer b{display:block;font:700 24px/1.1 "Unbounded",sans-serif;font-variant-numeric:tabular-nums}
+.timer span{font-size:13px;color:var(--muted)}
+.timer button{flex:none;border:0;border-radius:14px;padding:12px 16px;font-weight:600;background:var(--accent);color:var(--accent-ink)}
+.timer.run{background:var(--ink);color:var(--bg)}
+.timer.run span{color:var(--bg);opacity:.75}
+.timer.run button{background:var(--hot);color:#1E1C2A}
+.hstat{display:flex;gap:16px;font-size:14px;color:var(--muted);margin:10px 2px 8px}
+.hstat b{color:var(--ink);font-weight:600}
+.photos{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.photos button{border:0;padding:0;border-radius:12px;overflow:hidden;aspect-ratio:1;background:var(--line)}
+.photos img{width:100%;height:100%;object-fit:cover;display:block}
+.pbtns{display:flex;gap:8px;margin-top:8px}
+.pbtns button{flex:1;border:0;border-radius:14px;background:var(--surface);padding:12px;font-weight:500;display:flex;align-items:center;justify-content:center;gap:8px}
+.pbtns svg{width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:1.8}
+.viewer{position:fixed;inset:0;z-index:40;background:#000;display:flex;flex-direction:column}
+.viewer[hidden]{display:none}
+.viewer img{flex:1;min-height:0;width:100%;object-fit:contain}
+.viewer .vbar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 16px calc(14px + env(safe-area-inset-bottom,0px));color:#fff}
+.viewer .vbar button{border:0;border-radius:12px;padding:10px 14px;background:#2a2833;color:#fff;font-weight:500}
+.viewer .vbar .del{color:#F07470}
+.runbar{display:flex;align-items:center;gap:12px;background:var(--ink);color:var(--bg);border-radius:18px;padding:12px 14px;margin:8px 0 6px;border:0;width:100%;text-align:left}
+.runbar[hidden]{display:none}
+.runbar span{flex:1;min-width:0;font-size:14px}
+.runbar b{display:block;font-size:15px}
+.runbar i{font-style:normal;font:700 18px "Unbounded",sans-serif;font-variant-numeric:tabular-nums}
 .backup{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:30px}
 .sync{font-size:12px;color:var(--muted);text-align:center;margin-top:12px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -194,6 +221,7 @@ textarea.field{min-height:120px;resize:vertical}
   <!-- TODAY -->
   <section class="view on" id="v-today">
     <div class="upd" id="upd" hidden><span id="updText"></span><button id="updBtn">Обновить</button></div>
+    <button class="runbar" id="runbar" hidden><span><b id="runObj"></b>Идёт работа, нажмите, чтобы открыть объект</span><i id="runTime"></i></button>
     <h1 id="dayTitle">Сегодня</h1>
     <p class="sub" id="dayDate"></p>
     <div class="week" id="week"></div>
@@ -248,6 +276,20 @@ textarea.field{min-height:120px;resize:vertical}
     <h2>Материалы и оборудование</h2>
     <ul class="list" id="oMats"></ul>
     <form class="addrow" id="oMatForm"><input id="oMatInput" placeholder="Например: ИП 212-45, 12 шт" maxlength="160"><button>Добавить</button></form>
+    <h2>Рабочее время <button class="link" id="oAddHours">Добавить вручную</button></h2>
+    <div class="timer" id="oTimer"><div class="tm"><b id="oTimerVal">0:00</b><span id="oTimerSub">Таймер остановлен</span></div><button id="oTimerBtn">Начать работу</button></div>
+    <div class="hstat" id="oHStat"></div>
+    <ul class="list" id="oHours"></ul>
+    <div id="oPhotoBlock">
+      <h2>Фото</h2>
+      <div class="photos" id="oPhotos"></div>
+      <div class="pbtns">
+        <button id="oCam"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Сфотографировать</button>
+        <button id="oGal"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>Из галереи</button>
+      </div>
+      <input type="file" id="oCamInput" accept="image/*" capture="environment" hidden>
+      <input type="file" id="oGalInput" accept="image/*" multiple hidden>
+    </div>
     <h2>Заметки по объекту</h2>
     <textarea class="objnote" id="oNote" placeholder="Коды доступа, где щитовая, кто открывает, нюансы трассы"></textarea>
   </section>
@@ -294,6 +336,10 @@ textarea.field{min-height:120px;resize:vertical}
   <button data-v="notes"><svg viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5z"/><path d="M15 3v4h4M8 12h8M8 16h5"/></svg>Заметки</button>
 </div></nav>
 
+<div class="viewer" id="viewer" hidden>
+  <img id="vImg" alt="Фото объекта">
+  <div class="vbar"><button class="del" id="vDel">Удалить</button><span id="vDate"></span><button id="vClose">Закрыть</button></div>
+</div>
 <div class="scrim" id="scrim"></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true">
   <div class="grab"></div>
@@ -309,6 +355,21 @@ textarea.field{min-height:120px;resize:vertical}
       <button class="seg" data-w="tomorrow">Завтра</button>
       <button class="seg" data-w="none">Без даты</button>
       <input class="seg" type="date" id="tDate" aria-label="Дата">
+    </div>
+    <p class="lbl">Время</p>
+    <div class="row">
+      <input class="seg" type="time" id="tTime" aria-label="Время">
+      <button class="seg" id="tTimeClear">Без времени</button>
+    </div>
+    <div id="tRemBlock">
+      <p class="lbl">Напомнить</p>
+      <div class="row" id="tRem">
+        <button class="seg" data-r="-1">Не надо</button>
+        <button class="seg" data-r="0">В это время</button>
+        <button class="seg" data-r="15">За 15 мин</button>
+        <button class="seg" data-r="60">За час</button>
+        <button class="seg" data-r="-2">Накануне в 20:00</button>
+      </div>
     </div>
     <p class="lbl">Важность</p>
     <div class="row" id="tPrio">
@@ -377,6 +438,20 @@ textarea.field{min-height:120px;resize:vertical}
     <div class="actions"><button class="btn" id="crSave">Сохранить</button></div>
   </div>
 
+  <div class="form" id="fHours" hidden>
+    <h3 id="fHoursTitle">Рабочее время</h3>
+    <p class="lbl">Дата</p>
+    <input class="field" type="date" id="hDate">
+    <div class="two">
+      <div><p class="lbl">Начало</p><input class="field" type="time" id="hStart"></div>
+      <div><p class="lbl">Конец</p><input class="field" type="time" id="hEnd"></div>
+    </div>
+    <p class="lbl">Или просто сколько часов</p>
+    <input class="field" type="text" inputmode="decimal" id="hDur" placeholder="Например: 7,5">
+    <input class="field" id="hNote" placeholder="Что делали (необязательно)" maxlength="160">
+    <div class="actions"><button class="btn ghost" id="hDel" hidden>Удалить</button><button class="btn" id="hSave">Сохранить</button></div>
+  </div>
+
   <div class="form" id="fKm" hidden>
     <h3>Текущий пробег</h3>
     <input class="field" type="number" inputmode="numeric" id="kmInput" placeholder="Пробег, км">
@@ -425,12 +500,14 @@ const LOGIC={
 function esc(s){const d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML}
 
 /* ---------- state ---------- */
-let state={tasks:[],notes:[],objects:[],car:{},carLog:[],updatedAt:0};
+let state={tasks:[],notes:[],objects:[],car:{},carLog:[],hours:[],timer:null,updatedAt:0};
+const APP=!!window.Android;
 function normalize(s){
-  s=Object.assign({tasks:[],notes:[],objects:[],car:{},carLog:[],updatedAt:0},s||{});
-  ['tasks','notes','objects','carLog'].forEach(k=>{if(!Array.isArray(s[k]))s[k]=[]});
+  s=Object.assign({tasks:[],notes:[],objects:[],car:{},carLog:[],hours:[],timer:null,updatedAt:0},s||{});
+  ['tasks','notes','objects','carLog','hours'].forEach(k=>{if(!Array.isArray(s[k]))s[k]=[]});
   if(!s.car||typeof s.car!=='object')s.car={};
-  s.objects.forEach(o=>{if(!Array.isArray(o.mats))o.mats=[];if(!Array.isArray(o.systems))o.systems=[]});
+  s.objects.forEach(o=>{if(!Array.isArray(o.mats))o.mats=[];if(!Array.isArray(o.systems))o.systems=[];if(!Array.isArray(o.photos))o.photos=[]});
+  if(s.timer&&(!s.timer.objId||!s.timer.start))s.timer=null;
   return s;
 }
 try{const raw=localStorage.getItem(KEY); if(raw) state=normalize(JSON.parse(raw));}catch(e){}
@@ -443,7 +520,7 @@ if(!state.v2){
     state.objects.push({id,name:'Пример: Детский сад №5',addr:'ул. Ленина, 10',contact:'Завхоз Ирина',phone:'',
       systems:['СПС','СОУЭ','СКУД'],status:'work',deadline:iso(addDays(new Date(),14)),
       mats:[{id:uid(),text:'ИП 212-45, 24 шт',done:true},{id:uid(),text:'Кабель КПСнг(А)-FRLS 1×2×0,75, 300 м',done:false}],
-      note:'Ключи от щитовой у охраны на входе.'});
+      note:'Ключи от щитовой у охраны на входе.',photos:[]});
     state.tasks.push({id:uid(),title:'Проложить кабель СПС на 2 этаже',date:todayISO(),prio:2,done:false,objId:id});
     state.tasks.push({id:uid(),title:'Смонтировать считыватели СКУД',date:iso(addDays(new Date(),1)),prio:1,done:false,objId:id});
   }
@@ -457,6 +534,34 @@ function save(){
   state.updatedAt=Date.now();
   try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}
   if(docRef){clearTimeout(pushTimer);pushTimer=setTimeout(push,700);}
+  scheduleReminders();
+}
+let remTimer=null;
+function hm(d){return pad(d.getHours())+':'+pad(d.getMinutes())}
+function buildReminders(){
+  const out=[], now=Date.now()+5000;
+  state.tasks.forEach(t=>{
+    if(t.done||!t.date||!t.time||t.remind==null||t.remind===-1) return;
+    const due=new Date(t.date+'T'+t.time+':00');
+    let at = t.remind===-2 ? new Date(addDays(new Date(t.date+'T12:00:00'),-1).setHours(20,0,0,0)) : new Date(due.getTime()-t.remind*60000);
+    if(at.getTime()<=now) return;
+    const o=t.objId&&objById(t.objId);
+    const when=(t.remind===-2?'Завтра':'Сегодня')+' в '+t.time;
+    out.push({id:'t_'+t.id+'_'+t.remind, at:at.getTime(), title:t.title, text:when+(o?', '+o.name+(o.addr?', '+o.addr:''):'')});
+  });
+  const c=state.car;
+  [['osago','ОСАГО'],['diag','Техосмотр']].forEach(([k,name])=>{
+    if(!c[k]) return;
+    const day=new Date(c[k]+'T09:00:00'), week=new Date(addDays(new Date(c[k]+'T12:00:00'),-7).setHours(9,0,0,0));
+    if(week.getTime()>now) out.push({id:'car_'+k+'_w_'+c[k],at:week.getTime(),title:name+': осталась неделя',text:'Действует до '+fmtDate(c[k])+'. Пора продлить.'});
+    if(day.getTime()>now) out.push({id:'car_'+k+'_d_'+c[k],at:day.getTime(),title:name+' заканчивается сегодня',text:'Не забудьте продлить '+name+'.'});
+  });
+  return out.sort((a,b)=>a.at-b.at).slice(0,200);
+}
+function scheduleReminders(){
+  if(!(window.Android&&Android.setReminders)) return;
+  clearTimeout(remTimer);
+  remTimer=setTimeout(()=>{try{Android.setReminders(JSON.stringify(buildReminders()))}catch(e){}},400);
 }
 async function push(){
   try{await docRef.set(JSON.parse(JSON.stringify(state))); setSync('Синхронизировано с вашим аккаунтом');}
@@ -498,7 +603,8 @@ function taskEl(t,{showDate=true,showObj=true}={}){
   li.className='task p'+t.prio+(t.done?' done':'');
   const late=t.date&&!t.done&&t.date<todayISO();
   const parts=[];
-  if(showDate) parts.push(late?'<span class="late">'+esc(fmtDate(t.date))+'</span>':esc(fmtDate(t.date)));
+  const dt=(showDate?fmtDate(t.date):'')+(t.time&&t.date?(showDate?', ':'')+t.time:'');
+  if(dt) parts.push(late?'<span class="late">'+esc(dt)+'</span>':esc(dt));
   const o=showObj&&t.objId&&objById(t.objId); if(o) parts.push(esc(o.name));
   li.innerHTML='<button class="chk" aria-label="Отметить">'+check+'</button><button class="tbody"><span class="ttl">'+esc(t.title)+'</span>'+
     (parts.length?'<span class="meta">'+parts.join(', ')+'</span>':'')+'</button>';
@@ -507,7 +613,8 @@ function taskEl(t,{showDate=true,showObj=true}={}){
   return li;
 }
 function emptyEl(txt){const li=document.createElement('li');li.className='empty';li.textContent=txt;return li}
-function sortTasks(a){return a.slice().sort((x,y)=>(x.done-y.done)||(y.prio-x.prio)||((x.date||'9')<(y.date||'9')?-1:(x.date||'9')>(y.date||'9')?1:0))}
+function cmp(a,b){return a<b?-1:a>b?1:0}
+function sortTasks(a){return a.slice().sort((x,y)=>(x.done-y.done)||cmp(x.date||'9',y.date||'9')||cmp(x.time||'99',y.time||'99')||(y.prio-x.prio))}
 
 /* ---------- car reminders ---------- */
 function carReminders(){
@@ -579,7 +686,8 @@ function renderObjects(){
   const order={work:0,pnr:1,plan:2,service:3,done:4};
   const items=state.objects.filter(f).sort((a,b)=>(order[a.status]-order[b.status])||((a.deadline||'9')<(b.deadline||'9')?-1:1));
   const act=state.objects.filter(o=>['plan','work','pnr'].includes(o.status)).length;
-  $('#objCount').textContent='В работе: '+act+', всего: '+state.objects.length;
+  const mh=monthMins();
+  $('#objCount').textContent='В работе: '+act+', всего: '+state.objects.length+(mh?'. Часов за '+MONTHS_N[new Date().getMonth()]+': '+fmtMins(mh):'');
   const ul=$('#objList'); ul.innerHTML='';
   if(!items.length) ul.appendChild(emptyEl('Здесь пусто. Нажмите «+», чтобы добавить объект'));
   items.forEach(o=>{
@@ -590,7 +698,7 @@ function renderObjects(){
     b.innerHTML='<div class="obj-top"><span class="obj-name">'+esc(o.name)+'</span><span class="badge '+o.status+'">'+STATUS[o.status]+'</span></div>'+
       (o.addr?'<span class="obj-addr">'+esc(o.addr)+'</span>':'')+
       (sysList(o).length?'<div class="systems">'+sysList(o).map(s=>'<span class="sys">'+esc(s)+'</span>').join('')+'</div>':'')+
-      '<div class="obj-foot"><span>Работ: '+open+'</span>'+(matsLeft?'<span>Докупить: '+matsLeft+'</span>':'')+dl+'</div>';
+      '<div class="obj-foot"><span>Работ: '+open+'</span>'+(matsLeft?'<span>Докупить: '+matsLeft+'</span>':'')+(monthMins(o.id)?'<span>'+fmtMins(monthMins(o.id))+' за месяц</span>':'')+(state.timer&&state.timer.objId===o.id?'<span class="late">Идёт работа</span>':'')+dl+'</div>';
     b.onclick=()=>showObject(o.id);
     li.appendChild(b); ul.appendChild(li);
   });
@@ -624,6 +732,7 @@ function renderObject(){
     ml.appendChild(li);
   });
   if(document.activeElement!==$('#oNote')) $('#oNote').value=o.note||'';
+  renderTimer(o); renderHours(o); renderPhotos(o);
 }
 let noteTimer=null;
 $('#oNote').oninput=e=>{const o=objById(openObjId); if(!o)return; o.note=e.target.value; clearTimeout(noteTimer); noteTimer=setTimeout(save,500);};
@@ -632,6 +741,130 @@ $('#oMatForm').onsubmit=e=>{e.preventDefault(); const o=objById(openObjId), v=$(
 $('#objBack').onclick=()=>go('objects');
 $('#oEdit').onclick=()=>openObj(objById(openObjId));
 $('#oAddTask').onclick=()=>openTask(null,openObjId);
+
+/* ---------- hours ---------- */
+function fmtMins(m){m=Math.round(m);const h=Math.floor(m/60),mm=m%60;return h?(h+' ч'+(mm?' '+mm+' мин':'')):(mm+' мин')}
+function clock(ms){const m=Math.floor(ms/60000);return Math.floor(m/60)+':'+pad(m%60)}
+function monthMins(objId){
+  const ym=todayISO().slice(0,7);
+  let m=state.hours.filter(h=>(!objId||h.objId===objId)&&(h.date||'').startsWith(ym)).reduce((a,h)=>a+(+h.mins||0),0);
+  if(state.timer&&(!objId||state.timer.objId===objId)&&iso(new Date(state.timer.start)).startsWith(ym)) m+=(Date.now()-state.timer.start)/60000;
+  return m;
+}
+function startTimer(objId){
+  if(state.timer) stopTimer();
+  state.timer={objId,start:Date.now()}; save(); render();
+}
+function stopTimer(){
+  const t=state.timer; if(!t) return;
+  const end=Date.now(), mins=Math.max(1,Math.round((end-t.start)/60000)), sd=new Date(t.start);
+  state.hours.push({id:uid(),objId:t.objId,date:iso(sd),start:hm(sd),end:hm(new Date(end)),mins,note:''});
+  state.timer=null; save(); render();
+}
+function renderTimer(o){
+  const t=state.timer, box=$('#oTimer');
+  if(t&&t.objId===o.id){
+    box.className='timer run'; $('#oTimerVal').textContent=clock(Date.now()-t.start);
+    $('#oTimerSub').textContent='Начали в '+hm(new Date(t.start)); $('#oTimerBtn').textContent='Закончить';
+    $('#oTimerBtn').onclick=stopTimer;
+  } else {
+    box.className='timer'; $('#oTimerVal').textContent=fmtMins(state.hours.filter(h=>h.objId===o.id&&h.date===todayISO()).reduce((a,h)=>a+h.mins,0));
+    const other=t&&objById(t.objId);
+    $('#oTimerSub').textContent=other?'Сейчас таймер идёт на «'+other.name+'»':'Сегодня на объекте';
+    $('#oTimerBtn').textContent=other?'Переключить сюда':'Начать работу';
+    $('#oTimerBtn').onclick=()=>startTimer(o.id);
+  }
+}
+function renderHours(o){
+  const list=state.hours.filter(h=>h.objId===o.id).sort((a,b)=>cmp(b.date+b.start,a.date+a.start));
+  const total=list.reduce((a,h)=>a+h.mins,0);
+  $('#oHStat').innerHTML=total?'<span>За месяц: <b>'+esc(fmtMins(monthMins(o.id)))+'</b></span><span>Всего: <b>'+esc(fmtMins(total))+'</b></span>':'';
+  const ul=$('#oHours'); ul.innerHTML='';
+  list.slice(0,30).forEach(h=>{
+    const li=document.createElement('li'), b=document.createElement('button'); b.className='log';
+    b.innerHTML='<span class="tbody"><span class="ttl">'+esc(fmtDate(h.date)+(h.start&&h.end?', '+h.start+'–'+h.end:''))+'</span>'+(h.note?'<span class="meta">'+esc(h.note)+'</span>':'')+'</span><span class="sum">'+esc(fmtMins(h.mins))+'</span>';
+    b.onclick=()=>openHours(h); li.appendChild(b); ul.appendChild(li);
+  });
+}
+let hEditObj=null;
+function openHours(h){
+  editing=h||null; hEditObj=h?h.objId:openObjId;
+  $('#fHoursTitle').textContent=h?'Рабочее время':'Добавить время';
+  $('#hDate').value=h?h.date:todayISO(); $('#hStart').value=h?(h.start||''):''; $('#hEnd').value=h?(h.end||''):'';
+  $('#hDur').value=h&&!(h.start&&h.end)?String(Math.round(h.mins/60*100)/100).replace('.',','):'';
+  $('#hNote').value=h?(h.note||''):''; $('#hDel').hidden=!h; openSheet('fHours');
+}
+$('#oAddHours').onclick=()=>openHours();
+$('#hSave').onclick=()=>{
+  const date=$('#hDate').value||todayISO(), st=$('#hStart').value, en=$('#hEnd').value;
+  let mins=0, start='', end='';
+  if(st&&en){ const [a,b]=st.split(':').map(Number),[c,d]=en.split(':').map(Number); mins=(c*60+d)-(a*60+b); if(mins<=0) mins+=1440; start=st; end=en; }
+  else { mins=Math.round(parseFloat(($('#hDur').value||'').replace(',','.'))*60)||0; }
+  if(!(mins>0)){ alert('Укажите начало и конец или количество часов'); return; }
+  const data={date,start,end,mins,note:$('#hNote').value.trim()};
+  if(editing) Object.assign(editing,data); else state.hours.push(Object.assign({id:uid(),objId:hEditObj},data));
+  save(); render(); closeSheet();
+};
+$('#hDel').onclick=()=>{state.hours=state.hours.filter(x=>x!==editing);save();render();closeSheet();};
+function renderRunbar(){
+  const t=state.timer, o=t&&objById(t.objId);
+  $('#runbar').hidden=!o; if(!o) return;
+  $('#runObj').textContent=o.name; $('#runTime').textContent=clock(Date.now()-t.start);
+}
+$('#runbar').onclick=()=>{ if(state.timer){ go('objects'); showObject(state.timer.objId); } };
+setInterval(()=>{ if(!state.timer) return; renderRunbar(); if(view==='object'){const o=objById(openObjId); if(o) renderTimer(o);} },15000);
+
+/* ---------- photos ---------- */
+function renderPhotos(o){
+  $('#oPhotoBlock').hidden=!APP; if(!APP) return;
+  if(!Array.isArray(o.photos)) o.photos=[];
+  const g=$('#oPhotos'); g.innerHTML='';
+  o.photos.slice().sort((a,b)=>b.ts-a.ts).forEach(p=>{
+    const b=document.createElement('button'); b.setAttribute('aria-label','Фото');
+    const img=document.createElement('img'); img.loading='lazy'; img.src=Android.photoUrl(p.id)+'?'+p.ts; img.alt='';
+    b.appendChild(img); b.onclick=()=>openViewer(o,p); g.appendChild(b);
+  });
+}
+function shrink(file){
+  return new Promise((res,rej)=>{
+    const url=URL.createObjectURL(file), img=new Image();
+    img.onload=()=>{
+      const max=1600, k=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
+      const c=document.createElement('canvas'); c.width=Math.round(img.naturalWidth*k); c.height=Math.round(img.naturalHeight*k);
+      c.getContext('2d').drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(url);
+      res(c.toDataURL('image/jpeg',0.82).split(',')[1]);
+    };
+    img.onerror=()=>{URL.revokeObjectURL(url);rej()};
+    img.src=url;
+  });
+}
+async function addPhotos(files){
+  const o=objById(openObjId); if(!o||!files||!files.length) return;
+  if(!Array.isArray(o.photos)) o.photos=[];
+  let fail=0;
+  for(const f of files){
+    try{ const b64=await shrink(f), id=uid(); if(Android.savePhoto(id,b64)) o.photos.push({id,ts:Date.now()}); else fail++; }
+    catch(e){ fail++; }
+  }
+  save(); renderObject();
+  if(fail) alert('Не удалось добавить фото: '+fail);
+}
+$('#oCam').onclick=()=>$('#oCamInput').click();
+$('#oGal').onclick=()=>$('#oGalInput').click();
+$('#oCamInput').onchange=e=>{addPhotos([...e.target.files]); e.target.value='';};
+$('#oGalInput').onchange=e=>{addPhotos([...e.target.files]); e.target.value='';};
+let vCur=null;
+function openViewer(o,p){
+  vCur={o,p}; $('#vImg').src=Android.photoUrl(p.id)+'?'+p.ts;
+  const d=new Date(p.ts); $('#vDate').textContent=fmtDate(iso(d))+', '+hm(d); $('#viewer').hidden=false;
+}
+function closeViewer(){ $('#viewer').hidden=true; $('#vImg').removeAttribute('src'); vCur=null; }
+$('#vClose').onclick=closeViewer;
+$('#vDel').onclick=()=>{
+  if(!vCur||!confirm('Удалить это фото?')) return;
+  const {o,p}=vCur; o.photos=o.photos.filter(x=>x!==p); try{Android.deletePhoto(p.id)}catch(e){}
+  closeViewer(); save(); renderObject();
+};
 
 /* ---------- render: car ---------- */
 function renderCar(){
@@ -681,7 +914,7 @@ function renderNotes(){
     b.onclick=()=>openNote(n); g.appendChild(b);
   });
 }
-function render(){renderToday();renderTasks();renderObjects();renderObject();renderCar();renderNotes();}
+function render(){renderRunbar();renderToday();renderTasks();renderObjects();renderObject();renderCar();renderNotes();}
 
 /* ---------- navigation ---------- */
 function go(v){
@@ -722,6 +955,11 @@ function syncWhen(){
 $$('#tWhen [data-w]').forEach(b=>b.onclick=()=>{const w=b.dataset.w;fDate=w==='today'?todayISO():w==='tomorrow'?iso(addDays(new Date(),1)):'';syncWhen()});
 $('#tDate').onchange=e=>{fDate=e.target.value;syncWhen()};
 const syncPrio=segGroup('#tPrio','p',()=>fPrio,v=>fPrio=+v);
+let fRem=60;
+const syncRem=segGroup('#tRem','r',()=>fRem,v=>fRem=+v);
+function syncTime(){ const has=!!$('#tTime').value; $('#tTimeClear').classList.toggle('on',!has); $('#tTime').classList.toggle('on',has); $('#tRemBlock').hidden=!(has&&APP); }
+$('#tTime').oninput=syncTime; $('#tTime').onchange=syncTime;
+$('#tTimeClear').onclick=()=>{$('#tTime').value='';syncTime()};
 function openTask(t,presetObj){
   editing=t||null;
   $('#fTaskTitle').textContent=t?'Задача':'Новая задача';
@@ -730,13 +968,16 @@ function openTask(t,presetObj){
     state.objects.filter(o=>o.status!=='done'||(t&&t.objId===o.id)).map(o=>'<option value="'+o.id+'">'+esc(o.name)+'</option>').join('');
   sel.value=t?(t.objId||''):(presetObj||'');
   fDate=t?t.date:(view==='today'?selDay:(presetObj?'':'')); fPrio=t?t.prio:1;
-  syncWhen(); syncPrio(); $('#tDel').hidden=!t; openSheet('fTask');
+  $('#tTime').value=t?(t.time||''):''; fRem=t&&t.remind!=null?t.remind:60;
+  syncWhen(); syncPrio(); syncRem(); syncTime(); $('#tDel').hidden=!t; openSheet('fTask');
 }
 $('#tSave').onclick=()=>{
   const title=$('#tTitle').value.trim(); if(!title){$('#tTitle').focus();return}
-  const objId=$('#tObj').value||'';
-  if(editing) Object.assign(editing,{title,date:fDate,prio:fPrio,objId});
-  else state.tasks.push({id:uid(),title,date:fDate,prio:fPrio,done:false,objId});
+  const objId=$('#tObj').value||'', time=$('#tTime').value||'';
+  if(time&&!fDate) fDate=todayISO();
+  const data={title,date:fDate,prio:fPrio,objId,time,remind:time?fRem:-1};
+  if(editing) Object.assign(editing,data);
+  else state.tasks.push(Object.assign({id:uid(),done:false},data));
   save();render();closeSheet();
 };
 $('#tTitle').onkeydown=e=>{if(e.key==='Enter')$('#tSave').click()};
@@ -763,13 +1004,17 @@ $('#obSave').onclick=()=>{
   const data={name,addr:$('#obAddr').value.trim(),contact:$('#obContact').value.trim(),phone:$('#obPhone').value.trim(),
     systems:fSys,sysOther:$('#obSysOther').value.trim(),status:fStatus,deadline:$('#obDeadline').value};
   if(editing) Object.assign(editing,data);
-  else{const o=Object.assign({id:uid(),mats:[],note:''},data);state.objects.push(o);save();render();closeSheet();showObject(o.id);return}
+  else{const o=Object.assign({id:uid(),mats:[],photos:[],note:''},data);state.objects.push(o);save();render();closeSheet();showObject(o.id);return}
   save();render();closeSheet();
 };
 $('#obDel').onclick=()=>{
   if(!confirm('Удалить объект «'+editing.name+'»? Задачи останутся, но без привязки.'))return;
   const id=editing.id; state.objects=state.objects.filter(x=>x!==editing);
-  state.tasks.forEach(t=>{if(t.objId===id)t.objId=''}); save(); closeSheet(); go('objects'); render();
+  state.tasks.forEach(t=>{if(t.objId===id)t.objId=''});
+  (editing.photos||[]).forEach(p=>{try{Android.deletePhoto(p.id)}catch(e){}});
+  state.hours=state.hours.filter(h=>h.objId!==id);
+  if(state.timer&&state.timer.objId===id) state.timer=null;
+  save(); closeSheet(); go('objects'); render();
 };
 
 /* log form */
@@ -839,6 +1084,7 @@ $('#fab').onclick=()=>{
 
 /* android back button */
 window.androidBack=function(){
+  if(!$('#viewer').hidden){closeViewer();return true}
   if($('#sheet').classList.contains('on')){closeSheet();return true}
   if(view==='object'){go('objects');return true}
   if(view!=='today'){go('today');return true}
