@@ -1,0 +1,42 @@
+plugins {
+    id 'com.android.application'
+}
+
+def vCode = (project.findProperty('versionCode') ?: '1') as int
+
+android {
+    namespace 'ru.montazh.organizer'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'ru.montazh.organizer'
+        minSdk 26
+        targetSdk 34
+        versionCode vCode
+        versionName "1.${vCode}"
+    }
+
+    signingConfigs {
+        main {
+            storeFile file('organizer.keystore')
+            storePassword 'organizer2026'
+            keyAlias 'organizer'
+            keyPassword 'organizer2026'
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.main
+        }
+        debug {
+            signingConfig signingConfigs.main
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
