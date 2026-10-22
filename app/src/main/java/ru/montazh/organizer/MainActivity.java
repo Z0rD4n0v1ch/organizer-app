@@ -1,10 +1,18 @@
 package ru.montazh.organizer;
 
 import android.app.Activity;
+import android.app.PendingIntent;
 import android.content.ActivityNotFoundException;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.pm.PackageInfo;
+import android.content.pm.PackageInstaller;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -14,16 +22,50 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Toast;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MainActivity extends Activity {
+    /** Репозиторий, откуда приложение берёт обновления. */
+    private static final String REPO = "Z0rD4n0v1ch/organizer-app";
+    private static final String ACTION_INSTALL = "ru.montazh.organizer.INSTALL_STATUS";
+
     private static final int REQ_SAVE = 1;
     private static final int REQ_OPEN = 2;
 
     private WebView web;
     private String pendingBackup;
     private ValueCallback<Uri[]> fileCallback;
+    private volatile boolean downloading = false;
+
+    private final BroadcastReceiver installReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            int status = intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE);
+            if (status == PackageInstaller.STATUS_PENDING_USER_ACTION) {
+                Intent confirm = intent.getParcelableExtra(Intent.EXTRA_INTENT);
+                if (confirm != null) {
+                    confirm.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    try { startActivity(confirm); } catch (Exception e) { jsState("error", "не открылось окно установки"); }
+                }
+            } else if (status == PackageInstaller.STATUS_SUCCESS) {
+                jsState("done", "");
+            } else {
+                String msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE);
+                jsState(status == PackageInstaller.STATUS_FAILURE_ABORTED ? "cancel" : "error", msg == null ? "" : msg);
+            }
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,8 +107,24 @@ public class MainActivity extends Activity {
             }
         });
 
+        IntentFilter f = new IntentFilter(ACTION_INSTALL);
+        if (Build.VERSION.SDK_INT >= 33) registerReceiver(installReceiver, f, Context.RECEIVER_NOT_EXPORTED);
+        else registerReceiver(installReceiver, f);
+
         if (savedInstanceState != null) web.restoreState(savedInstanceState);
         else web.loadUrl("file:///android_asset/index.html");
+    }
+
+    @Override
+    protected void onDestroy() {
+        try { unregisterReceiver(installReceiver); } catch (Exception ignored) { }
+        super.onDestroy();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (web != null) web.evaluateJavascript("window.onAppResume && window.onAppResume()", null);
     }
 
     private boolean openExternal(Uri uri) {
@@ -81,7 +139,28 @@ public class MainActivity extends Activity {
         return true;
     }
 
+    /* ---------- вызовы в страницу ---------- */
+    private void callJs(final String code) {
+        runOnUiThread(() -> { if (web != null) web.evaluateJavascript(code, null); });
+    }
+    private void jsState(String state, String msg) {
+        callJs("window.onUpdateState && window.onUpdateState(" + JSONObject.quote(state) + "," + JSONObject.quote(msg) + ")");
+    }
+
+    @SuppressWarnings("deprecation")
+    private int currentVersion() {
+        try {
+            PackageInfo p = getPackageManager().getPackageInfo(getPackageName(), 0);
+            return Build.VERSION.SDK_INT >= 28 ? (int) p.getLongVersionCode() : p.versionCode;
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
     private class Bridge {
+        @JavascriptInterface
+        public int versionCode() { return currentVersion(); }
+
         @JavascriptInterface
         public void saveBackup(final String fileName, final String json) {
             runOnUiThread(() -> {
@@ -96,6 +175,114 @@ public class MainActivity extends Activity {
                     Toast.makeText(MainActivity.this, "Не удалось открыть выбор папки", Toast.LENGTH_SHORT).show();
                 }
             });
+        }
+
+        /** Спрашивает GitHub о последней сборке и отдаёт ответ в window.onUpdateInfo. */
+        @JavascriptInterface
+        public void checkUpdate() {
+            new Thread(() -> {
+                JSONObject out = new JSONObject();
+                try {
+                    out.put("current", currentVersion());
+                    HttpURLConnection c = (HttpURLConnection) new URL("https://api.github.com/repos/" + REPO + "/releases/latest").openConnection();
+                    c.setRequestProperty("Accept", "application/vnd.github+json");
+                    c.setRequestProperty("User-Agent", "organizer-app");
+                    c.setConnectTimeout(10000);
+                    c.setReadTimeout(15000);
+                    if (c.getResponseCode() != 200) throw new Exception("HTTP " + c.getResponseCode());
+                    StringBuilder sb = new StringBuilder();
+                    try (BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream(), StandardCharsets.UTF_8))) {
+                        String line;
+                        while ((line = r.readLine()) != null) sb.append(line);
+                    }
+                    JSONObject rel = new JSONObject(sb.toString());
+                    int latest = 0;
+                    Matcher m = Pattern.compile("(\\d+)\\s*$").matcher(rel.optString("name", ""));
+                    if (m.find()) latest = Integer.parseInt(m.group(1));
+                    out.put("latest", latest);
+                    out.put("date", rel.optString("published_at", ""));
+                    JSONArray assets = rel.optJSONArray("assets");
+                    if (assets != null) {
+                        for (int i = 0; i < assets.length(); i++) {
+                            JSONObject a = assets.getJSONObject(i);
+                            if (a.optString("name").endsWith(".apk")) {
+                                out.put("url", a.optString("browser_download_url"));
+                                out.put("size", a.optLong("size"));
+                                break;
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    try { out.put("error", String.valueOf(e.getMessage())); } catch (Exception ignored) { }
+                }
+                callJs("window.onUpdateInfo && window.onUpdateInfo(" + JSONObject.quote(out.toString()) + ")");
+            }).start();
+        }
+
+        /** Скачивает APK и передаёт его системному установщику. */
+        @JavascriptInterface
+        public void installUpdate(final String url) {
+            if (downloading) return;
+            if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
+                runOnUiThread(() -> {
+                    try {
+                        startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName())));
+                    } catch (Exception ignored) { }
+                });
+                jsState("permission", "");
+                return;
+            }
+            downloading = true;
+            new Thread(() -> {
+                PackageInstaller.Session session = null;
+                try {
+                    HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+                    c.setRequestProperty("User-Agent", "organizer-app");
+                    c.setInstanceFollowRedirects(true);
+                    c.setConnectTimeout(15000);
+                    c.setReadTimeout(30000);
+                    if (c.getResponseCode() != 200) throw new Exception("HTTP " + c.getResponseCode());
+                    long total = c.getContentLengthLong();
+
+                    PackageInstaller pi = getPackageManager().getPackageInstaller();
+                    PackageInstaller.SessionParams params = new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);
+                    params.setAppPackageName(getPackageName());
+                    int id = pi.createSession(params);
+                    session = pi.openSession(id);
+
+                    try (InputStream in = c.getInputStream();
+                         OutputStream out = session.openWrite("organizer.apk", 0, total > 0 ? total : -1)) {
+                        byte[] buf = new byte[64 * 1024];
+                        long done = 0;
+                        int n, lastPct = -1;
+                        while ((n = in.read(buf)) > 0) {
+                            out.write(buf, 0, n);
+                            done += n;
+                            if (total > 0) {
+                                int pct = (int) (done * 100 / total);
+                                if (pct != lastPct) {
+                                    lastPct = pct;
+                                    callJs("window.onUpdateProgress && window.onUpdateProgress(" + pct + ")");
+                                }
+                            }
+                        }
+                        session.fsync(out);
+                    }
+
+                    Intent i = new Intent(ACTION_INSTALL).setPackage(getPackageName());
+                    int flags = PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 31 ? PendingIntent.FLAG_MUTABLE : 0);
+                    PendingIntent p = PendingIntent.getBroadcast(MainActivity.this, id, i, flags);
+                    jsState("installing", "");
+                    session.commit(p.getIntentSender());
+                    session.close();
+                    session = null;
+                } catch (Exception e) {
+                    if (session != null) session.abandon();
+                    jsState("error", String.valueOf(e.getMessage()));
+                } finally {
+                    downloading = false;
+                }
+            }).start();
         }
     }
 

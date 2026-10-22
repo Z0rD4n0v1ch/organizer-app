@@ -177,6 +177,12 @@ textarea.field{min-height:120px;resize:vertical}
 .actions{display:flex;gap:10px;margin-top:6px}
 .btn{flex:1;border:0;border-radius:14px;padding:14px;font-weight:600;background:var(--accent);color:var(--accent-ink)}
 .btn.ghost{flex:none;background:transparent;color:var(--red);border:1.5px solid var(--line)}
+.upd{display:flex;align-items:center;gap:12px;background:var(--accent);color:var(--accent-ink);border-radius:18px;padding:12px 14px;margin:8px 0 6px}
+.upd[hidden]{display:none}
+.upd span{flex:1;min-width:0;font-size:14px;line-height:1.35}
+.upd b{display:block;font-size:15px}
+.upd button{flex:none;border:0;border-radius:12px;padding:10px 14px;font-weight:600;background:var(--accent-ink);color:var(--accent)}
+.upd button:disabled{opacity:.7}
 .backup{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:30px}
 .sync{font-size:12px;color:var(--muted);text-align:center;margin-top:12px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -187,6 +193,7 @@ textarea.field{min-height:120px;resize:vertical}
 
   <!-- TODAY -->
   <section class="view on" id="v-today">
+    <div class="upd" id="upd" hidden><span id="updText"></span><button id="updBtn">Обновить</button></div>
     <h1 id="dayTitle">Сегодня</h1>
     <p class="sub" id="dayDate"></p>
     <div class="week" id="week"></div>
@@ -271,6 +278,7 @@ textarea.field{min-height:120px;resize:vertical}
   <div class="backup">
     <button class="seg" id="bkExport">Сохранить копию данных</button>
     <button class="seg" id="bkImport">Восстановить из копии</button>
+    <button class="seg" id="updCheck" hidden>Проверить обновления</button>
     <input type="file" id="bkFile" accept=".json,application/json,text/plain" hidden>
   </div>
   <p class="sync" id="sync">Данные хранятся в телефоне</p>
@@ -855,6 +863,41 @@ $('#bkFile').onchange=e=>{
   };
   r.readAsText(f); e.target.value='';
 };
+/* in-app updates */
+const isApp=!!(window.Android&&Android.checkUpdate);
+let upd=null, manualCheck=false, updBusy=false;
+function updShow(title,text,btn,disabled){
+  $('#upd').hidden=false;
+  $('#updText').innerHTML='<b>'+esc(title)+'</b>'+esc(text||'');
+  $('#updBtn').textContent=btn; $('#updBtn').disabled=!!disabled; $('#updBtn').hidden=!btn;
+}
+function updReady(){ if(upd) updShow('Доступна новая версия','Сборка '+upd.latest+', '+(upd.size?Math.round(upd.size/1048576*10)/10+' МБ':''),'Обновить'); }
+window.onUpdateInfo=function(raw){
+  let d={}; try{d=JSON.parse(raw)}catch(e){}
+  const was=manualCheck; manualCheck=false; $('#updCheck').disabled=false; $('#updCheck').textContent='Проверить обновления';
+  if(d.error){ if(was) alert('Не удалось проверить обновления. Проверьте интернет.'); return; }
+  if(d.url && d.latest>d.current){ upd=d; updReady(); try{localStorage.setItem('upd-checked',String(Date.now()))}catch(e){} }
+  else { $('#upd').hidden=true; if(was) alert('У вас последняя версия (сборка '+d.current+')'); }
+};
+window.onUpdateProgress=function(p){ updShow('Скачиваю обновление',p+'%','Загрузка…',true); };
+window.onUpdateState=function(st,msg){
+  if(st==='permission'){ updBusy='perm'; updShow('Нужно разрешение','Включите «Разрешить установку» для Органайзера и вернитесь сюда','Обновить'); }
+  else if(st==='installing'){ updShow('Устанавливаю','Подтвердите установку в окне Android',''); }
+  else if(st==='cancel'){ updBusy=false; updReady(); }
+  else if(st==='done'){ updShow('Обновление установлено','',''); }
+  else if(st==='error'){ updBusy=false; updShow('Не удалось обновить',msg?(' ('+msg+')'):'', 'Ещё раз'); }
+};
+window.onAppResume=function(){
+  if(updBusy==='perm'&&upd){ updBusy=false; Android.installUpdate(upd.url); }
+};
+$('#updBtn').onclick=()=>{ if(!upd) return; updShow('Скачиваю обновление','0%','Загрузка…',true); Android.installUpdate(upd.url); };
+if(isApp){
+  $('#updCheck').hidden=false;
+  $('#updCheck').onclick=()=>{ manualCheck=true; $('#updCheck').disabled=true; $('#updCheck').textContent='Проверяю…'; Android.checkUpdate(); };
+  let v=0; try{v=Android.versionCode()}catch(e){}
+  $('#sync').textContent='Данные хранятся в телефоне'+(v?', сборка '+v:'');
+  setTimeout(()=>{ try{Android.checkUpdate()}catch(e){} }, 1500);
+}
 save(); render(); connect();
 })();
 </script>
