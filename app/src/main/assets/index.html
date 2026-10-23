@@ -136,6 +136,7 @@ h2{font:500 16px/1.2 "Unbounded",system-ui,sans-serif;margin:26px 0 10px;display
 .log .tbody{flex:1}
 .log .sum{font-weight:600;white-space:nowrap}
 
+.devnote{background:var(--note1);border-radius:12px;padding:10px 12px;font-size:14px;margin:12px 0}
 /* notes */
 .search{width:100%;border:0;background:var(--surface);border-radius:14px;padding:12px 14px;margin:14px 0 12px}
 .notes{columns:2;column-gap:10px}
@@ -676,6 +677,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
 <script src="argus.js"></script>
 <script src="rubezh.js"></script>
 <script src="trassir.js"></script>
+<script src="hikvision.js"></script>
 <script>
 (function(){
 const KEY='organizer-v1';
@@ -1724,8 +1726,9 @@ function showDev(d,from){
   let h='<p class="devname">'+esc(d.n)+'</p><p>'+esc(d.p)+'</p>';
   if(d.s&&d.s.length) h+='<h2>Характеристики</h2><div class="specs">'+d.s.map(r=>'<div><span>'+esc(r[0])+'</span><b>'+esc(r[1])+'</b></div>').join('')+'</div>';
   if(d.u&&d.u.length) h+='<h2>Подключение и настройка</h2><ul class="facts">'+d.u.map(t=>'<li>'+esc(t)+'</li>').join('')+'</ul>';
-  h+='<h2>Документация</h2><div class="doclinks">'+(d.d||[]).map(x=>'<a href="'+esc(x[1])+'" target="_blank" rel="noopener">'+esc(x[0])+'</a>').join('')+'<a href="'+esc(d.url)+'" target="_blank" rel="noopener">Страница прибора на '+esc(c.site)+'</a></div>';
-  h+='<p class="hint" style="margin-top:14px">Сведения перенесены с сайта производителя. Перед монтажом и проектированием сверяйтесь с актуальным руководством.</p>';
+  if(d.note) h+='<p class="devnote">'+esc(d.note)+'</p>';
+  h+='<h2>Документация</h2><div class="doclinks">'+(d.d||[]).map(x=>'<a href="'+esc(x[1])+'" target="_blank" rel="noopener">'+esc(x[0])+'</a>').join('')+'<a href="'+esc(d.url)+'" target="_blank" rel="noopener">'+(d.src?'Источник: '+esc(d.src):'Страница прибора на '+esc(c.site))+'</a></div>';
+  h+='<p class="hint" style="margin-top:14px">'+(d.src?'Сайт производителя недоступен, сведения взяты у дистрибьютора или из даташита. Перед монтажом сверяйтесь с документацией производителя.':'Сведения перенесены с сайта производителя. Перед монтажом и проектированием сверяйтесь с актуальным руководством.')+'</p>';
   box.innerHTML=h;
   $('#devAdd').onclick=()=>addDevToObject(d);
   showView('dev');
