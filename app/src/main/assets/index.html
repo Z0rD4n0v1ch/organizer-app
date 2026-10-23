@@ -233,6 +233,16 @@ textarea.field{min-height:120px;resize:vertical}
 .pwrow{display:flex;gap:8px}
 .pwrow input{flex:1;min-width:0}
 .pwrow button{flex:none;margin-bottom:12px}
+.sheet .pbtns button{background:var(--bg)}
+.phprev{display:flex;align-items:center;gap:12px;margin:0 0 10px}
+.phprev[hidden]{display:none}
+.phprev .th{border:0;padding:0;width:96px;height:96px;border-radius:14px;overflow:hidden;background:var(--line)}
+.phprev img{width:100%;height:100%;object-fit:cover;display:block}
+.phprev .rm{border:1.5px solid var(--line);background:transparent;border-radius:12px;padding:8px 12px;color:var(--red);font-size:14px}
+.odoth{flex:none;width:52px;height:52px;border-radius:12px;overflow:hidden;background:var(--bg)}
+.odoth img{width:100%;height:100%;object-fit:cover;display:block}
+.camic{display:inline-block;width:15px;height:15px;vertical-align:-2px;margin-left:6px;stroke:var(--muted);fill:none;stroke-width:2}
+.stat.wide{grid-column:1/-1}
 .backup{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:30px}
 .sync{font-size:12px;color:var(--muted);text-align:center;margin-top:12px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -337,6 +347,8 @@ textarea.field{min-height:120px;resize:vertical}
     <div class="stats" id="carStats"></div>
     <h2>Журнал</h2>
     <ul class="list" id="carLog"></ul>
+    <h2>История пробега <button class="link" id="odoAdd">Добавить</button></h2>
+    <ul class="list" id="odoList"></ul>
   </section>
 
   <!-- NOTES -->
@@ -478,6 +490,16 @@ textarea.field{min-height:120px;resize:vertical}
       <input class="field" type="number" inputmode="decimal" id="lgLiters" placeholder="Литры">
     </div>
     <input class="field" id="lgNote" placeholder="Комментарий: что меняли, где" maxlength="200">
+    <div class="phblock" id="lgPhBlock">
+      <p class="lbl">Фото одометра или чека</p>
+      <div class="phprev" id="lgPhoto" hidden></div>
+      <div class="pbtns" style="margin:0 0 14px">
+        <button type="button" id="lgCam"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Сфотографировать</button>
+        <button type="button" id="lgGal"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>Из галереи</button>
+      </div>
+      <input type="file" id="lgCamInput" accept="image/*" capture="environment" hidden>
+      <input type="file" id="lgGalInput" accept="image/*" hidden>
+    </div>
     <div class="actions"><button class="btn ghost" id="lgDel" hidden>Удалить</button><button class="btn" id="lgSave">Сохранить</button></div>
   </div>
 
@@ -558,9 +580,22 @@ textarea.field{min-height:120px;resize:vertical}
   </div>
 
   <div class="form" id="fKm" hidden>
-    <h3>Текущий пробег</h3>
-    <input class="field" type="number" inputmode="numeric" id="kmInput" placeholder="Пробег, км">
-    <div class="actions"><button class="btn" id="kmSave">Сохранить</button></div>
+    <h3 id="fKmTitle">Пробег</h3>
+    <div class="two">
+      <input class="field" type="number" inputmode="numeric" id="kmInput" placeholder="Пробег, км">
+      <input class="field" type="date" id="kmDate" aria-label="Дата">
+    </div>
+    <div class="phblock" id="kmPhBlock">
+      <p class="lbl">Фото одометра</p>
+      <div class="phprev" id="kmPhoto" hidden></div>
+      <div class="pbtns" style="margin:0 0 14px">
+        <button type="button" id="kmCam"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Сфотографировать</button>
+        <button type="button" id="kmGal"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>Из галереи</button>
+      </div>
+      <input type="file" id="kmCamInput" accept="image/*" capture="environment" hidden>
+      <input type="file" id="kmGalInput" accept="image/*" hidden>
+    </div>
+    <div class="actions"><button class="btn ghost" id="kmDel" hidden>Удалить</button><button class="btn" id="kmSave">Сохранить</button></div>
   </div>
 
   <div class="form" id="fNote" hidden>
@@ -605,11 +640,11 @@ const LOGIC={
 function esc(s){const d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML}
 
 /* ---------- state ---------- */
-let state={tasks:[],notes:[],objects:[],car:{},carLog:[],hours:[],timer:null,updatedAt:0};
+let state={tasks:[],notes:[],objects:[],car:{},carLog:[],hours:[],odo:[],timer:null,updatedAt:0};
 const APP=!!window.Android;
 function normalize(s){
-  s=Object.assign({tasks:[],notes:[],objects:[],car:{},carLog:[],hours:[],timer:null,updatedAt:0},s||{});
-  ['tasks','notes','objects','carLog','hours'].forEach(k=>{if(!Array.isArray(s[k]))s[k]=[]});
+  s=Object.assign({tasks:[],notes:[],objects:[],car:{},carLog:[],hours:[],odo:[],timer:null,updatedAt:0},s||{});
+  ['tasks','notes','objects','carLog','hours','odo'].forEach(k=>{if(!Array.isArray(s[k]))s[k]=[]});
   if(!s.car||typeof s.car!=='object')s.car={};
   s.objects.forEach(o=>{['mats','systems','photos','equip','checks'].forEach(k=>{if(!Array.isArray(o[k]))o[k]=[]});if(o.svc&&typeof o.svc!=='object')o.svc=null});
   if(!s.tpl||typeof s.tpl!=='object')s.tpl={};
@@ -973,16 +1008,19 @@ $('#oGal').onclick=()=>$('#oGalInput').click();
 $('#oCamInput').onchange=e=>{addPhotos([...e.target.files]); e.target.value='';};
 $('#oGalInput').onchange=e=>{addPhotos([...e.target.files]); e.target.value='';};
 let vCur=null;
+function showPhoto(id,caption,onDel){
+  vCur={onDel}; $('#vImg').src=Android.photoUrl(id)+'?'+Date.now();
+  $('#vDate').textContent=caption||''; $('#vDel').style.visibility=onDel?'visible':'hidden'; $('#viewer').hidden=false;
+}
 function openViewer(o,p){
-  vCur={o,p}; $('#vImg').src=Android.photoUrl(p.id)+'?'+p.ts;
-  const d=new Date(p.ts); $('#vDate').textContent=fmtDate(iso(d))+', '+hm(d); $('#viewer').hidden=false;
+  const d=new Date(p.ts);
+  showPhoto(p.id,fmtDate(iso(d))+', '+hm(d),()=>{ o.photos=o.photos.filter(x=>x!==p); try{Android.deletePhoto(p.id)}catch(e){} save(); renderObject(); });
 }
 function closeViewer(){ $('#viewer').hidden=true; $('#vImg').removeAttribute('src'); vCur=null; }
 $('#vClose').onclick=closeViewer;
 $('#vDel').onclick=()=>{
-  if(!vCur||!confirm('Удалить это фото?')) return;
-  const {o,p}=vCur; o.photos=o.photos.filter(x=>x!==p); try{Android.deletePhoto(p.id)}catch(e){}
-  closeViewer(); save(); renderObject();
+  if(!vCur||!vCur.onDel||!confirm('Удалить это фото?')) return;
+  const f=vCur.onDel; closeViewer(); f();
 };
 
 /* ---------- render: car ---------- */
@@ -1002,8 +1040,10 @@ function renderCar(){
   const month=state.carLog.filter(l=>(l.date||'').startsWith(ym));
   const total=month.reduce((s,l)=>s+(+l.sum||0),0), fuel=month.filter(l=>l.type==='fuel').reduce((s,l)=>s+(+l.sum||0),0);
   const liters=month.filter(l=>l.type==='fuel').reduce((s,l)=>s+(+l.liters||0),0);
-  $('#statTitle').textContent='Расходы за '+MONTHS_N[now.getMonth()];
-  $('#carStats').innerHTML='<div class="stat"><b>'+num(Math.round(total))+' ₽</b><span>всего</span></div>'+
+  $('#statTitle').textContent='Итоги за '+MONTHS_N[now.getMonth()];
+  const mk=monthKm(ym);
+  $('#carStats').innerHTML=(mk!=null?'<div class="stat wide"><b>'+num(mk)+' км</b><span>пробег за '+MONTHS_N[now.getMonth()]+'</span></div>':'')+
+    '<div class="stat"><b>'+num(Math.round(total))+' ₽</b><span>всего</span></div>'+
     '<div class="stat"><b>'+num(Math.round(fuel))+' ₽</b><span>топливо'+(liters?', '+num(Math.round(liters))+' л':'')+'</span></div>';
   const ll=$('#carLog'); ll.innerHTML='';
   const items=state.carLog.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.km||0)-(a.km||0));
@@ -1012,14 +1052,88 @@ function renderCar(){
     const li=document.createElement('li'), b=document.createElement('button'); b.className='log';
     const meta=[fmtDate(l.date)]; if(l.km) meta.push(num(l.km)+' км'); if(l.liters) meta.push(num(l.liters)+' л');
     b.innerHTML='<span class="ic"><svg viewBox="0 0 24 24">'+LOGIC[l.type]+'</svg></span><span class="tbody"><span class="ttl">'+esc(LOGT[l.type]+(l.note?': '+l.note:''))+
-      '</span><span class="meta">'+esc(meta.join(', '))+'</span></span>'+(l.sum?'<span class="sum">'+num(l.sum)+' ₽</span>':'');
+      (l.photo?CAMIC:'')+'</span><span class="meta">'+esc(meta.join(', '))+'</span></span>'+(l.sum?'<span class="sum">'+num(l.sum)+' ₽</span>':'');
     b.onclick=()=>openLog(l); li.appendChild(b); ll.appendChild(li);
   });
+  const ol=$('#odoList'); ol.innerHTML='';
+  const odo=state.odo.slice().sort((a,b)=>cmp(b.date,a.date)||b.km-a.km);
+  if(!odo.length) ol.appendChild(emptyEl(APP?'Нажмите «Обновить» у пробега и сфотографируйте одометр: снимок сохранится с датой и километрами':'Записей пробега пока нет'));
+  odo.forEach(r=>{
+    const li=document.createElement('li'), b=document.createElement('button'); b.className='log';
+    b.innerHTML=(r.photo&&APP?'<span class="odoth"><img loading="lazy" alt="" src="'+Android.photoUrl(r.photo)+'"></span>':'<span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 13l4-3M8 5h8"/></svg></span>')+
+      '<span class="tbody"><span class="ttl">'+esc(num(r.km)+' км')+'</span><span class="meta">'+esc(fmtDate(r.date)+(r.photo?'':', без фото'))+'</span></span>';
+    b.onclick=()=>openKm(r); li.appendChild(b); ol.appendChild(li);
+  });
 }
+const CAMIC='<svg class="camic" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
+function kmPoints(){
+  return state.odo.map(r=>({d:r.date,k:+r.km})).concat(state.carLog.filter(l=>l.km).map(l=>({d:l.date,k:+l.km}))).filter(x=>x.d&&x.k>0);
+}
+function monthKm(ym){
+  const pts=kmPoints(), inM=pts.filter(x=>x.d.startsWith(ym)); if(!inM.length) return null;
+  const before=pts.filter(x=>x.d<ym+'-01').sort((a,b)=>cmp(a.d,b.d)||a.k-b.k);
+  const max=Math.max(...inM.map(x=>x.k)), base=before.length?before[before.length-1].k:Math.min(...inM.map(x=>x.k));
+  return Math.max(0,max-base);
+}
+
+/* photo picker for car forms */
+function photoPicker(px){
+  const st={id:null,fresh:false,drop:null};
+  const box=$('#'+px+'Photo');
+  function show(){
+    box.hidden=!st.id; box.innerHTML='';
+    if(!st.id) return;
+    box.innerHTML='<button type="button" class="th"><img alt="Фото" src="'+Android.photoUrl(st.id)+'?'+Date.now()+'"></button><button type="button" class="rm">Убрать фото</button>';
+    box.querySelector('.th').onclick=()=>showPhoto(st.id,'');
+    box.querySelector('.rm').onclick=()=>{ if(st.fresh){try{Android.deletePhoto(st.id)}catch(e){}} else st.drop=st.id; st.id=null; st.fresh=false; show(); };
+  }
+  async function pick(files){
+    const f=files&&files[0]; if(!f) return;
+    try{
+      const b64=await shrink(f), id=uid();
+      if(!Android.savePhoto(id,b64)) throw 0;
+      if(st.id){ if(st.fresh){try{Android.deletePhoto(st.id)}catch(e){}} else st.drop=st.id; }
+      st.id=id; st.fresh=true; show();
+    }catch(e){ alert('Не удалось добавить фото'); }
+  }
+  $('#'+px+'Cam').onclick=()=>$('#'+px+'CamInput').click();
+  $('#'+px+'Gal').onclick=()=>$('#'+px+'GalInput').click();
+  $('#'+px+'CamInput').onchange=e=>{pick([...e.target.files]);e.target.value=''};
+  $('#'+px+'GalInput').onchange=e=>{pick([...e.target.files]);e.target.value=''};
+  return {
+    set(id){ st.id=id||null; st.fresh=false; st.drop=null; $('#'+px+'PhBlock').hidden=!APP; if(APP) show(); },
+    get(){ return st.id; },
+    commit(){ if(st.drop){try{Android.deletePhoto(st.drop)}catch(e){}} st.fresh=false; st.drop=null; },
+    discard(){ if(st.fresh&&st.id){try{Android.deletePhoto(st.id)}catch(e){}} st.id=null; st.fresh=false; st.drop=null; }
+  };
+}
+if(!Array.isArray(state.odo)) state.odo=[];
+const kmPick=photoPicker('km'), lgPick=photoPicker('lg');
 $('#carEdit').onclick=()=>openCar();
-$('#kmBtn').onclick=()=>{$('#kmInput').value=state.car.mileage||'';openSheet('fKm');};
-$('#kmSave').onclick=()=>{const v=parseInt($('#kmInput').value,10); if(!(v>=0)){$('#kmInput').focus();return}
-  state.car.mileage=v; save(); render(); closeSheet();};
+let kmEdit=null;
+function openKm(r){
+  kmEdit=r||null; $('#fKmTitle').textContent=r?'Запись пробега':'Пробег';
+  $('#kmInput').value=r?r.km:(state.car.mileage||''); $('#kmDate').value=r?r.date:todayISO();
+  kmPick.set(r?r.photo:null); $('#kmDel').hidden=!r; openSheet('fKm');
+}
+$('#kmBtn').onclick=()=>openKm(); $('#odoAdd').onclick=()=>openKm();
+$('#kmSave').onclick=()=>{
+  const v=parseInt($('#kmInput').value,10); if(!(v>=0)){$('#kmInput').focus();return}
+  const date=$('#kmDate').value||todayISO(), cur=+state.car.mileage||0;
+  if(!kmEdit&&v<cur&&!confirm('Пробег меньше текущего ('+num(cur)+' км). Записать всё равно?')) return;
+  const data={km:v,date,photo:kmPick.get()||''};
+  if(kmEdit) Object.assign(kmEdit,data); else state.odo.push(Object.assign({id:uid(),ts:Date.now()},data));
+  kmPick.commit();
+  if(!kmEdit) state.car.mileage=v; else state.car.mileage=Math.max(0,...kmPoints().map(x=>x.k));
+  save(); render(); closeSheet();
+};
+$('#kmDel').onclick=()=>{
+  if(!kmEdit||!confirm('Удалить запись пробега'+(kmEdit.photo?' вместе с фото':'')+'?')) return;
+  if(kmEdit.photo){try{Android.deletePhoto(kmEdit.photo)}catch(e){}}
+  state.odo=state.odo.filter(x=>x!==kmEdit); kmPick.discard();
+  const pts=kmPoints(); if(pts.length) state.car.mileage=Math.max(...pts.map(x=>x.k));
+  save(); render(); closeSheet();
+};
 
 /* ---------- render: notes ---------- */
 function renderNotes(){
@@ -1058,7 +1172,7 @@ function openSheet(id){
   $('#scrim').classList.add('on'); $('#sheet').classList.add('on'); $('#sheet').scrollTop=0;
   const first=$('#'+id+' input, #'+id+' textarea'); if(first) setTimeout(()=>first.focus({preventScroll:true}),260);
 }
-function closeSheet(){$('#scrim').classList.remove('on');$('#sheet').classList.remove('on');document.activeElement&&document.activeElement.blur();}
+function closeSheet(){try{kmPick.discard();lgPick.discard()}catch(e){}$('#scrim').classList.remove('on');$('#sheet').classList.remove('on');document.activeElement&&document.activeElement.blur();}
 $('#scrim').onclick=closeSheet;
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
 function segGroup(sel,attr,get,set){
@@ -1148,18 +1262,19 @@ function openLog(l){
   fType=l?l.type:'fuel'; syncType(); $('#lgLiters').style.visibility=fType==='fuel'?'visible':'hidden';
   $('#lgDate').value=l?l.date:todayISO(); $('#lgKm').value=l?(l.km||''):(state.car.mileage||'');
   $('#lgSum').value=l?(l.sum||''):''; $('#lgLiters').value=l?(l.liters||''):''; $('#lgNote').value=l?(l.note||''):'';
-  $('#lgDel').hidden=!l; openSheet('fLog');
+  lgPick.set(l?l.photo:null); $('#lgDel').hidden=!l; openSheet('fLog');
 }
 $('#lgSave').onclick=()=>{
   const km=parseInt($('#lgKm').value,10)||0;
   const data={type:fType,date:$('#lgDate').value||todayISO(),km,sum:parseFloat($('#lgSum').value)||0,
-    liters:fType==='fuel'?(parseFloat($('#lgLiters').value)||0):0,note:$('#lgNote').value.trim()};
+    liters:fType==='fuel'?(parseFloat($('#lgLiters').value)||0):0,note:$('#lgNote').value.trim(),photo:lgPick.get()||''};
+  lgPick.commit();
   if(editing) Object.assign(editing,data); else state.carLog.push(Object.assign({id:uid()},data));
   if(km>(+state.car.mileage||0)) state.car.mileage=km;
   if(fType==='to'&&km&&!editing){state.car.nextToKm=km+(+state.car.toInterval||10000);}
   save();render();closeSheet();
 };
-$('#lgDel').onclick=()=>{state.carLog=state.carLog.filter(x=>x!==editing);save();render();closeSheet();};
+$('#lgDel').onclick=()=>{ if(editing&&editing.photo){try{Android.deletePhoto(editing.photo)}catch(e){}} lgPick.discard(); state.carLog=state.carLog.filter(x=>x!==editing);save();render();closeSheet();};
 
 /* car form */
 let fTires='1';
