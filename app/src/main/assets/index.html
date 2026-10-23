@@ -243,8 +243,11 @@ textarea.field{min-height:120px;resize:vertical}
 .odoth img{width:100%;height:100%;object-fit:cover;display:block}
 .camic{display:inline-block;width:15px;height:15px;vertical-align:-2px;margin-left:6px;stroke:var(--muted);fill:none;stroke-width:2}
 .stat.wide{grid-column:1/-1}
-.makers{display:grid;grid-template-columns:repeat(auto-fit,minmax(0,1fr));gap:6px;background:var(--surface);border-radius:16px;padding:5px;margin:12px 0 10px}
-.makers .mk{border:0;background:transparent;border-radius:12px;padding:10px 6px;font-weight:600;font-size:15px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:6px;min-width:0}
+.makers{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;background:var(--surface);border-radius:16px;padding:5px;margin:12px 0 6px}
+.makers::-webkit-scrollbar{display:none}
+.catupd{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;color:var(--muted);margin:0 2px 10px}
+.catupd .link{flex:none;font-size:13px}
+.makers .mk{flex:1 0 auto;border:0;background:transparent;border-radius:12px;padding:10px 12px;font-weight:600;font-size:15px;color:var(--muted);display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
 .makers .mk small{font-weight:500;font-size:12px;opacity:.8}
 .makers .mk.on{background:var(--ink);color:var(--bg)}
 nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0;font-size:10.5px!important}
@@ -408,6 +411,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
   <section class="view" id="v-catalog">
     <h1>Оборудование</h1>
     <div class="makers" id="ctMakers"></div>
+    <div class="catupd"><span id="ctStatus"></span><button class="link" id="ctUpd">Обновить каталоги</button></div>
     <p class="sub" id="ctSub"></p>
     <input class="search" id="ctSearch" type="search" placeholder="Поиск по модели или назначению">
     <div class="chips" id="ctCats" style="margin-top:0"></div>
@@ -670,6 +674,8 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
 
 <script src="bolid.js"></script>
 <script src="argus.js"></script>
+<script src="rubezh.js"></script>
+<script src="trassir.js"></script>
 <script>
 (function(){
 const KEY='organizer-v1';
@@ -1603,12 +1609,70 @@ $('#tpReset').onclick=()=>{$('#tpItems').value=DEFAULT_TPL[tplKey].join('\n')};
 $('#tplBack').onclick=()=>{ if(tplFrom==='check'&&ck){showView('check');renderCheck()} else if(openObjId){showObject(openObjId)} else go('objects'); };
 
 /* ---------- Equipment catalogs (Болид, Аргус-Спектр, ...) ---------- */
-const CATS=window.CATALOGS||{};
-const MAKERS=Object.keys(CATS);
+const CATS=window.CATALOGS=window.CATALOGS||{};
+const MAKER_ORDER=['bolid','argus','rubezh','trassir','hikvision'];
+let MAKERS=[];
 const LAT2CYR={a:'а',b:'б',c:'с',d:'д',e:'е',f:'ф',g:'г',h:'х',i:'и',j:'й',k:'к',l:'л',m:'м',n:'н',o:'о',p:'п',q:'к',r:'р',s:'с',t:'т',u:'у',v:'в',w:'в',x:'х',y:'ы',z:'з'};
 function bnorm(s){return String(s||'').toLowerCase().replace(/ё/g,'е').replace(/[a-z]/g,ch=>LAT2CYR[ch]).replace(/[\-–—.,()«»"\/:]/g,'').replace(/\s+/g,' ').trim()}
 function bmatch(key,q){return q.split(' ').every(t=>key.includes(t))}
-MAKERS.forEach(k=>CATS[k].items.forEach(d=>{d._mk=k; d._k=bnorm(d.m+' '+d.n); d._k2=bnorm(d.c+' '+d.p);}));
+function prepCat(k){CATS[k].items.forEach(d=>{d._mk=k; d._k=bnorm(d.m+' '+d.n); d._k2=bnorm(d.c+' '+d.p);});}
+function catRev(c){return c?String(c.rev||c.date||''):''}
+function refreshMakers(){
+  const ord=k=>{const i=MAKER_ORDER.indexOf(k);return i<0?99:i};
+  MAKERS=Object.keys(CATS).filter(k=>CATS[k]&&Array.isArray(CATS[k].items)&&CATS[k].items.length).sort((a,b)=>ord(a)-ord(b)||a.localeCompare(b));
+}
+/* хранилище скачанных каталогов: файлы приложения или localStorage */
+const CSTORE={
+  load(name){ try{ if(window.Android&&Android.loadFile) return Android.loadFile(name); return localStorage.getItem('f-'+name); }catch(e){ return null; } },
+  save(name,txt){ try{ if(window.Android&&Android.saveFile) return Android.saveFile(name,txt); localStorage.setItem('f-'+name,txt); return true; }catch(e){ return false; } }
+};
+function storedKeys(){ let k=[]; try{k=JSON.parse(localStorage.getItem('cat-keys')||'[]')}catch(e){} return Array.from(new Set(k.concat(MAKER_ORDER))); }
+storedKeys().forEach(k=>{
+  const t=CSTORE.load('cat_'+k+'.json'); if(!t) return;
+  try{ const o=JSON.parse(t); if(o&&Array.isArray(o.items)&&o.items.length&&catRev(o)>catRev(CATS[k])) CATS[k]=o; }catch(e){}
+});
+Object.keys(CATS).forEach(prepCat); refreshMakers();
+
+/* обновление каталогов с GitHub */
+const CAT_BASE='https://raw.githubusercontent.com/Z0rD4n0v1ch/organizer-app/main/catalogs/';
+let httpSeq=0; const httpCb={};
+window.onHttp=function(id,code,body){ const f=httpCb[id]; delete httpCb[id]; if(f) f(code,body); };
+function httpGet(url){
+  return new Promise(res=>{
+    if(window.Android&&Android.httpGet){ const id='h'+(++httpSeq); httpCb[id]=(c,b)=>res({code:c,body:b}); Android.httpGet(id,url); }
+    else fetch(url,{cache:'no-store'}).then(r=>r.text().then(t=>res({code:r.status,body:t}))).catch(e=>res({code:-1,body:String(e)}));
+  });
+}
+let catBusy=false, catMsg='';
+function catDateLabel(){
+  const ds=MAKERS.map(k=>CATS[k].date||'').filter(Boolean).sort(); const d=ds[ds.length-1]||'';
+  const [y,m,dd]=d.split('-'); return y?('Каталоги от '+dd+'.'+m+'.'+y):'';
+}
+function setCatStatus(t){ catMsg=t||''; const el=$('#ctStatus'); if(el) el.textContent=catMsg||catDateLabel(); }
+async function checkCatalogs(manual){
+  if(catBusy) return; catBusy=true; setCatStatus('Проверяю обновления каталогов…'); $('#ctUpd').disabled=true;
+  try{
+    const r=await httpGet(CAT_BASE+'index.json?t='+Date.now());
+    if(r.code!==200) throw new Error(r.code===-1?'нет интернета':'сервер ответил '+r.code);
+    const idx=JSON.parse(r.body), list=idx.catalogs||{}, upd=[];
+    for(const k of Object.keys(list)){
+      const meta=list[k]; if(!meta||!meta.file) continue;
+      if(catRev(CATS[k])>=String(meta.rev||meta.date||'')) continue;
+      const f=await httpGet(CAT_BASE+meta.file+'?t='+Date.now());
+      if(f.code!==200) continue;
+      let o=null; try{o=JSON.parse(f.body)}catch(e){}
+      if(!o||!Array.isArray(o.items)||!o.items.length) continue;
+      CSTORE.save('cat_'+k+'.json',f.body); CATS[k]=o; prepCat(k); upd.push((o.name||k)+' ('+o.items.length+')');
+    }
+    try{ localStorage.setItem('cat-keys',JSON.stringify(Object.keys(CATS))); localStorage.setItem('cat-checked',String(Date.now())); }catch(e){}
+    refreshMakers(); if(!CATS[mk]) mk=MAKERS[0]||'';
+    setCatStatus(upd.length?('Обновлено: '+upd.join(', ')):(manual?'Каталоги актуальны':''));
+    if(view==='catalog') renderCatalog();
+  }catch(e){ setCatStatus(manual?('Не удалось обновить: '+e.message):''); }
+  finally{ catBusy=false; const b=$('#ctUpd'); if(b) b.disabled=false; }
+}
+$('#ctUpd').onclick=()=>checkCatalogs(true);
+(function(){ let last=0; try{last=+localStorage.getItem('cat-checked')||0}catch(e){} if(window.Android&&Date.now()-last>20*3600e3) setTimeout(()=>checkCatalogs(false),5000); })();
 function devRef(d){return d._mk+':'+d.id}
 function devByRef(ref){ if(!ref) return null; let [k,id]=String(ref).split(':'); if(id===undefined){id=k;k='bolid'} const c=CATS[k]; return c?c.items.find(d=>d.id===id)||null:null; }
 function catSearch(q,maker,cat){
@@ -1628,7 +1692,7 @@ function renderCatalog(){
   const seg=$('#ctMakers');
   seg.innerHTML=MAKERS.map(k=>'<button class="mk'+(k===mk?' on':'')+'" data-k="'+k+'">'+esc(CATS[k].name)+'<small>'+CATS[k].items.length+'</small></button>').join('');
   seg.querySelectorAll('.mk').forEach(b=>b.onclick=()=>{ mk=b.dataset.k; catCat=''; try{localStorage.setItem('org-maker',mk)}catch(e){} renderCatalog(); });
-  const c=CATS[mk]; if(!c) return;
+  const c=CATS[mk]; setCatStatus(catMsg); if(!c) return;
   const [y,m,dd]=(c.date||'').split('-');
   $('#ctSub').textContent=c.full+'. Данные с '+c.site+(y?' на '+dd+'.'+m+'.'+y:'');
   const chips=$('#ctCats');

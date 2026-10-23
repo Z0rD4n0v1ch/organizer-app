@@ -191,6 +191,71 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public int versionCode() { return currentVersion(); }
 
+        /* ---- загрузка данных из интернета (каталоги) ---- */
+        @JavascriptInterface
+        public void httpGet(final String id, final String url) {
+            new Thread(() -> {
+                int code = 0;
+                String body = "";
+                try {
+                    HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+                    c.setRequestProperty("User-Agent", "organizer-app");
+                    c.setRequestProperty("Cache-Control", "no-cache");
+                    c.setUseCaches(false);
+                    c.setInstanceFollowRedirects(true);
+                    c.setConnectTimeout(15000);
+                    c.setReadTimeout(30000);
+                    code = c.getResponseCode();
+                    if (code == 200) {
+                        StringBuilder sb = new StringBuilder();
+                        try (BufferedReader r = new BufferedReader(new InputStreamReader(c.getInputStream(), StandardCharsets.UTF_8))) {
+                            char[] buf = new char[8192];
+                            int n;
+                            while ((n = r.read(buf)) > 0) sb.append(buf, 0, n);
+                        }
+                        body = sb.toString();
+                    }
+                } catch (Exception e) {
+                    code = -1;
+                    body = String.valueOf(e.getMessage());
+                }
+                callJs("window.onHttp && window.onHttp(" + JSONObject.quote(id) + "," + code + "," + JSONObject.quote(body) + ")");
+            }).start();
+        }
+
+        /* ---- файлы данных приложения (каталоги) ---- */
+        private File dataFile(String name) {
+            File dir = new File(getFilesDir(), "data");
+            if (!dir.exists()) dir.mkdirs();
+            return new File(dir, name.replaceAll("[^A-Za-z0-9_.-]", ""));
+        }
+
+        @JavascriptInterface
+        public boolean saveFile(String name, String text) {
+            File f = dataFile(name), tmp = dataFile(name + ".tmp");
+            try (OutputStream out = new FileOutputStream(tmp)) {
+                out.write(text.getBytes(StandardCharsets.UTF_8));
+            } catch (Exception e) {
+                return false;
+            }
+            return tmp.renameTo(f);
+        }
+
+        @JavascriptInterface
+        public String loadFile(String name) {
+            File f = dataFile(name);
+            if (!f.exists()) return null;
+            try (InputStream in = new java.io.FileInputStream(f)) {
+                java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream();
+                byte[] buf = new byte[65536];
+                int n;
+                while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
+                return new String(bo.toByteArray(), StandardCharsets.UTF_8);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
         /* ---- отправка текста в мессенджер ---- */
         @JavascriptInterface
         public void shareText(final String title, final String text) {
