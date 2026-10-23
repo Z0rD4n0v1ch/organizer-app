@@ -147,7 +147,7 @@ h2{font:500 16px/1.2 "Unbounded",system-ui,sans-serif;margin:26px 0 10px;display
 
 /* nav + fab */
 nav{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
-nav .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(5,1fr)}
+nav .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr)}
 nav button{border:0;background:transparent;padding:9px 0 11px;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;color:var(--muted)}
 nav button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8}
 nav button.on{color:var(--ink)}
@@ -243,6 +243,19 @@ textarea.field{min-height:120px;resize:vertical}
 .odoth img{width:100%;height:100%;object-fit:cover;display:block}
 .camic{display:inline-block;width:15px;height:15px;vertical-align:-2px;margin-left:6px;stroke:var(--muted);fill:none;stroke-width:2}
 .stat.wide{grid-column:1/-1}
+.blh{list-style:none;font:500 14px/1.2 "Unbounded",sans-serif;margin:18px 2px 2px;color:var(--muted)}
+.blh:first-child{margin-top:4px}
+.devname{color:var(--muted);margin:4px 0 8px}
+.specs{background:var(--surface);border-radius:16px;padding:2px 16px}
+.specs div{padding:10px 0;border-bottom:1px solid var(--line)}
+.specs div:last-child{border-bottom:0}
+.specs span{display:block;font-size:13px;color:var(--muted)}
+.specs b{display:block;font-weight:500;word-wrap:break-word}
+.facts{margin:0;padding:0 0 0 20px}
+.facts li{margin:0 0 8px;line-height:1.45}
+.doclinks{display:flex;flex-direction:column;gap:8px}
+.doclinks a{display:block;background:var(--surface);border-radius:14px;padding:12px 14px;color:var(--accent);text-decoration:none;font-weight:500;word-wrap:break-word}
+.eqtag{display:inline-block;font:500 11px "Golos Text",sans-serif;color:var(--accent);border:1.5px solid var(--accent);border-radius:6px;padding:0 5px;margin-left:6px;vertical-align:1px}
 .backup{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:30px}
 .sync{font-size:12px;color:var(--muted);text-align:center;margin-top:12px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -386,6 +399,22 @@ textarea.field{min-height:120px;resize:vertical}
     <ul class="list" id="tplList" style="margin-top:14px"></ul>
   </section>
 
+  <section class="view" id="v-bolid">
+    <h1>Болид</h1>
+    <p class="sub" id="blSub"></p>
+    <input class="search" id="blSearch" type="search" placeholder="Поиск: КДЛ, ДИП-34А, РИП-12 исп.50">
+    <div class="chips" id="blCats" style="margin-top:0"></div>
+    <ul class="list" id="blList"></ul>
+  </section>
+
+  <section class="view" id="v-dev">
+    <button class="back" id="devBack"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>Назад</button>
+    <span class="badge" id="devCat"></span>
+    <h1 id="devTitle" style="margin-top:10px"></h1>
+    <div id="devBody"></div>
+    <div class="actions" style="margin-top:18px"><button class="btn" id="devAdd">Добавить на объект</button></div>
+  </section>
+
   <section class="view" id="v-notes">
     <h1>Заметки</h1>
     <input class="search" id="noteSearch" type="search" placeholder="Поиск по заметкам">
@@ -409,6 +438,7 @@ textarea.field{min-height:120px;resize:vertical}
   <button data-v="objects"><svg viewBox="0 0 24 24"><path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-6h6v6M3 21h18"/></svg>Объекты</button>
   <button data-v="car"><svg viewBox="0 0 24 24"><path d="M3 16v-4l2-5h14l2 5v4z"/><path d="M3 12h18"/><circle cx="7.5" cy="16.5" r="1.8"/><circle cx="16.5" cy="16.5" r="1.8"/></svg>Авто</button>
   <button data-v="notes"><svg viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5z"/><path d="M15 3v4h4M8 12h8M8 16h5"/></svg>Заметки</button>
+  <button data-v="bolid"><svg viewBox="0 0 24 24"><path d="M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3z"/><path d="M5 17a3 3 0 013-3h11M9 8h6"/></svg>Болид</button>
 </div></nav>
 
 <div class="viewer" id="viewer" hidden>
@@ -543,7 +573,8 @@ textarea.field{min-height:120px;resize:vertical}
 
   <div class="form" id="fEq" hidden>
     <h3 id="fEqTitle">Оборудование</h3>
-    <input class="field" id="eq_name" placeholder="Модель, например: Рубеж-2ОП прот. R3" maxlength="120">
+    <input class="field" id="eq_name" placeholder="Модель, например: С2000-КДЛ" maxlength="120">
+    <div class="row" style="margin-top:-4px"><button class="seg" id="eqPick" type="button">Выбрать из справочника Болид</button><button class="link" id="eqDevLink" type="button" hidden></button></div>
     <input class="field" id="eq_place" placeholder="Где стоит: щитовая, 1 этаж" maxlength="120">
     <div class="two">
       <input class="field" id="eq_serial" placeholder="Серийный номер" maxlength="60">
@@ -563,6 +594,22 @@ textarea.field{min-height:120px;resize:vertical}
     <p class="lbl">Пункты, каждый с новой строки</p>
     <textarea class="field" id="tpItems" style="min-height:220px"></textarea>
     <div class="actions"><button class="btn ghost" id="tpDel" hidden>Удалить</button><button class="btn ghost" id="tpReset" style="color:var(--accent)" hidden>Как было</button><button class="btn" id="tpSave">Сохранить</button></div>
+  </div>
+
+  <div class="form" id="fPick" hidden>
+    <h3>Справочник Болид</h3>
+    <input class="field" id="pkSearch" type="search" placeholder="Начните вводить модель">
+    <ul class="list" id="pkList" style="max-height:52vh;overflow:auto"></ul>
+    <div class="actions" style="margin-top:12px"><button class="btn ghost" id="pkBack" style="color:var(--accent)">Назад</button></div>
+  </div>
+
+  <div class="form" id="fAddDev" hidden>
+    <h3>Добавить на объект</h3>
+    <p class="lbl">Прибор</p>
+    <p id="adDev" style="margin:0 0 12px;font-weight:600"></p>
+    <p class="lbl">Объект</p>
+    <select class="field" id="adObj"></select>
+    <div class="actions"><button class="btn" id="adGo">Продолжить</button></div>
   </div>
 
   <div class="form" id="fHours" hidden>
@@ -612,6 +659,7 @@ textarea.field{min-height:120px;resize:vertical}
   </div>
 </div>
 
+<script src="bolid.js"></script>
 <script>
 (function(){
 const KEY='organizer-v1';
@@ -1152,13 +1200,13 @@ function render(){if(ensureSvcTasks())save();renderRunbar();renderToday();render
 /* ---------- navigation ---------- */
 function showView(v){
   view=v;
-  const navKey={object:'objects',check:'objects',tpl:'objects'}[v]||v;
+  const navKey={object:'objects',check:'objects',tpl:'objects',dev:'bolid'}[v]||v;
   $$('nav button').forEach(x=>x.classList.toggle('on',x.dataset.v===navKey));
   $$('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));
-  $('#fab').hidden=(v==='check');
+  $('#fab').hidden=(v==='check'||v==='bolid'||v==='dev');
   window.scrollTo(0,0);
 }
-function go(v){showView(v)}
+function go(v){showView(v); if(v==='bolid') renderBolid();}
 $$('nav button').forEach(b=>b.onclick=()=>go(b.dataset.v));
 function bindChips(sel,set){$$(sel+' .chip').forEach(c=>c.onclick=()=>{set(c.dataset.f);$$(sel+' .chip').forEach(x=>x.classList.toggle('on',x===c));render();})}
 bindChips('#taskFilter',f=>taskFilter=f);
@@ -1383,7 +1431,7 @@ function renderSvc(o){
   o.equip.forEach(e=>{
     const li=document.createElement('li'), b=document.createElement('button'); b.className='log';
     const meta=[e.place,e.ip?'IP '+e.ip:'',e.serial?'S/N '+e.serial:''].filter(Boolean).join(', ');
-    b.innerHTML='<span class="tbody"><span class="ttl">'+esc(e.name)+'</span>'+(meta?'<span class="meta">'+esc(meta)+'</span>':'')+'</span>';
+    b.innerHTML='<span class="tbody"><span class="ttl">'+esc(e.name)+(e.bolid&&blById(e.bolid)?'<span class="eqtag">Болид</span>':'')+'</span>'+(meta?'<span class="meta">'+esc(meta)+'</span>':'')+'</span>';
     b.onclick=()=>openEq(e); li.appendChild(b); el.appendChild(li);
   });
 }
@@ -1406,10 +1454,11 @@ $('#svSave').onclick=()=>{
 
 /* equipment */
 let eqPassShown=false;
-function openEq(e){
+function openEq(e,preset){
   editing=e||null;
   $('#fEqTitle').textContent=e?'Оборудование':'Новое оборудование';
   ['name','place','serial','ip','login','pass','note'].forEach(k=>$('#eq_'+k).value=e?(e[k]||''):'');
+  eqBolid=e?(e.bolid||''):(preset?preset.id:''); if(preset&&!e) $('#eq_name').value=preset.m; syncEqBolid();
   eqPassShown=false; $('#eq_pass').type='password'; $('#eqShow').textContent='Показать';
   $('#eqDel').hidden=!e; openSheet('fEq');
 }
@@ -1419,6 +1468,7 @@ $('#eqSave').onclick=()=>{
   const o=objById(openObjId); if(!o) return;
   const d={}; ['name','place','serial','ip','login','pass','note'].forEach(k=>d[k]=$('#eq_'+k).value.trim());
   if(!d.name){$('#eq_name').focus();return}
+  const bd=eqBolid&&blById(eqBolid); d.bolid=bd?eqBolid:'';
   if(editing) Object.assign(editing,d); else o.equip.push(Object.assign({id:uid()},d));
   save(); renderObject(); closeSheet();
 };
@@ -1542,12 +1592,93 @@ $('#tpDel').onclick=()=>{if(!confirm('Удалить шаблон «'+tplKey+'»
 $('#tpReset').onclick=()=>{$('#tpItems').value=DEFAULT_TPL[tplKey].join('\n')};
 $('#tplBack').onclick=()=>{ if(tplFrom==='check'&&ck){showView('check');renderCheck()} else if(openObjId){showObject(openObjId)} else go('objects'); };
 
+/* ---------- Bolid catalog ---------- */
+const BL=window.BOLID||[], BLC=window.BOLID_CATS||[];
+const LAT2CYR={a:'а',b:'б',c:'с',d:'д',e:'е',f:'ф',g:'г',h:'х',i:'и',j:'й',k:'к',l:'л',m:'м',n:'н',o:'о',p:'п',q:'к',r:'р',s:'с',t:'т',u:'у',v:'в',w:'в',x:'х',y:'ы',z:'з'};
+function bnorm(s){return String(s||'').toLowerCase().replace(/ё/g,'е').replace(/[a-z]/g,ch=>LAT2CYR[ch]).replace(/[\s\-–—.,()«»"\/]/g,'')}
+BL.forEach(d=>{d._k=bnorm(d.m+' '+d.n); d._k2=bnorm(d.c+' '+d.p);});
+const blById=id=>BL.find(d=>d.id===id);
+function blSearch(q,cat){
+  const nq=bnorm(q);
+  let r=BL.filter(d=>(!cat||d.c===cat)&&(!nq||d._k.includes(nq)||d._k2.includes(nq)));
+  if(nq) r=r.sort((a,b)=>(b._k.startsWith(nq)-a._k.startsWith(nq))||(b._k.includes(nq)-a._k.includes(nq)));
+  return r;
+}
+let blCat='', devFrom='bolid';
+function blItem(d,onClick){
+  const li=document.createElement('li'), b=document.createElement('button'); b.className='log';
+  b.innerHTML='<span class="tbody"><span class="ttl">'+esc(d.m)+'</span><span class="meta">'+esc(d.p)+'</span></span>';
+  b.onclick=()=>onClick(d); li.appendChild(b); return li;
+}
+function renderBolid(){
+  const [y,m,dd]=(window.BOLID_DATE||'').split('-');
+  $('#blSub').textContent=BL.length+' приборов ИСО «Орион». Данные с bolid.ru'+(y?' на '+dd+'.'+m+'.'+y:'');
+  const chips=$('#blCats');
+  if(!chips.childElementCount){
+    chips.innerHTML='<button class="chip on" data-c="">Все</button>'+BLC.map(c=>'<button class="chip" data-c="'+esc(c)+'">'+esc(c)+'</button>').join('');
+    chips.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{blCat=c.dataset.c;chips.querySelectorAll('.chip').forEach(x=>x.classList.toggle('on',x===c));renderBolidList()});
+  }
+  renderBolidList();
+}
+function renderBolidList(){
+  const ul=$('#blList'); ul.innerHTML='';
+  const q=$('#blSearch').value, res=blSearch(q,blCat);
+  if(!res.length){ul.appendChild(emptyEl('Ничего не найдено. Попробуйте часть названия, например «КДЛ» или «РИП-12»'));return}
+  if(!q&&!blCat){
+    BLC.forEach(c=>{
+      const items=res.filter(d=>d.c===c); if(!items.length) return;
+      const h=document.createElement('li'); h.className='blh'; h.textContent=c; ul.appendChild(h);
+      items.forEach(d=>ul.appendChild(blItem(d,showDev)));
+    });
+  } else res.forEach(d=>ul.appendChild(blItem(d,showDev)));
+}
+$('#blSearch').oninput=renderBolidList;
+function showDev(d,from){
+  devFrom=from||view; const box=$('#devBody');
+  $('#devTitle').textContent=d.m; $('#devCat').textContent=d.c;
+  let h='<p class="devname">'+esc(d.n)+'</p><p>'+esc(d.p)+'</p>';
+  if(d.s&&d.s.length) h+='<h2>Характеристики</h2><div class="specs">'+d.s.map(r=>'<div><span>'+esc(r[0])+'</span><b>'+esc(r[1])+'</b></div>').join('')+'</div>';
+  if(d.u&&d.u.length) h+='<h2>Подключение и настройка</h2><ul class="facts">'+d.u.map(t=>'<li>'+esc(t)+'</li>').join('')+'</ul>';
+  h+='<h2>Документация</h2><div class="doclinks">'+(d.d||[]).map(x=>'<a href="'+esc(x[1])+'" target="_blank" rel="noopener">'+esc(x[0])+'</a>').join('')+'<a href="'+esc(d.url)+'" target="_blank" rel="noopener">Страница прибора на bolid.ru</a></div>';
+  h+='<p class="hint" style="margin-top:14px">Сведения перенесены с сайта производителя. Перед монтажом и проектированием сверяйтесь с актуальным руководством.</p>';
+  box.innerHTML=h;
+  $('#devAdd').onclick=()=>addDevToObject(d);
+  showView('dev');
+}
+$('#devBack').onclick=()=>{ if(devFrom==='object'&&openObjId) showObject(openObjId); else { showView('bolid'); } };
+
+/* add catalog device to an object */
+function addDevToObject(d){
+  const objs=state.objects.filter(o=>o.status!=='done');
+  if(!objs.length){alert('Сначала добавьте объект во вкладке «Объекты»');return}
+  $('#adObj').innerHTML=objs.map(o=>'<option value="'+o.id+'">'+esc(o.name)+'</option>').join('');
+  if(openObjId&&objs.some(o=>o.id===openObjId)) $('#adObj').value=openObjId;
+  $('#adDev').textContent=d.m; $('#adGo').onclick=()=>{ openObjId=$('#adObj').value; showObject(openObjId); openEq(null,d); };
+  openSheet('fAddDev');
+}
+
+/* picker inside equipment form */
+let eqBolid='';
+function renderPick(){
+  const ul=$('#pkList'); ul.innerHTML='';
+  const res=blSearch($('#pkSearch').value,'').slice(0,40);
+  if(!res.length){ul.appendChild(emptyEl('Ничего не найдено'));return}
+  res.forEach(d=>ul.appendChild(blItem(d,pickDev)));
+}
+function pickDev(d){ $('#eq_name').value=d.m; eqBolid=d.id; syncEqBolid(); openSheet('fEq'); }
+$('#pkSearch').oninput=renderPick;
+$('#eqPick').onclick=()=>{ $('#pkSearch').value=''; renderPick(); openSheet('fPick'); };
+$('#pkBack').onclick=()=>openSheet('fEq');
+function syncEqBolid(){ const d=eqBolid&&blById(eqBolid); $('#eqDevLink').hidden=!d; if(d) $('#eqDevLink').textContent='Карточка в справочнике: '+d.m; }
+$('#eqDevLink').onclick=()=>{ const d=blById(eqBolid); if(!d) return; closeSheet(); showDev(d,'object'); };
+
 /* android back button */
 window.androidBack=function(){
   if(!$('#viewer').hidden){closeViewer();return true}
   if($('#sheet').classList.contains('on')){closeSheet();return true}
   if(view==='check'){ckLeave();return true}
   if(view==='tpl'){$('#tplBack').click();return true}
+  if(view==='dev'){$('#devBack').click();return true}
   if(view==='object'){go('objects');return true}
   if(view!=='today'){go('today');return true}
   return false;
