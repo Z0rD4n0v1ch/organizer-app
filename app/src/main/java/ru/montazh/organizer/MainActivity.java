@@ -191,6 +191,22 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public int versionCode() { return currentVersion(); }
 
+        /* ---- отправка текста в мессенджер ---- */
+        @JavascriptInterface
+        public void shareText(final String title, final String text) {
+            runOnUiThread(() -> {
+                Intent i = new Intent(Intent.ACTION_SEND);
+                i.setType("text/plain");
+                i.putExtra(Intent.EXTRA_SUBJECT, title);
+                i.putExtra(Intent.EXTRA_TEXT, text);
+                try {
+                    startActivity(Intent.createChooser(i, "Отправить"));
+                } catch (Exception e) {
+                    Toast.makeText(MainActivity.this, "Нет приложения для отправки", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+
         /* ---- напоминания ---- */
         @JavascriptInterface
         public void setReminders(final String json) {

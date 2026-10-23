@@ -164,7 +164,7 @@ nav button.on svg{stroke:var(--accent)}
 .sheet.on{transform:none}
 .grab{width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 14px}
 .sheet h3{font:500 18px "Unbounded",sans-serif;margin:0 0 14px}
-.form[hidden]{display:none}
+.form[hidden],.fab[hidden]{display:none}
 .field{width:100%;border:1.5px solid var(--line);background:var(--bg);border-radius:14px;padding:12px 14px;margin-bottom:12px}
 textarea.field{min-height:120px;resize:vertical}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -210,6 +210,29 @@ textarea.field{min-height:120px;resize:vertical}
 .runbar span{flex:1;min-width:0;font-size:14px}
 .runbar b{display:block;font-size:15px}
 .runbar i{font-style:normal;font:700 18px "Unbounded",sans-serif;font-variant-numeric:tabular-nums}
+.svc{background:var(--surface);border-radius:16px;padding:14px 16px;margin-bottom:8px}
+.svc p{margin:0 0 12px;line-height:1.5}
+.svc .late{color:var(--red)}
+.svc .pbtns{margin-top:0}
+.svc .pbtns button{background:var(--bg)}
+.sum.late{color:var(--red)}
+.sum.okc{color:var(--low)}
+.hint{font-size:13px;color:var(--muted);margin:2px 0 0}
+.ckh{font:500 15px/1.2 "Unbounded",sans-serif;margin:22px 0 8px;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.ckh span{font:400 13px "Golos Text",sans-serif;color:var(--muted)}
+.ck{display:flex;gap:12px;align-items:flex-start;width:100%;text-align:left;border:0;background:var(--surface);border-radius:14px;padding:12px 14px;margin-bottom:6px}
+.ck .mk{flex:none;width:26px;height:26px;border-radius:50%;border:2px solid var(--muted);display:grid;place-items:center;font-weight:700;font-size:15px;line-height:1;color:#fff}
+.ck .mk svg{width:15px;height:15px;stroke:#fff}
+.ck.ok .mk{background:var(--low);border-color:var(--low)}
+.ck.fail{box-shadow:inset 4px 0 0 var(--red)}
+.ck.fail .mk{background:var(--red);border-color:var(--red)}
+.ck.na{opacity:.6}
+.ck.na .mk{border-style:dashed;color:var(--muted)}
+.ck .meta.late{color:var(--red)}
+.cksum{font-size:13px;color:var(--muted);margin:10px 2px 0}
+.pwrow{display:flex;gap:8px}
+.pwrow input{flex:1;min-width:0}
+.pwrow button{flex:none;margin-bottom:12px}
 .backup{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:30px}
 .sync{font-size:12px;color:var(--muted);text-align:center;margin-top:12px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -271,9 +294,15 @@ textarea.field{min-height:120px;resize:vertical}
     </div>
     <dl class="info" id="oInfo"></dl>
     <div class="systems" id="oSystems"></div>
+    <h2>Обслуживание <button class="link" id="oSvcSet">Настроить</button></h2>
+    <div class="svc" id="oSvc"></div>
+    <ul class="list" id="oJournal"></ul>
+    <button class="link" id="oTplLink" style="margin-top:6px">Шаблоны чек-листов</button>
+    <h2>Оборудование <button class="link" id="oAddEq">Добавить</button></h2>
+    <ul class="list" id="oEquip"></ul>
     <h2>Работы <button class="link" id="oAddTask">Добавить</button></h2>
     <ul class="list" id="oTasks"></ul>
-    <h2>Материалы и оборудование</h2>
+    <h2>Материалы</h2>
     <ul class="list" id="oMats"></ul>
     <form class="addrow" id="oMatForm"><input id="oMatInput" placeholder="Например: ИП 212-45, 12 шт" maxlength="160"><button>Добавить</button></form>
     <h2>Рабочее время <button class="link" id="oAddHours">Добавить вручную</button></h2>
@@ -311,6 +340,40 @@ textarea.field{min-height:120px;resize:vertical}
   </section>
 
   <!-- NOTES -->
+  <section class="view" id="v-check">
+    <button class="back" id="ckBack"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>К объекту</button>
+    <h1 id="ckTitle">ТО</h1>
+    <p class="sub" id="ckSub"></p>
+    <div class="row" id="ckKind" style="margin-top:14px">
+      <button class="seg" data-k="to">ТО</button>
+      <button class="seg" data-k="pnr">Пусконаладка</button>
+      <button class="seg" data-k="check">Проверка</button>
+    </div>
+    <p class="lbl">Дата</p>
+    <input class="field" type="date" id="ckDate">
+    <p class="lbl">Системы</p>
+    <div class="row" id="ckSys"></div>
+    <p class="hint">Нажмите на пункт: один раз, если в норме, второй, если есть замечание, третий, если не проверялось.</p>
+    <div id="ckItems"></div>
+    <form class="addrow" id="ckAddForm"><input id="ckAddInput" placeholder="Свой пункт" maxlength="160"><button>Добавить</button></form>
+    <p class="cksum" id="ckSum"></p>
+    <h2>Замечания</h2>
+    <textarea class="objnote" id="ckRemark" placeholder="Что неисправно, что заменили, что нужно докупить"></textarea>
+    <div class="actions" style="margin-top:14px">
+      <button class="btn ghost" id="ckDel" hidden>Удалить</button>
+      <button class="btn ghost" id="ckShare" style="color:var(--accent)">Отправить</button>
+      <button class="btn" id="ckSave">Сохранить</button>
+    </div>
+    <p style="margin:14px 0 0"><button class="link" id="ckTpl">Шаблоны чек-листов</button></p>
+  </section>
+
+  <section class="view" id="v-tpl">
+    <button class="back" id="tplBack"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>Назад</button>
+    <h1>Шаблоны</h1>
+    <p class="sub">Пункты чек-листов по системам. Подправьте под свой регламент ТО.</p>
+    <ul class="list" id="tplList" style="margin-top:14px"></ul>
+  </section>
+
   <section class="view" id="v-notes">
     <h1>Заметки</h1>
     <input class="search" id="noteSearch" type="search" placeholder="Поиск по заметкам">
@@ -438,6 +501,48 @@ textarea.field{min-height:120px;resize:vertical}
     <div class="actions"><button class="btn" id="crSave">Сохранить</button></div>
   </div>
 
+  <div class="form" id="fSvc" hidden>
+    <h3>График ТО</h3>
+    <p class="lbl">Как часто</p>
+    <div class="row" id="svEvery">
+      <button class="seg" data-m="1">Раз в месяц</button>
+      <button class="seg" data-m="3">Раз в квартал</button>
+      <button class="seg" data-m="6">Раз в полгода</button>
+      <button class="seg" data-m="12">Раз в год</button>
+      <button class="seg" data-m="0">Не обслуживаем</button>
+    </div>
+    <div id="svNextBlock">
+      <p class="lbl">Следующее ТО</p>
+      <input class="field" type="date" id="svNext">
+      <p class="hint" style="margin:-4px 0 14px">За неделю до даты появится задача, за 3 дня и в день ТО придёт уведомление.</p>
+    </div>
+    <div class="actions"><button class="btn" id="svSave">Сохранить</button></div>
+  </div>
+
+  <div class="form" id="fEq" hidden>
+    <h3 id="fEqTitle">Оборудование</h3>
+    <input class="field" id="eq_name" placeholder="Модель, например: Рубеж-2ОП прот. R3" maxlength="120">
+    <input class="field" id="eq_place" placeholder="Где стоит: щитовая, 1 этаж" maxlength="120">
+    <div class="two">
+      <input class="field" id="eq_serial" placeholder="Серийный номер" maxlength="60">
+      <input class="field" id="eq_ip" placeholder="IP-адрес" maxlength="60" inputmode="decimal">
+    </div>
+    <div class="two">
+      <input class="field" id="eq_login" placeholder="Логин" maxlength="60" autocomplete="off">
+      <div class="pwrow"><input class="field" id="eq_pass" type="password" placeholder="Пароль" maxlength="60" autocomplete="off"><button class="seg" id="eqShow" type="button">Показать</button></div>
+    </div>
+    <input class="field" id="eq_note" placeholder="Примечание: адрес в линии, версия ПО" maxlength="200">
+    <div class="actions"><button class="btn ghost" id="eqDel" hidden>Удалить</button><button class="btn" id="eqSave">Сохранить</button></div>
+  </div>
+
+  <div class="form" id="fTpl" hidden>
+    <h3 id="fTplTitle">Шаблон</h3>
+    <input class="field" id="tpName" placeholder="Система, например: СПС" maxlength="40">
+    <p class="lbl">Пункты, каждый с новой строки</p>
+    <textarea class="field" id="tpItems" style="min-height:220px"></textarea>
+    <div class="actions"><button class="btn ghost" id="tpDel" hidden>Удалить</button><button class="btn ghost" id="tpReset" style="color:var(--accent)" hidden>Как было</button><button class="btn" id="tpSave">Сохранить</button></div>
+  </div>
+
   <div class="form" id="fHours" hidden>
     <h3 id="fHoursTitle">Рабочее время</h3>
     <p class="lbl">Дата</p>
@@ -506,7 +611,8 @@ function normalize(s){
   s=Object.assign({tasks:[],notes:[],objects:[],car:{},carLog:[],hours:[],timer:null,updatedAt:0},s||{});
   ['tasks','notes','objects','carLog','hours'].forEach(k=>{if(!Array.isArray(s[k]))s[k]=[]});
   if(!s.car||typeof s.car!=='object')s.car={};
-  s.objects.forEach(o=>{if(!Array.isArray(o.mats))o.mats=[];if(!Array.isArray(o.systems))o.systems=[];if(!Array.isArray(o.photos))o.photos=[]});
+  s.objects.forEach(o=>{['mats','systems','photos','equip','checks'].forEach(k=>{if(!Array.isArray(o[k]))o[k]=[]});if(o.svc&&typeof o.svc!=='object')o.svc=null});
+  if(!s.tpl||typeof s.tpl!=='object')s.tpl={};
   if(s.timer&&(!s.timer.objId||!s.timer.start))s.timer=null;
   return s;
 }
@@ -555,6 +661,12 @@ function buildReminders(){
     const day=new Date(c[k]+'T09:00:00'), week=new Date(addDays(new Date(c[k]+'T12:00:00'),-7).setHours(9,0,0,0));
     if(week.getTime()>now) out.push({id:'car_'+k+'_w_'+c[k],at:week.getTime(),title:name+': осталась неделя',text:'Действует до '+fmtDate(c[k])+'. Пора продлить.'});
     if(day.getTime()>now) out.push({id:'car_'+k+'_d_'+c[k],at:day.getTime(),title:name+' заканчивается сегодня',text:'Не забудьте продлить '+name+'.'});
+  });
+  state.objects.forEach(o=>{
+    if(!(o.svc&&o.svc.every>0&&o.svc.next)||o.status==='done') return;
+    const n=o.svc.next, pre=new Date(addDays(new Date(n+'T12:00:00'),-3).setHours(9,0,0,0)), day=new Date(n+'T09:00:00');
+    if(pre.getTime()>now) out.push({id:'svc_'+o.id+'_p_'+n,at:pre.getTime(),title:'Через 3 дня ТО: '+o.name,text:fmtDate(n)+(o.addr?', '+o.addr:'')});
+    if(day.getTime()>now) out.push({id:'svc_'+o.id+'_d_'+n,at:day.getTime(),title:'Сегодня ТО: '+o.name,text:(o.addr||'')+(sysList(o).length?(o.addr?'. ':'')+sysList(o).join(', '):'')});
   });
   return out.sort((a,b)=>a.at-b.at).slice(0,200);
 }
@@ -608,8 +720,16 @@ function taskEl(t,{showDate=true,showObj=true}={}){
   const o=showObj&&t.objId&&objById(t.objId); if(o) parts.push(esc(o.name));
   li.innerHTML='<button class="chk" aria-label="Отметить">'+check+'</button><button class="tbody"><span class="ttl">'+esc(t.title)+'</span>'+
     (parts.length?'<span class="meta">'+parts.join(', ')+'</span>':'')+'</button>';
-  li.querySelector('.chk').onclick=()=>{t.done=!t.done;save();render();};
-  li.querySelector('.tbody').onclick=()=>openTask(t);
+  li.querySelector('.chk').onclick=()=>{
+    const o=t.svcObj&&objById(t.svcObj);
+    if(o&&!t.done){
+      if(confirm('Заполнить чек-лист ТО? «Отмена» просто отметит ТО выполненным.')){openCheck(o.id,'to');return}
+      o.checks.push({id:uid(),objId:o.id,kind:'to',date:todayISO(),systems:[],items:[],remark:'Отмечено без чек-листа',ts:Date.now()});
+      advanceSvc(o,todayISO()); ensureSvcTasks(); save(); render(); return;
+    }
+    t.done=!t.done;save();render();
+  };
+  li.querySelector('.tbody').onclick=()=>{ if(t.svcObj&&!t.done&&objById(t.svcObj)) openCheck(t.svcObj,'to'); else openTask(t); };
   return li;
 }
 function emptyEl(txt){const li=document.createElement('li');li.className='empty';li.textContent=txt;return li}
@@ -698,13 +818,12 @@ function renderObjects(){
     b.innerHTML='<div class="obj-top"><span class="obj-name">'+esc(o.name)+'</span><span class="badge '+o.status+'">'+STATUS[o.status]+'</span></div>'+
       (o.addr?'<span class="obj-addr">'+esc(o.addr)+'</span>':'')+
       (sysList(o).length?'<div class="systems">'+sysList(o).map(s=>'<span class="sys">'+esc(s)+'</span>').join('')+'</div>':'')+
-      '<div class="obj-foot"><span>Работ: '+open+'</span>'+(matsLeft?'<span>Докупить: '+matsLeft+'</span>':'')+(monthMins(o.id)?'<span>'+fmtMins(monthMins(o.id))+' за месяц</span>':'')+(state.timer&&state.timer.objId===o.id?'<span class="late">Идёт работа</span>':'')+dl+'</div>';
+      '<div class="obj-foot"><span>Работ: '+open+'</span>'+(matsLeft?'<span>Докупить: '+matsLeft+'</span>':'')+(monthMins(o.id)?'<span>'+fmtMins(monthMins(o.id))+' за месяц</span>':'')+(state.timer&&state.timer.objId===o.id?'<span class="late">Идёт работа</span>':'')+(o.svc&&o.svc.every>0&&o.svc.next&&o.status!=='done'?'<span'+(daysTo(o.svc.next)<=3?' class="late"':'')+'>ТО: '+esc(fmtDate(o.svc.next))+'</span>':'')+dl+'</div>';
     b.onclick=()=>showObject(o.id);
     li.appendChild(b); ul.appendChild(li);
   });
 }
-function showObject(id){openObjId=id;renderObject();
-  $$('.view').forEach(v=>v.classList.toggle('on',v.id==='v-object'));view='object';window.scrollTo(0,0);}
+function showObject(id){openObjId=id;showView('object');renderObject();}
 function renderObject(){
   const o=objById(openObjId);
   if(!o){ if(view==='object') go('objects'); return; }
@@ -732,7 +851,7 @@ function renderObject(){
     ml.appendChild(li);
   });
   if(document.activeElement!==$('#oNote')) $('#oNote').value=o.note||'';
-  renderTimer(o); renderHours(o); renderPhotos(o);
+  renderTimer(o); renderHours(o); renderPhotos(o); renderSvc(o);
 }
 let noteTimer=null;
 $('#oNote').oninput=e=>{const o=objById(openObjId); if(!o)return; o.note=e.target.value; clearTimeout(noteTimer); noteTimer=setTimeout(save,500);};
@@ -914,15 +1033,18 @@ function renderNotes(){
     b.onclick=()=>openNote(n); g.appendChild(b);
   });
 }
-function render(){renderRunbar();renderToday();renderTasks();renderObjects();renderObject();renderCar();renderNotes();}
+function render(){if(ensureSvcTasks())save();renderRunbar();renderToday();renderTasks();renderObjects();renderObject();renderCar();renderNotes();}
 
 /* ---------- navigation ---------- */
-function go(v){
+function showView(v){
   view=v;
-  $$('nav button').forEach(x=>x.classList.toggle('on',x.dataset.v===v));
+  const navKey={object:'objects',check:'objects',tpl:'objects'}[v]||v;
+  $$('nav button').forEach(x=>x.classList.toggle('on',x.dataset.v===navKey));
   $$('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));
+  $('#fab').hidden=(v==='check');
   window.scrollTo(0,0);
 }
+function go(v){showView(v)}
 $$('nav button').forEach(b=>b.onclick=()=>go(b.dataset.v));
 function bindChips(sel,set){$$(sel+' .chip').forEach(c=>c.onclick=()=>{set(c.dataset.f);$$(sel+' .chip').forEach(x=>x.classList.toggle('on',x===c));render();})}
 bindChips('#taskFilter',f=>taskFilter=f);
@@ -1004,7 +1126,7 @@ $('#obSave').onclick=()=>{
   const data={name,addr:$('#obAddr').value.trim(),contact:$('#obContact').value.trim(),phone:$('#obPhone').value.trim(),
     systems:fSys,sysOther:$('#obSysOther').value.trim(),status:fStatus,deadline:$('#obDeadline').value};
   if(editing) Object.assign(editing,data);
-  else{const o=Object.assign({id:uid(),mats:[],photos:[],note:''},data);state.objects.push(o);save();render();closeSheet();showObject(o.id);return}
+  else{const o=Object.assign({id:uid(),mats:[],photos:[],equip:[],checks:[],note:''},data);state.objects.push(o);save();render();closeSheet();showObject(o.id);return}
   save();render();closeSheet();
 };
 $('#obDel').onclick=()=>{
@@ -1079,13 +1201,238 @@ $('#fab').onclick=()=>{
   else if(view==='objects') openObj();
   else if(view==='object') openTask(null,openObjId);
   else if(view==='car') openLog();
+  else if(view==='tpl') openTplForm();
   else openTask();
 };
+
+/* ---------- service schedule, checklists, equipment ---------- */
+const DEFAULT_TPL={
+  'СПС':['Внешний осмотр ППКП, индикация без неисправностей','Основное и резервное питание, состояние АКБ','Шлейфы и адресные линии: нет обрывов и КЗ','Выборочная проверка дымовых и тепловых извещателей','Ручные пожарные извещатели','Передача извещений на пульт','Управление инженерными системами (вентиляция, клапаны, лифты)','Дата и время на приборе','Запись в журнал ТО на объекте'],
+  'СОУЭ':['Запуск оповещения от СПС','Звучание оповещателей во всех зонах','Речевое сообщение: разборчивость и громкость','Световые табло «Выход»','Линии оповещения: нет обрывов и КЗ','Резервное питание'],
+  'СОТС':['Постановка и снятие с охраны','Извещатели по всем зонам','Тревожные кнопки','Передача тревог на пульт','Сирены и световые оповещатели','Основное и резервное питание, АКБ'],
+  'СОТ':['Изображение со всех камер','Запись идёт, глубина архива в норме','Состояние жёстких дисков','Дата и время на регистраторе','Чистка объективов и кожухов','Удалённый доступ работает','Питание, ИБП'],
+  'СКУД':['Считыватели на всех точках прохода','Замки и доводчики','Кнопки выхода','Разблокировка дверей по пожарной тревоге','Связь контроллеров с сервером','База карт и пропусков актуальна','Резервное питание'],
+  'САДИС':['Связь оборудования с диспетчерской','Прохождение сигналов аварий','Работа датчиков','Линии связи','Электропитание, резерв'],
+  'АУПТ':['Давление в модулях и баллонах','Ручной и автоматический пуск (без выпуска ОТВ)','Табло «Газ, уходи», «Автоматика отключена»','Устройства блокировки пуска','Электропитание, резерв']
+};
+const KIND={to:'ТО',pnr:'Пусконаладка',check:'Проверка'};
+const PERIOD={1:'раз в месяц',3:'раз в квартал',6:'раз в полгода',12:'раз в год'};
+state.objects.forEach(o=>{['mats','systems','photos','equip','checks'].forEach(k=>{if(!Array.isArray(o[k]))o[k]=[]})});
+if(!state.tplSeeded){ state.tpl=Object.assign(JSON.parse(JSON.stringify(DEFAULT_TPL)),state.tpl||{}); state.tplSeeded=true; }
+function addMonths(s,m){const [y,mo,d]=s.split('-').map(Number);const dt=new Date(y,mo-1+m,1);const last=new Date(dt.getFullYear(),dt.getMonth()+1,0).getDate();dt.setDate(Math.min(d,last));return iso(dt)}
+function inDays(n){return n===0?'сегодня':n===1?'завтра':n<0?'просрочено на '+(-n)+' дн.':'через '+n+' дн.'}
+
+/* auto tasks for upcoming service */
+function ensureSvcTasks(){
+  let changed=false;
+  state.objects.forEach(o=>{
+    const open=state.tasks.filter(t=>t.svcObj===o.id&&!t.done);
+    const on=o.svc&&o.svc.every>0&&o.svc.next&&o.status!=='done';
+    if(!on||daysTo(o.svc.next)>7){
+      if(open.length){state.tasks=state.tasks.filter(t=>!open.includes(t));changed=true}
+      return;
+    }
+    if(!open.length){
+      state.tasks.push({id:uid(),title:'ТО: '+o.name,date:o.svc.next,prio:1,objId:o.id,svcObj:o.id,done:false,time:'',remind:-1});
+      changed=true;
+    } else open.forEach(t=>{ if(t.date!==o.svc.next){t.date=o.svc.next;changed=true} });
+  });
+  return changed;
+}
+function advanceSvc(o,runDate){
+  if(!(o.svc&&o.svc.every>0)) return;
+  let n=addMonths(o.svc.next||runDate,o.svc.every);
+  while(n<=runDate) n=addMonths(n,o.svc.every);
+  o.svc.next=n; o.svc.last=runDate;
+  state.tasks.forEach(t=>{if(t.svcObj===o.id&&!t.done){t.done=true;t.date=runDate}});
+}
+
+/* object card: service + journal + equipment */
+function renderSvc(o){
+  const box=$('#oSvc'), s=o.svc;
+  let txt;
+  if(s&&s.every>0&&s.next){
+    const n=daysTo(s.next);
+    txt='<p><b>ТО '+esc(PERIOD[s.every]||('раз в '+s.every+' мес.'))+'</b><br>Следующее: <span'+(n<=3?' class="late"':'')+'>'+esc(fmtDate(s.next)+', '+inDays(n))+'</span>'+(s.last?'<br><span class="meta">Последнее: '+esc(fmtDate(s.last))+'</span>':'')+'</p>';
+  } else txt='<p class="meta" style="margin-bottom:10px">График ТО не задан. Нажмите «Настроить», чтобы приложение само напоминало о плановом ТО.</p>';
+  box.innerHTML=txt+'<div class="pbtns"><button data-k="to">Провести ТО</button><button data-k="pnr">Пусконаладка</button></div>';
+  box.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>openCheck(o.id,b.dataset.k));
+  const jl=$('#oJournal'); jl.innerHTML='';
+  o.checks.slice().sort((a,b)=>cmp(b.date,a.date)||b.ts-a.ts).forEach(r=>{
+    const c=countRun(r), li=document.createElement('li'), b=document.createElement('button'); b.className='log';
+    b.innerHTML='<span class="tbody"><span class="ttl">'+esc(KIND[r.kind]+', '+fmtDate(r.date))+'</span><span class="meta">'+esc(r.systems.join(', ')+(r.systems.length?'. ':'')+'В норме: '+c.ok+(c.fail?', замечаний: '+c.fail:''))+'</span></span>'+(c.fail?'<span class="sum late">! '+c.fail+'</span>':'<span class="sum okc">✓</span>');
+    b.onclick=()=>openCheck(o.id,r.kind,r); li.appendChild(b); jl.appendChild(li);
+  });
+  const el=$('#oEquip'); el.innerHTML='';
+  if(!o.equip.length) el.appendChild(emptyEl('Запишите приборы: модель, где стоят, серийники и IP, чтобы через год не вспоминать'));
+  o.equip.forEach(e=>{
+    const li=document.createElement('li'), b=document.createElement('button'); b.className='log';
+    const meta=[e.place,e.ip?'IP '+e.ip:'',e.serial?'S/N '+e.serial:''].filter(Boolean).join(', ');
+    b.innerHTML='<span class="tbody"><span class="ttl">'+esc(e.name)+'</span>'+(meta?'<span class="meta">'+esc(meta)+'</span>':'')+'</span>';
+    b.onclick=()=>openEq(e); li.appendChild(b); el.appendChild(li);
+  });
+}
+
+/* service settings */
+let fEvery=1;
+const syncEvery=segGroup('#svEvery','m',()=>fEvery,v=>{fEvery=+v;$('#svNextBlock').hidden=!fEvery});
+$('#oSvcSet').onclick=()=>{
+  const o=objById(openObjId); if(!o) return;
+  fEvery=o.svc&&o.svc.every?o.svc.every:1; syncEvery(); $('#svNextBlock').hidden=!fEvery;
+  $('#svNext').value=o.svc&&o.svc.next?o.svc.next:todayISO();
+  openSheet('fSvc');
+};
+$('#svSave').onclick=()=>{
+  const o=objById(openObjId); if(!o) return;
+  if(!fEvery) o.svc=null;
+  else { const next=$('#svNext').value; if(!next){$('#svNext').focus();return} o.svc=Object.assign(o.svc||{},{every:fEvery,next}); }
+  ensureSvcTasks(); save(); render(); closeSheet();
+};
+
+/* equipment */
+let eqPassShown=false;
+function openEq(e){
+  editing=e||null;
+  $('#fEqTitle').textContent=e?'Оборудование':'Новое оборудование';
+  ['name','place','serial','ip','login','pass','note'].forEach(k=>$('#eq_'+k).value=e?(e[k]||''):'');
+  eqPassShown=false; $('#eq_pass').type='password'; $('#eqShow').textContent='Показать';
+  $('#eqDel').hidden=!e; openSheet('fEq');
+}
+$('#oAddEq').onclick=()=>openEq();
+$('#eqShow').onclick=()=>{eqPassShown=!eqPassShown;$('#eq_pass').type=eqPassShown?'text':'password';$('#eqShow').textContent=eqPassShown?'Скрыть':'Показать'};
+$('#eqSave').onclick=()=>{
+  const o=objById(openObjId); if(!o) return;
+  const d={}; ['name','place','serial','ip','login','pass','note'].forEach(k=>d[k]=$('#eq_'+k).value.trim());
+  if(!d.name){$('#eq_name').focus();return}
+  if(editing) Object.assign(editing,d); else o.equip.push(Object.assign({id:uid()},d));
+  save(); renderObject(); closeSheet();
+};
+$('#eqDel').onclick=()=>{const o=objById(openObjId); if(!o||!confirm('Удалить «'+editing.name+'»?'))return; o.equip=o.equip.filter(x=>x!==editing); save(); renderObject(); closeSheet();};
+
+/* checklist run */
+let ck=null, ckEdit=null, ckDirty=false;
+function countRun(r){let ok=0,fail=0,na=0,all=0;(r.items||[]).forEach(i=>{all++;if(i.s==='ok')ok++;else if(i.s==='fail')fail++;else if(i.s==='na')na++});return{ok,fail,na,all}}
+function itemsFor(sys){return (state.tpl[sys]||[]).map(t=>({sys,t,s:''}))}
+function openCheck(objId,kind,rec){
+  const o=objById(objId); if(!o) return;
+  ckEdit=rec||null; ckDirty=false;
+  if(rec) ck=JSON.parse(JSON.stringify(rec));
+  else {
+    const sys=sysList(o).filter(s=>state.tpl[s]);
+    ck={id:uid(),objId,kind:kind||'to',date:todayISO(),systems:sys,items:[].concat(...sys.map(itemsFor)),remark:'',ts:Date.now()};
+  }
+  showView('check'); renderCheck();
+}
+const syncKind=segGroup('#ckKind','k',()=>ck&&ck.kind,v=>{ck.kind=v;ckDirty=true;renderCheckHead()});
+function renderCheckHead(){
+  const o=objById(ck.objId);
+  $('#ckTitle').textContent=KIND[ck.kind]; $('#ckSub').textContent=o?o.name+(o.addr?', '+o.addr:''):'';
+  syncKind();
+}
+function renderCheck(){
+  const o=objById(ck.objId); renderCheckHead();
+  $('#ckDate').value=ck.date; $('#ckRemark').value=ck.remark||''; $('#ckDel').hidden=!ckEdit;
+  const all=Array.from(new Set(sysList(o).concat(Object.keys(state.tpl)).concat(ck.systems)));
+  $('#ckSys').innerHTML=all.map(s=>'<button class="seg'+(ck.systems.includes(s)?' on':'')+'" data-s="'+esc(s)+'">'+esc(s)+'</button>').join('');
+  $$('#ckSys .seg').forEach(b=>b.onclick=()=>{
+    const s=b.dataset.s; ckDirty=true;
+    if(ck.systems.includes(s)){
+      if(ck.items.some(i=>i.sys===s&&i.s)&&!confirm('Убрать '+s+' вместе с отметками?'))return;
+      ck.systems=ck.systems.filter(x=>x!==s); ck.items=ck.items.filter(i=>i.sys!==s);
+    } else { ck.systems.push(s); ck.items=ck.items.concat(itemsFor(s)); if(!state.tpl[s]) alert('Для '+s+' нет шаблона. Добавьте пункты ниже или заведите шаблон в «Шаблоны чек-листов».'); }
+    renderCheck();
+  });
+  renderCkItems();
+}
+function renderCkItems(){
+  const box=$('#ckItems'); box.innerHTML='';
+  const groups=[]; ck.items.forEach(i=>{let g=groups.find(x=>x.sys===i.sys);if(!g){g={sys:i.sys,items:[]};groups.push(g)}g.items.push(i)});
+  if(!groups.length){box.innerHTML='<div class="empty" style="margin-top:12px">Выберите системы выше или добавьте свой пункт</div>';}
+  groups.forEach(g=>{
+    const done=g.items.filter(i=>i.s).length;
+    const h=document.createElement('h3'); h.className='ckh'; h.innerHTML=esc(g.sys)+'<span>'+done+' из '+g.items.length+'</span>'; box.appendChild(h);
+    g.items.forEach(i=>{
+      const b=document.createElement('button'); b.className='ck '+(i.s||'');
+      const mk=i.s==='ok'?check:i.s==='fail'?'!':i.s==='na'?'–':'';
+      const lbl=i.s==='fail'?'<span class="meta late">Замечание</span>':i.s==='na'?'<span class="meta">Не проверялось</span>':'';
+      b.innerHTML='<span class="mk">'+mk+'</span><span class="tbody"><span class="ttl">'+esc(i.t)+'</span>'+lbl+'</span>';
+      b.onclick=()=>{i.s={'':'ok',ok:'fail',fail:'na',na:''}[i.s||''];ckDirty=true;renderCkItems()};
+      box.appendChild(b);
+    });
+  });
+  const c=countRun(ck);
+  $('#ckSum').textContent=c.all?('В норме: '+c.ok+', замечаний: '+c.fail+(c.na?', не проверялось: '+c.na:'')+', не отмечено: '+(c.all-c.ok-c.fail-c.na)):'';
+}
+$('#ckDate').onchange=e=>{ck.date=e.target.value||todayISO();ckDirty=true};
+$('#ckRemark').oninput=e=>{ck.remark=e.target.value;ckDirty=true};
+$('#ckAddForm').onsubmit=e=>{e.preventDefault();const v=$('#ckAddInput').value.trim();if(!v)return;ck.items.push({sys:'Дополнительно',t:v,s:''});$('#ckAddInput').value='';ckDirty=true;renderCkItems()};
+function ckLeave(){ if(ckDirty&&!confirm('Выйти без сохранения?')) return false; const id=ck.objId; ck=null; showObject(id); return true; }
+$('#ckBack').onclick=ckLeave;
+$('#ckSave').onclick=()=>{
+  const o=objById(ck.objId); if(!o) return;
+  const c=countRun(ck);
+  if(c.all&&c.ok+c.fail+c.na<c.all&&!confirm('Отмечены не все пункты. Сохранить так?')) return;
+  ck.remark=$('#ckRemark').value.trim();
+  if(ckEdit) Object.assign(ckEdit,ck);
+  else { o.checks.push(ck); if(ck.kind==='to') advanceSvc(o,ck.date); }
+  ensureSvcTasks(); save(); ckDirty=false; const id=ck.objId; ck=null; showObject(id); render();
+};
+$('#ckDel').onclick=()=>{
+  if(!ckEdit||!confirm('Удалить эту запись из журнала?')) return;
+  const o=objById(ck.objId); o.checks=o.checks.filter(x=>x!==ckEdit); save(); ckDirty=false; const id=ck.objId; ck=null; showObject(id);
+};
+function runText(r){
+  const o=objById(r.objId)||{}; const [y,m,d]=r.date.split('-');
+  const L=[KIND[r.kind]+', '+d+'.'+m+'.'+y,'Объект: '+(o.name||'')]; if(o.addr) L.push('Адрес: '+o.addr);
+  let cur=null;
+  r.items.forEach(i=>{ if(i.sys!==cur){cur=i.sys;L.push('',i.sys)} L.push((i.s==='ok'?'✅ ':i.s==='fail'?'❌ ':'➖ ')+i.t+(i.s==='na'?' (не проверялось)':!i.s?' (не отмечено)':'')); });
+  const c=countRun(r); L.push('','Итог: в норме '+c.ok+', замечаний '+c.fail+'.');
+  if(r.remark) L.push('Замечания: '+r.remark);
+  return L.join('\n');
+}
+function shareText(title,text){
+  if(window.Android&&Android.shareText){Android.shareText(title,text);return}
+  if(navigator.share){navigator.share({title,text}).catch(()=>{});return}
+  try{navigator.clipboard.writeText(text);alert('Текст скопирован')}catch(e){alert(text)}
+}
+$('#ckShare').onclick=()=>{ck.remark=$('#ckRemark').value.trim();shareText(KIND[ck.kind],runText(ck))};
+
+/* templates */
+let tplFrom='check';
+function showTpl(){ tplFrom=view; showView('tpl'); renderTpl(); }
+$('#ckTpl').onclick=showTpl; $('#oTplLink').onclick=showTpl;
+function renderTpl(){
+  const ul=$('#tplList'); ul.innerHTML='';
+  const keys=Object.keys(state.tpl);
+  if(!keys.length) ul.appendChild(emptyEl('Шаблонов нет. Нажмите «+», чтобы добавить'));
+  keys.forEach(k=>{
+    const li=document.createElement('li'), b=document.createElement('button'); b.className='log';
+    b.innerHTML='<span class="tbody"><span class="ttl">'+esc(k)+'</span><span class="meta">Пунктов: '+state.tpl[k].length+'</span></span>';
+    b.onclick=()=>openTplForm(k); li.appendChild(b); ul.appendChild(li);
+  });
+}
+let tplKey=null;
+function openTplForm(k){
+  tplKey=k||null; $('#fTplTitle').textContent=k?'Шаблон':'Новый шаблон';
+  $('#tpName').value=k||''; $('#tpItems').value=k?state.tpl[k].join('\n'):''; $('#tpDel').hidden=!k;
+  $('#tpReset').hidden=!(k&&DEFAULT_TPL[k]); openSheet('fTpl');
+}
+$('#tpSave').onclick=()=>{
+  const name=$('#tpName').value.trim(), items=$('#tpItems').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  if(!name){$('#tpName').focus();return}
+  if(tplKey&&tplKey!==name) delete state.tpl[tplKey];
+  state.tpl[name]=items; save(); renderTpl(); closeSheet();
+};
+$('#tpDel').onclick=()=>{if(!confirm('Удалить шаблон «'+tplKey+'»?'))return;delete state.tpl[tplKey];save();renderTpl();closeSheet()};
+$('#tpReset').onclick=()=>{$('#tpItems').value=DEFAULT_TPL[tplKey].join('\n')};
+$('#tplBack').onclick=()=>{ if(tplFrom==='check'&&ck){showView('check');renderCheck()} else if(openObjId){showObject(openObjId)} else go('objects'); };
 
 /* android back button */
 window.androidBack=function(){
   if(!$('#viewer').hidden){closeViewer();return true}
   if($('#sheet').classList.contains('on')){closeSheet();return true}
+  if(view==='check'){ckLeave();return true}
+  if(view==='tpl'){$('#tplBack').click();return true}
   if(view==='object'){go('objects');return true}
   if(view!=='today'){go('today');return true}
   return false;
