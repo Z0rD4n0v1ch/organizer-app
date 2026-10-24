@@ -284,6 +284,25 @@ textarea.field{min-height:120px;resize:vertical}
 .bars .leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .rem.tap{cursor:pointer}
 .wrap{position:relative}
+.mncard{background:var(--surface);border-radius:20px;padding:16px 18px;margin-top:16px}
+.mncard>b{display:block;font:700 30px/1.15 "Unbounded",sans-serif;margin:4px 0 10px}
+.mncard>b.neg,.byline b.neg,#byLeft.neg{color:var(--red)}
+.mnparts{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:13px;color:var(--muted)}
+.mnparts b{color:var(--ink);font-weight:600}
+.trform{background:var(--surface);border-radius:16px;padding:12px 12px 12px}
+.trform .field{background:var(--bg)}
+.trform .btn,#mnTrip>.btn{width:100%}
+.trcard{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--surface);border-radius:16px;padding:14px 16px;margin-bottom:10px;border-left:4px solid var(--accent)}
+.trcard b{display:block}.trcard .meta{display:block;margin:2px 0 0}
+.trsum{text-align:right;font-weight:600;white-space:nowrap}.trsum small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+.log .sum.plus{color:#2E9E5B}
+.byrow{display:grid;grid-template-columns:1fr 110px 36px;gap:6px;align-items:start}
+.byrow .field{margin-bottom:8px}
+.byx{border:0;background:transparent;font-size:24px;line-height:44px;color:var(--muted);padding:0}
+.bytot{background:var(--bg);border-radius:14px;padding:10px 14px;margin:0 0 14px}
+.bytot:empty{display:none}
+.byline{display:flex;justify-content:space-between;gap:10px;padding:4px 0;font-size:14px}
+.byline.big{font-size:16px}.byline.big b{font:600 18px "Unbounded",sans-serif}
 #v-today>.upd,#v-today>.install,#v-today>.runbar{margin-top:14px}
 .gear{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:10px;width:42px;height:42px;border:0;border-radius:12px;background:transparent;display:grid;place-items:center;z-index:5;color:var(--muted)}
 .gear svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.7}
@@ -533,6 +552,24 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <div class="actions" style="margin-top:18px"><button class="btn" id="devAdd">Добавить на объект</button></div>
   </section>
 
+  <section class="view" id="v-money">
+    <h1>Расходы</h1>
+    <div class="mncard">
+      <span class="lbl" style="margin:0">Остаток общей суммы</span>
+      <b id="mnLeft">0 ₽</b>
+      <div class="mnparts" id="mnParts"></div>
+    </div>
+    <h2>Командировка</h2>
+    <div id="mnTrip"></div>
+    <h2>Покупки</h2>
+    <ul class="list" id="mnBuys"></ul>
+    <h2 id="mnTripsH" hidden>Командировки</h2>
+    <ul class="list" id="mnTrips"></ul>
+    <h2>Получено от организации <button class="link" id="mnAdvAdd">Добавить</button></h2>
+    <ul class="list" id="mnAdv"></ul>
+    <div class="pbtns" style="margin-top:14px"><button id="mnReport"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/></svg>Отправить отчёт о расходах</button></div>
+  </section>
+
   <section class="view" id="v-notes">
     <h1>Заметки</h1>
     <input class="search" id="noteSearch" type="search" placeholder="Поиск по заметкам">
@@ -548,6 +585,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
   <button data-v="tasks"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>Задачи</button>
   <button data-v="objects"><svg viewBox="0 0 24 24"><path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-6h6v6M3 21h18"/></svg>Объекты</button>
   <button data-v="car"><svg viewBox="0 0 24 24"><path d="M3 16v-4l2-5h14l2 5v4z"/><path d="M3 12h18"/><circle cx="7.5" cy="16.5" r="1.8"/><circle cx="16.5" cy="16.5" r="1.8"/></svg>Авто</button>
+  <button data-v="money"><svg viewBox="0 0 24 24"><path d="M4 7h14a2 2 0 012 2v9a2 2 0 01-2 2H6a2 2 0 01-2-2z"/><path d="M4 7l11-3v3M16 13.5h.01"/></svg>Расходы</button>
   <button data-v="catalog"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h4M7 14h2M15 10.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3zM8 6V4M16 6V4"/></svg>Справочник</button>
   <button data-v="notes"><svg viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5z"/><path d="M15 3v4h4M8 12h8M8 16h5"/></svg>Заметки</button>
 
@@ -764,6 +802,54 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <div class="actions"><button class="btn ghost" id="kmDel" hidden>Удалить</button><button class="btn" id="kmSave">Сохранить</button></div>
     <button class="btn ghost plain tgbtn" id="kmSend"><svg viewBox="0 0 24 24"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/><path d="M9 13l12-9"/></svg>Сохранить и отправить в Telegram</button>
     <p class="hint" style="text-align:center;margin:8px 0 0"><button class="link" type="button" id="kmTgSet">Настроить Telegram-бота</button></p>
+  </div>
+
+  <div class="form" id="fBuy" hidden>
+    <h3 id="fBuyTitle">Новая покупка</h3>
+    <input class="field" type="date" id="byDate" aria-label="Дата">
+    <div class="phblock" id="byPhBlock">
+      <p class="lbl">Фото чека</p>
+      <div class="phprev" id="byPhoto" hidden></div>
+      <div class="pbtns" style="margin:0 0 14px">
+        <button type="button" id="byCam"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Сфотографировать</button>
+        <button type="button" id="byGal"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>Из галереи</button>
+      </div>
+      <input type="file" id="byCamInput" accept="image/*" capture="environment" hidden>
+      <input type="file" id="byGalInput" accept="image/*" hidden>
+    </div>
+    <p class="lbl">Что купили</p>
+    <div id="byItems"></div>
+    <datalist id="byNames"></datalist>
+    <button class="seg" type="button" id="byAddRow" style="margin:0 0 14px">+ Добавить позицию</button>
+    <div class="bytot">
+      <div class="byline big"><span>Итого по чеку</span><b id="byTotal">0 ₽</b></div>
+      <div class="byline"><span>Остаток общей суммы</span><b id="byLeft">0 ₽</b></div>
+    </div>
+    <div class="actions"><button class="btn ghost" id="byDel" hidden>Удалить</button><button class="btn" id="bySave">Сохранить</button></div>
+  </div>
+
+  <div class="form" id="fAdv" hidden>
+    <h3 id="fAdvTitle">Получено от организации</h3>
+    <div class="two">
+      <input class="field" type="text" inputmode="decimal" autocomplete="off" id="avSum" placeholder="Сумма, ₽">
+      <input class="field" type="date" id="avDate" aria-label="Дата">
+    </div>
+    <input class="field" id="avNote" placeholder="Комментарий: аванс, на материалы…" maxlength="120">
+    <div class="actions"><button class="btn ghost" id="avDel" hidden>Удалить</button><button class="btn" id="avSave">Сохранить</button></div>
+  </div>
+
+  <div class="form" id="fTrp" hidden>
+    <h3 id="fTrpTitle">Командировка</h3>
+    <div class="two">
+      <input class="field" id="ktCity" placeholder="Город" maxlength="60">
+      <input class="field" type="text" inputmode="decimal" autocomplete="off" id="ktRate" placeholder="Суточные, ₽">
+    </div>
+    <div class="two">
+      <div><p class="lbl">Начало</p><input class="field" type="date" id="ktStart"></div>
+      <div><p class="lbl">Конец</p><input class="field" type="date" id="ktEnd"></div>
+    </div>
+    <div class="bytot" id="ktRes"></div>
+    <div class="actions"><button class="btn ghost" id="ktDel" hidden>Удалить</button><button class="btn" id="ktSave">Завершить командировку</button></div>
   </div>
 
   <div class="form" id="fDay" hidden>
@@ -983,6 +1069,8 @@ function normalize(s){
   if(!s.car||typeof s.car!=='object')s.car={};
   if(!Array.isArray(s.car.maint))s.car.maint=[];
   if(!s.car.docs||typeof s.car.docs!=='object')s.car.docs={};
+  if(!s.money||typeof s.money!=='object')s.money={};
+  ['adv','buys','trips'].forEach(k=>{if(!Array.isArray(s.money[k]))s.money[k]=[]});
   s.objects.forEach(o=>{['mats','systems','photos','equip','checks'].forEach(k=>{if(!Array.isArray(o[k]))o[k]=[]});if(o.svc&&typeof o.svc!=='object')o.svc=null});
   if(!s.tpl||typeof s.tpl!=='object')s.tpl={};
   if(s.timer&&(!s.timer.objId||!s.timer.start))s.timer=null;
@@ -1710,6 +1798,156 @@ function renderOdoDays(){
 }
 let odoAll=false;
 
+/* ---------- вкладка «Расходы»: выдано организацией, покупки по чекам, командировки ---------- */
+function mon(){ if(!state.money||typeof state.money!=='object') state.money={}; const m=state.money; ['adv','buys','trips'].forEach(k=>{ if(!Array.isArray(m[k])) m[k]=[]; }); return m; }
+const rub=n=>{ const v=Math.abs(Math.round((+n||0)*100)/100); return (n<0&&v?'−':'')+v.toLocaleString('ru-RU',v%1?{minimumFractionDigits:2,maximumFractionDigits:2}:{maximumFractionDigits:0})+' ₽'; };
+const buyTotal=b=>(b.items||[]).reduce((s,i)=>s+(+i.sum||0),0);
+function tripDays(t,toDate){ const a=new Date(t.start+'T12:00:00'), b=new Date((t.end||toDate||todayISO())+'T12:00:00'); return Math.max(1,Math.round((b-a)/86400e3)+1); }
+const tripSumDiem=(t,toDate)=>tripDays(t,toDate)*(+t.rate||0);
+function moneyTotals(){
+  const m=mon(), adv=m.adv.reduce((s,a)=>s+(+a.sum||0),0), buys=m.buys.reduce((s,b)=>s+buyTotal(b),0), diem=m.trips.reduce((s,t)=>s+tripSumDiem(t),0);
+  return {adv,buys,diem,left:adv-buys-diem};
+}
+const activeTrip=()=>mon().trips.find(t=>!t.end)||null;
+function dRange(a,b){ const f=d=>new Date(d+'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'short'}); return a===b?f(a):f(a)+' — '+f(b); }
+
+function renderMoney(){
+  const m=mon(), T=moneyTotals();
+  $('#mnLeft').textContent=rub(T.left); $('#mnLeft').classList.toggle('neg',T.left<0);
+  $('#mnParts').innerHTML='<span>Выдано <b>'+rub(T.adv)+'</b></span><span>Покупки <b>'+rub(T.buys)+'</b></span><span>Суточные <b>'+rub(T.diem)+'</b></span>';
+  // командировка
+  const at=activeTrip(), tb=$('#mnTrip');
+  if(at){ const d=tripDays(at);
+    tb.innerHTML='<div class="trcard on"><div><b>Командировка: '+esc(at.city||'—')+'</b><span class="meta">с '+esc(new Date(at.start+'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'long'}))+' · '+rub(at.rate)+' в сутки · идёт '+d+'-й день</span></div><div class="trsum">'+rub(tripSumDiem(at))+'<small>начислено</small></div></div>'+
+      '<button class="btn" id="mnTripEnd">Конец командировки</button>';
+    $('#mnTripEnd').onclick=()=>openTripEnd(at);
+  } else {
+    tb.innerHTML='<div class="trform"><div class="two"><input class="field" id="mnCity" placeholder="Город" maxlength="60" list="mnCities" autocapitalize="words"><input class="field" type="text" inputmode="decimal" autocomplete="off" id="mnRate" placeholder="Суточные, ₽"></div>'+
+      '<datalist id="mnCities">'+[...new Set(m.trips.map(t=>t.city).filter(Boolean))].map(c=>'<option value="'+esc(c)+'">').join('')+'</datalist>'+
+      '<button class="btn" id="mnTripStart">Начало командировки</button></div>';
+    const last=m.trips[m.trips.length-1]; if(last&&last.rate) $('#mnRate').value=last.rate;
+    $('#mnTripStart').onclick=()=>{
+      const city=$('#mnCity').value.trim(), rate=parseFloat(String($('#mnRate').value).replace(',','.'))||0;
+      if(!city){ $('#mnCity').focus(); return; } if(!(rate>0)){ $('#mnRate').focus(); return; }
+      m.trips.push({id:uid(),city,rate,start:todayISO(),end:''}); save(); renderMoney();
+    };
+  }
+  // покупки
+  const bl=$('#mnBuys'); bl.innerHTML='';
+  const buys=m.buys.slice().sort((a,b)=>cmp(b.date,a.date)||(b.ts||0)-(a.ts||0));
+  if(!buys.length) bl.appendChild(emptyEl('Покупок пока нет. Нажмите «+», сфотографируйте чек и впишите позиции'));
+  buys.forEach(b=>{
+    const li=document.createElement('li'), x=document.createElement('button'); x.className='log';
+    const names=(b.items||[]).map(i=>i.name).filter(Boolean);
+    x.innerHTML=(b.photo&&PHOTO?'<span class="odoth"><img loading="lazy" alt="" src="'+PH.url(b.photo)+'"></span>':'<span class="ic"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg></span>')+
+      '<span class="tbody"><span class="ttl">'+esc(names.length?names[0]+(names.length>1?' и ещё '+(names.length-1):''):'Покупка')+'</span><span class="meta">'+esc(fmtDate(b.date)+((b.items||[]).length>1?', позиций: '+b.items.length:'')+(b.photo?'':', без чека'))+'</span></span><span class="sum">'+rub(buyTotal(b))+'</span>';
+    x.onclick=()=>openBuy(b); li.appendChild(x); bl.appendChild(li);
+  });
+  // завершённые командировки
+  const tl=$('#mnTrips'); tl.innerHTML='';
+  const done=m.trips.filter(t=>t.end).sort((a,b)=>cmp(b.start,a.start));
+  $('#mnTripsH').hidden=!done.length;
+  done.forEach(t=>{
+    const li=document.createElement('li'), x=document.createElement('button'); x.className='log';
+    x.innerHTML='<span class="ic"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0119 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span><span class="tbody"><span class="ttl">'+esc(t.city||'Командировка')+'</span><span class="meta">'+esc(dRange(t.start,t.end)+' · '+tripDays(t)+' '+plural(tripDays(t),'сутки','суток','суток')+' × '+rub(t.rate))+'</span></span><span class="sum">'+rub(tripSumDiem(t))+'</span>';
+    x.onclick=()=>openTripEdit(t); li.appendChild(x); tl.appendChild(li);
+  });
+  // выдачи
+  const al=$('#mnAdv'); al.innerHTML='';
+  if(!m.adv.length) al.appendChild(emptyEl('Нажмите «Добавить» и укажите сумму, которую выдала организация'));
+  m.adv.slice().sort((a,b)=>cmp(b.date,a.date)).forEach(a=>{
+    const li=document.createElement('li'), x=document.createElement('button'); x.className='log';
+    x.innerHTML='<span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg></span><span class="tbody"><span class="ttl">'+esc(a.note||'Выдано организацией')+'</span><span class="meta">'+esc(fmtDate(a.date))+'</span></span><span class="sum plus">+'+rub(a.sum)+'</span>';
+    x.onclick=()=>openAdv(a); li.appendChild(x); al.appendChild(li);
+  });
+}
+
+/* выдано организацией */
+let advEdit=null;
+function openAdv(a){ advEdit=a||null; $('#fAdvTitle').textContent=a?'Выдано организацией':'Получено от организации';
+  $('#avSum').value=a?a.sum:''; $('#avDate').value=a?a.date:todayISO(); $('#avNote').value=a?(a.note||''):''; $('#avDel').hidden=!a; openSheet('fAdv'); }
+$('#avSave').onclick=()=>{ const sum=parseFloat(String($('#avSum').value).replace(',','.')); if(!(sum>0)){ $('#avSum').focus(); return; }
+  const d={sum,date:$('#avDate').value||todayISO(),note:$('#avNote').value.trim()};
+  if(advEdit) Object.assign(advEdit,d); else mon().adv.push(Object.assign({id:uid()},d)); save(); renderMoney(); closeSheet(); };
+$('#avDel').onclick=()=>{ if(!advEdit||!confirm('Удалить эту выдачу?')) return; const m=mon(); m.adv=m.adv.filter(x=>x!==advEdit); save(); renderMoney(); closeSheet(); };
+$('#mnAdvAdd').onclick=()=>openAdv();
+
+/* покупка по чеку */
+const byPick=photoPicker('by');
+let buyEdit=null;
+function buyRow(it){
+  const r=document.createElement('div'); r.className='byrow';
+  r.innerHTML='<input class="field byname" placeholder="Наименование" maxlength="120" list="byNames"><input class="field bysum" type="text" inputmode="decimal" autocomplete="off" placeholder="Сумма, ₽"><button type="button" class="byx" aria-label="Убрать позицию">×</button>';
+  r.querySelector('.byname').value=it?it.name||'':''; r.querySelector('.bysum').value=it&&it.sum?it.sum:'';
+  r.querySelector('.bysum').addEventListener('input',buyCalc);
+  r.querySelector('.byx').onclick=()=>{ if($$('#byItems .byrow').length>1) r.remove(); else { r.querySelector('.byname').value=''; r.querySelector('.bysum').value=''; } buyCalc(); };
+  $('#byItems').appendChild(r); return r;
+}
+function buyRows(){ return [...$$('#byItems .byrow')].map(r=>({name:r.querySelector('.byname').value.trim(),sum:parseFloat(String(r.querySelector('.bysum').value).replace(',','.'))||0})); }
+function buyCalc(){
+  const tot=buyRows().reduce((s,i)=>s+i.sum,0), T=moneyTotals(), was=buyEdit?buyTotal(buyEdit):0, left=T.left+was-tot;
+  $('#byTotal').textContent=rub(tot); $('#byLeft').textContent=rub(left); $('#byLeft').classList.toggle('neg',left<0);
+}
+function openBuy(b){
+  buyEdit=b||null; $('#fBuyTitle').textContent=b?'Покупка':'Новая покупка';
+  $('#byDate').value=b?b.date:todayISO(); byPick.set(b?b.photo:null);
+  const names=[...new Set(mon().buys.flatMap(x=>(x.items||[]).map(i=>i.name)).filter(Boolean))].slice(0,200);
+  $('#byNames').innerHTML=names.map(n=>'<option value="'+esc(n)+'">').join('');
+  $('#byItems').innerHTML=''; ((b&&b.items&&b.items.length)?b.items:[null]).forEach(buyRow);
+  $('#byDel').hidden=!b; buyCalc(); openSheet('fBuy');
+}
+$('#byAddRow').onclick=()=>{ const r=buyRow(null); buyCalc(); setTimeout(()=>r.querySelector('.byname').focus(),50); };
+$('#bySave').onclick=()=>{
+  const items=buyRows().filter(i=>i.name||i.sum);
+  if(!items.length){ $('#byItems .byname').focus(); return; }
+  const bad=items.find(i=>!(i.sum>0)); if(bad&&!confirm('У позиции «'+(bad.name||'без названия')+'» не указана сумма. Сохранить так?')) return;
+  const d={date:$('#byDate').value||todayISO(),photo:byPick.get()||'',items};
+  byPick.commit();
+  if(buyEdit) Object.assign(buyEdit,d); else mon().buys.push(Object.assign({id:uid(),ts:Date.now()},d));
+  save(); renderMoney(); closeSheet();
+};
+$('#byDel').onclick=()=>{ if(!buyEdit||!confirm('Удалить покупку'+(buyEdit.photo?' вместе с фото чека':'')+'?')) return;
+  if(buyEdit.photo) PH.del(buyEdit.photo); byPick.discard(); const m=mon(); m.buys=m.buys.filter(x=>x!==buyEdit); save(); renderMoney(); closeSheet(); };
+
+/* конец командировки и правка завершённой */
+let trpEdit=null;
+function trpCalc(){
+  const t=trpEdit; if(!t) return;
+  const city=$('#ktCity').value.trim()||t.city, rate=parseFloat(String($('#ktRate').value).replace(',','.'))||0, s=$('#ktStart').value||t.start, e=$('#ktEnd').value||todayISO();
+  const tmp={start:s,end:e,rate}, days=tripDays(tmp), sum=tripSumDiem(tmp);
+  const T=moneyTotals(), was=tripSumDiem(t), left=T.left+was-sum;
+  $('#ktRes').innerHTML='<div class="byline"><span>'+esc(city)+': '+days+' '+plural(days,'сутки','суток','суток')+' × '+rub(rate)+'</span><b>'+rub(sum)+'</b></div><div class="byline"><span>Остаток общей суммы</span><b class="'+(left<0?'neg':'')+'">'+rub(left)+'</b></div>';
+}
+function openTripEnd(t){ trpEdit=t; $('#fTrpTitle').textContent='Конец командировки'; $('#ktCity').value=t.city||''; $('#ktRate').value=t.rate||''; $('#ktStart').value=t.start; $('#ktEnd').value=todayISO();
+  $('#ktSave').textContent='Завершить командировку'; $('#ktDel').hidden=false; trpCalc(); openSheet('fTrp'); }
+function openTripEdit(t){ trpEdit=t; $('#fTrpTitle').textContent='Командировка'; $('#ktCity').value=t.city||''; $('#ktRate').value=t.rate||''; $('#ktStart').value=t.start; $('#ktEnd').value=t.end;
+  $('#ktSave').textContent='Сохранить'; $('#ktDel').hidden=false; trpCalc(); openSheet('fTrp'); }
+['#ktCity','#ktRate','#ktStart','#ktEnd'].forEach(s=>$(s).addEventListener('input',trpCalc));
+$('#ktSave').onclick=()=>{
+  const t=trpEdit; if(!t) return;
+  const e=$('#ktEnd').value||todayISO(), s=$('#ktStart').value||t.start;
+  if(e<s){ alert('Дата окончания раньше начала'); return; }
+  const wasActive=!t.end;
+  Object.assign(t,{city:$('#ktCity').value.trim()||t.city,rate:parseFloat(String($('#ktRate').value).replace(',','.'))||t.rate,start:s,end:e});
+  save(); renderMoney(); closeSheet();
+  if(wasActive){ const T=moneyTotals(); alert('Командировка завершена.\n'+t.city+': '+tripDays(t)+' '+plural(tripDays(t),'сутки','суток','суток')+' × '+rub(t.rate)+' = '+rub(tripSumDiem(t))+'\nОстаток общей суммы: '+rub(T.left)); }
+};
+$('#ktDel').onclick=()=>{ if(!trpEdit||!confirm('Удалить командировку «'+(trpEdit.city||'')+'»?')) return; const m=mon(); m.trips=m.trips.filter(x=>x!==trpEdit); save(); renderMoney(); closeSheet(); };
+
+/* отчёт */
+function moneyReport(){
+  const m=mon(), T=moneyTotals(), L=['Отчёт о расходах на '+dateRu(todayISO()),''];
+  L.push('Получено от организации: '+rub(T.adv));
+  m.adv.slice().sort((a,b)=>cmp(a.date,b.date)).forEach(a=>L.push('  '+dateRu(a.date)+' — '+rub(a.sum)+(a.note?' ('+a.note+')':'')));
+  L.push('','Покупки: '+rub(T.buys));
+  m.buys.slice().sort((a,b)=>cmp(a.date,b.date)).forEach(b=>{ L.push('  '+dateRu(b.date)+(b.photo?'':' (без чека)')+' — '+rub(buyTotal(b))); (b.items||[]).forEach(i=>L.push('    · '+(i.name||'без названия')+' — '+rub(i.sum))); });
+  if(m.trips.length){ L.push('','Суточные: '+rub(T.diem));
+    m.trips.slice().sort((a,b)=>cmp(a.start,b.start)).forEach(t=>L.push('  '+(t.city||'')+', '+dRange(t.start,t.end||todayISO())+(t.end?'':' (идёт)')+': '+tripDays(t)+' '+plural(tripDays(t),'сутки','суток','суток')+' × '+rub(t.rate)+' = '+rub(tripSumDiem(t)))); }
+  L.push('','Остаток: '+rub(T.left));
+  return L.join('\n');
+}
+$('#mnReport').onclick=()=>shareText('Отчёт о расходах',moneyReport());
+
 /* ---------- render: notes ---------- */
 function renderNotes(){
   const q=$('#noteSearch').value.trim().toLowerCase(), g=$('#noteGrid'); g.innerHTML='';
@@ -1722,7 +1960,7 @@ function renderNotes(){
     b.onclick=()=>openNote(n); g.appendChild(b);
   });
 }
-function render(){if(ensureSvcTasks())save();renderRunbar();renderToday();renderTasks();renderObjects();renderObject();renderCar();renderNotes();}
+function render(){if(ensureSvcTasks())save();renderRunbar();renderToday();renderTasks();renderObjects();renderObject();renderCar();renderNotes();try{renderMoney()}catch(e){}}
 
 /* ---------- navigation ---------- */
 function showView(v){
@@ -1739,7 +1977,7 @@ $$('nav button').forEach(b=>b.onclick=()=>go(b.dataset.v));
 /* ---------- перестановка вкладок: зажать вкладку и тянуть влево/вправо ---------- */
 (function(){
   const box=$('nav .in'), K='nav-order';
-  try{ const o=JSON.parse(localStorage.getItem(K)||'null'); if(Array.isArray(o)) o.forEach(v=>{ const b=box.querySelector('button[data-v="'+v+'"]'); if(b) box.appendChild(b); }); }catch(e){}
+  try{ const o=JSON.parse(localStorage.getItem(K)||'null'); if(Array.isArray(o)){ const rest=[...box.querySelectorAll('button')].filter(b=>!o.includes(b.dataset.v)); o.forEach(v=>{ const b=box.querySelector('button[data-v="'+v+'"]'); if(b) box.appendChild(b); }); rest.forEach(b=>{ const prev=b.dataset.v==='money'?box.querySelector('button[data-v="car"]'):null; if(prev&&prev.nextSibling) box.insertBefore(b,prev.nextSibling); else box.appendChild(b); }); } }catch(e){}
   let timer=null, drag=null, sx=0, sy=0, eat=false, hint=null;
   function showHint(txt){ if(!hint){ hint=document.createElement('div'); hint.className='navhint'; document.body.appendChild(hint); } hint.textContent=txt; hint.hidden=false; }
   function hideHint(){ if(hint) hint.hidden=true; }
@@ -1784,9 +2022,9 @@ let editing=null;
 function openSheet(id){
   $$('.form').forEach(f=>f.hidden=f.id!==id);
   $('#scrim').classList.add('on'); $('#sheet').classList.add('on'); $('#sheet').scrollTop=0;
-  const first=(id==='fSet'||id==='fDay'||id==='fTrRep')?null:$('#'+id+' input, #'+id+' textarea'); if(first) setTimeout(()=>first.focus({preventScroll:true}),260);
+  const first=(id==='fSet'||id==='fDay'||id==='fTrRep'||id==='fBuy'||id==='fTrp')?null:$('#'+id+' input, #'+id+' textarea'); if(first) setTimeout(()=>first.focus({preventScroll:true}),260);
 }
-function closeSheet(){try{kmPick.discard();lgPick.discard()}catch(e){}try{dsPick.discard();dePick.discard()}catch(e){}$('#scrim').classList.remove('on');$('#sheet').classList.remove('on');document.activeElement&&document.activeElement.blur();}
+function closeSheet(){try{kmPick.discard();lgPick.discard()}catch(e){}try{dsPick.discard();dePick.discard()}catch(e){}try{byPick.discard()}catch(e){}$('#scrim').classList.remove('on');$('#sheet').classList.remove('on');document.activeElement&&document.activeElement.blur();}
 $('#scrim').onclick=closeSheet;
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
 function segGroup(sel,attr,get,set){
@@ -2300,6 +2538,7 @@ $('#fab').onclick=()=>{
   else if(view==='objects') openObj();
   else if(view==='object') openTask(null,openObjId);
   else if(view==='car') openLog();
+  else if(view==='money') openBuy();
   else if(view==='tpl') openTplForm();
   else openTask();
 };
