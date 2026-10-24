@@ -567,7 +567,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <ul class="list" id="mnTrips"></ul>
     <h2>Получено от организации <button class="link" id="mnAdvAdd">Добавить</button></h2>
     <ul class="list" id="mnAdv"></ul>
-    <div class="pbtns" style="margin-top:14px"><button id="mnReport"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/></svg>Отправить отчёт о расходах</button></div>
+    <div class="pbtns" style="margin-top:14px"><button id="mnReport"><svg viewBox="0 0 24 24"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/><path d="M9 13l12-9"/></svg>Отправить отчёт в Telegram</button></div>
   </section>
 
   <section class="view" id="v-notes">
@@ -826,6 +826,8 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
       <div class="byline"><span>Остаток общей суммы</span><b id="byLeft">0 ₽</b></div>
     </div>
     <div class="actions"><button class="btn ghost" id="byDel" hidden>Удалить</button><button class="btn" id="bySave">Сохранить</button></div>
+    <button class="btn ghost plain tgbtn" id="bySend"><svg viewBox="0 0 24 24"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/><path d="M9 13l12-9"/></svg>Сохранить и отправить в Telegram</button>
+    <p class="hint" style="text-align:center;margin:8px 0 0"><button class="link tgset" type="button">Настроить Telegram-бота</button></p>
   </div>
 
   <div class="form" id="fAdv" hidden>
@@ -850,6 +852,8 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     </div>
     <div class="bytot" id="ktRes"></div>
     <div class="actions"><button class="btn ghost" id="ktDel" hidden>Удалить</button><button class="btn" id="ktSave">Завершить командировку</button></div>
+    <button class="btn ghost plain tgbtn" id="ktSend"><svg viewBox="0 0 24 24"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/><path d="M9 13l12-9"/></svg><span>Завершить и отправить в Telegram</span></button>
+    <p class="hint" style="text-align:center;margin:8px 0 0"><button class="link tgset" type="button">Настроить Telegram-бота</button></p>
   </div>
 
   <div class="form" id="fDay" hidden>
@@ -1840,7 +1844,7 @@ function renderMoney(){
     const li=document.createElement('li'), x=document.createElement('button'); x.className='log';
     const names=(b.items||[]).map(i=>i.name).filter(Boolean);
     x.innerHTML=(b.photo&&PHOTO?'<span class="odoth"><img loading="lazy" alt="" src="'+PH.url(b.photo)+'"></span>':'<span class="ic"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg></span>')+
-      '<span class="tbody"><span class="ttl">'+esc(names.length?names[0]+(names.length>1?' и ещё '+(names.length-1):''):'Покупка')+'</span><span class="meta">'+esc(fmtDate(b.date)+((b.items||[]).length>1?', позиций: '+b.items.length:'')+(b.photo?'':', без чека'))+'</span></span><span class="sum">'+rub(buyTotal(b))+'</span>';
+      '<span class="tbody"><span class="ttl">'+esc(names.length?names[0]+(names.length>1?' и ещё '+(names.length-1):''):'Покупка')+'</span><span class="meta">'+esc(fmtDate(b.date)+((b.items||[]).length>1?', позиций: '+b.items.length:'')+(b.photo?'':', без чека')+(b.sent?', отправлено в Telegram':''))+'</span></span><span class="sum">'+rub(buyTotal(b))+'</span>';
     x.onclick=()=>openBuy(b); li.appendChild(x); bl.appendChild(li);
   });
   // завершённые командировки
@@ -1849,7 +1853,7 @@ function renderMoney(){
   $('#mnTripsH').hidden=!done.length;
   done.forEach(t=>{
     const li=document.createElement('li'), x=document.createElement('button'); x.className='log';
-    x.innerHTML='<span class="ic"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0119 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span><span class="tbody"><span class="ttl">'+esc(t.city||'Командировка')+'</span><span class="meta">'+esc(dRange(t.start,t.end)+' · '+tripDays(t)+' '+plural(tripDays(t),'сутки','суток','суток')+' × '+rub(t.rate))+'</span></span><span class="sum">'+rub(tripSumDiem(t))+'</span>';
+    x.innerHTML='<span class="ic"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0119 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span><span class="tbody"><span class="ttl">'+esc(t.city||'Командировка')+'</span><span class="meta">'+esc(dRange(t.start,t.end)+' · '+tripDays(t)+' '+plural(tripDays(t),'сутки','суток','суток')+' × '+rub(t.rate)+(t.sent?' · отправлено':''))+'</span></span><span class="sum">'+rub(tripSumDiem(t))+'</span>';
     x.onclick=()=>openTripEdit(t); li.appendChild(x); tl.appendChild(li);
   });
   // выдачи
@@ -1897,15 +1901,18 @@ function openBuy(b){
   $('#byDel').hidden=!b; buyCalc(); openSheet('fBuy');
 }
 $('#byAddRow').onclick=()=>{ const r=buyRow(null); buyCalc(); setTimeout(()=>r.querySelector('.byname').focus(),50); };
-$('#bySave').onclick=()=>{
+function buyStore(){
   const items=buyRows().filter(i=>i.name||i.sum);
-  if(!items.length){ $('#byItems .byname').focus(); return; }
-  const bad=items.find(i=>!(i.sum>0)); if(bad&&!confirm('У позиции «'+(bad.name||'без названия')+'» не указана сумма. Сохранить так?')) return;
+  if(!items.length){ $('#byItems .byname').focus(); return null; }
+  const bad=items.find(i=>!(i.sum>0)); if(bad&&!confirm('У позиции «'+(bad.name||'без названия')+'» не указана сумма. Сохранить так?')) return null;
   const d={date:$('#byDate').value||todayISO(),photo:byPick.get()||'',items};
   byPick.commit();
-  if(buyEdit) Object.assign(buyEdit,d); else mon().buys.push(Object.assign({id:uid(),ts:Date.now()},d));
-  save(); renderMoney(); closeSheet();
-};
+  let rec=buyEdit; if(rec) Object.assign(rec,d); else { rec=Object.assign({id:uid(),ts:Date.now()},d); mon().buys.push(rec); }
+  save(); renderMoney(); return rec;
+}
+$('#bySave').onclick=()=>{ if(buyStore()) closeSheet(); };
+$('#bySend').onclick=async()=>{ const r=buyStore(); if(!r) return; closeSheet(); if(await tgOut(r.photo,buyCaption(r),'Покупка')){ r.sent=Date.now(); save(); renderMoney(); } };
+$$('.tgset').forEach(b=>b.onclick=()=>openTg());
 $('#byDel').onclick=()=>{ if(!buyEdit||!confirm('Удалить покупку'+(buyEdit.photo?' вместе с фото чека':'')+'?')) return;
   if(buyEdit.photo) PH.del(buyEdit.photo); byPick.discard(); const m=mon(); m.buys=m.buys.filter(x=>x!==buyEdit); save(); renderMoney(); closeSheet(); };
 
@@ -1919,19 +1926,20 @@ function trpCalc(){
   $('#ktRes').innerHTML='<div class="byline"><span>'+esc(city)+': '+days+' '+plural(days,'сутки','суток','суток')+' × '+rub(rate)+'</span><b>'+rub(sum)+'</b></div><div class="byline"><span>Остаток общей суммы</span><b class="'+(left<0?'neg':'')+'">'+rub(left)+'</b></div>';
 }
 function openTripEnd(t){ trpEdit=t; $('#fTrpTitle').textContent='Конец командировки'; $('#ktCity').value=t.city||''; $('#ktRate').value=t.rate||''; $('#ktStart').value=t.start; $('#ktEnd').value=todayISO();
-  $('#ktSave').textContent='Завершить командировку'; $('#ktDel').hidden=false; trpCalc(); openSheet('fTrp'); }
+  $('#ktSave').textContent='Завершить командировку'; $('#ktSend span').textContent='Завершить и отправить в Telegram'; $('#ktDel').hidden=false; trpCalc(); openSheet('fTrp'); }
 function openTripEdit(t){ trpEdit=t; $('#fTrpTitle').textContent='Командировка'; $('#ktCity').value=t.city||''; $('#ktRate').value=t.rate||''; $('#ktStart').value=t.start; $('#ktEnd').value=t.end;
-  $('#ktSave').textContent='Сохранить'; $('#ktDel').hidden=false; trpCalc(); openSheet('fTrp'); }
+  $('#ktSave').textContent='Сохранить'; $('#ktSend span').textContent='Сохранить и отправить в Telegram'; $('#ktDel').hidden=false; trpCalc(); openSheet('fTrp'); }
 ['#ktCity','#ktRate','#ktStart','#ktEnd'].forEach(s=>$(s).addEventListener('input',trpCalc));
-$('#ktSave').onclick=()=>{
-  const t=trpEdit; if(!t) return;
+function ktStore(){
+  const t=trpEdit; if(!t) return null;
   const e=$('#ktEnd').value||todayISO(), s=$('#ktStart').value||t.start;
-  if(e<s){ alert('Дата окончания раньше начала'); return; }
+  if(e<s){ alert('Дата окончания раньше начала'); return null; }
   const wasActive=!t.end;
   Object.assign(t,{city:$('#ktCity').value.trim()||t.city,rate:parseFloat(String($('#ktRate').value).replace(',','.'))||t.rate,start:s,end:e});
-  save(); renderMoney(); closeSheet();
-  if(wasActive){ const T=moneyTotals(); alert('Командировка завершена.\n'+t.city+': '+tripDays(t)+' '+plural(tripDays(t),'сутки','суток','суток')+' × '+rub(t.rate)+' = '+rub(tripSumDiem(t))+'\nОстаток общей суммы: '+rub(T.left)); }
-};
+  save(); renderMoney(); closeSheet(); return {t,wasActive};
+}
+$('#ktSave').onclick=()=>{ const r=ktStore(); if(r&&r.wasActive){ const t=r.t, T=moneyTotals(); alert('Командировка завершена.\n'+t.city+': '+tripDays(t)+' '+plural(tripDays(t),'сутки','суток','суток')+' × '+rub(t.rate)+' = '+rub(tripSumDiem(t))+'\nОстаток общей суммы: '+rub(T.left)); } };
+$('#ktSend').onclick=async()=>{ const r=ktStore(); if(!r) return; if(await tgOut('',tripCaption(r.t),'Командировка')){ r.t.sent=Date.now(); save(); renderMoney(); } };
 $('#ktDel').onclick=()=>{ if(!trpEdit||!confirm('Удалить командировку «'+(trpEdit.city||'')+'»?')) return; const m=mon(); m.trips=m.trips.filter(x=>x!==trpEdit); save(); renderMoney(); closeSheet(); };
 
 /* отчёт */
@@ -1946,7 +1954,41 @@ function moneyReport(){
   L.push('','Остаток: '+rub(T.left));
   return L.join('\n');
 }
-$('#mnReport').onclick=()=>shareText('Отчёт о расходах',moneyReport());
+$('#mnReport').onclick=()=>tgOut('',moneyReport(),'Отчёт о расходах');
+/* подписи и отправка в Telegram — так же, как пробег в «Авто» */
+function buyCaption(b){
+  const L=['Покупка '+dateRu(b.date)], items=b.items||[];
+  let len=L[0].length; let shown=0;
+  for(const i of items){ const s='• '+(i.name||'без названия')+' — '+rub(i.sum); if(b.photo&&len+s.length>850) break; L.push(s); len+=s.length+1; shown++; }
+  if(shown<items.length) L.push('…и ещё '+(items.length-shown)+' '+plural(items.length-shown,'позиция','позиции','позиций'));
+  L.push('Итого по чеку: '+rub(buyTotal(b)));
+  L.push('Остаток общей суммы: '+rub(moneyTotals().left));
+  return L.join('\n');
+}
+function tripCaption(t){
+  const d=tripDays(t), L=['Командировка: '+(t.city||'')];
+  L.push(dateRu(t.start)+' — '+(t.end?dateRu(t.end):'идёт')+', '+d+' '+plural(d,'сутки','суток','суток')+' × '+rub(t.rate));
+  L.push('Суточные: '+rub(tripSumDiem(t)));
+  L.push('Остаток общей суммы: '+rub(moneyTotals().left));
+  return L.join('\n');
+}
+/* отправить фото с подписью или текст: ботом, если он настроен, иначе через «Поделиться» */
+async function tgOut(photo,text,title){
+  const cfg=tgCfg();
+  if(cfg.token&&cfg.chat){
+    let res;
+    if(photo) res=await tgApi('sendPhoto',{chat_id:cfg.chat,caption:text},photo);
+    else{ // длинный текст делим на части по 4000 символов
+      const parts=[]; let cur='';
+      text.split('\n').forEach(l=>{ if((cur+'\n'+l).length>4000){ parts.push(cur); cur=l; } else cur=cur?cur+'\n'+l:l; }); if(cur) parts.push(cur);
+      for(const pt of parts){ res=await tgApi('sendMessage',{chat_id:cfg.chat,text:pt}); if(!(res&&res.ok)) break; }
+    }
+    if(res&&res.ok){ alert('Отправлено в Telegram'+(cfg.title?': '+cfg.title:'')); return true; }
+    if(!confirm('Не удалось отправить боту: '+((res&&res.description)||'ошибка')+'.\nОтправить через «Поделиться»?')) return false;
+  }
+  if(photo) odoShare({photo},text); else shareText(title||'Органайзер',text);
+  return false;
+}
 
 /* ---------- render: notes ---------- */
 function renderNotes(){
