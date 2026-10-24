@@ -254,6 +254,23 @@ textarea.field{min-height:120px;resize:vertical}
 .odoth img{width:100%;height:100%;object-fit:cover;display:block}
 .camic{display:inline-block;width:15px;height:15px;vertical-align:-2px;margin-left:6px;stroke:var(--muted);fill:none;stroke-width:2}
 .stat.wide{grid-column:1/-1}
+.docs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.doc{position:relative;border:0;background:var(--surface);border-radius:14px;height:92px;padding:0;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;font-size:12px;color:var(--muted)}
+.doc svg{width:22px;height:22px;stroke:var(--accent);fill:none;stroke-width:1.8}
+.doc img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.doc.has span{position:absolute;left:0;right:0;bottom:0;background:rgba(0,0,0,.55);color:#fff;padding:3px 0;text-align:center}
+.bars{background:var(--surface);border-radius:16px;padding:10px 14px}
+.bar{display:grid;grid-template-columns:52px 1fr auto;gap:10px;align-items:center;font-size:13px;margin:5px 0}
+.bar .tr{height:10px;background:var(--bg);border-radius:5px;overflow:hidden;display:flex}
+.bar .f{background:var(--accent)}.bar .o{background:var(--hot)}
+.bar b{font-weight:600;min-width:64px;text-align:right}
+.bars .leg{display:flex;gap:14px;font-size:12px;color:var(--muted);margin:8px 0 2px;flex-wrap:wrap}
+.bars .leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+.rem.tap{cursor:pointer}
+.rem.unk{border-left-color:var(--line)}
+.rem.unk .val{color:var(--muted);font-weight:400;font-size:13px;white-space:normal;max-width:120px}
+.more{border:0;background:transparent;color:var(--accent);font-size:14px;padding:8px 0}
+pre.report{white-space:pre-wrap;font:14px/1.45 inherit;font-family:inherit;background:var(--bg);border-radius:14px;padding:12px 14px;margin:0 0 14px;max-height:45vh;overflow:auto}
 .makers{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;background:var(--surface);border-radius:16px;padding:5px;margin:12px 0 6px}
 .makers::-webkit-scrollbar{display:none}
 .catupd{display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:13px;color:var(--muted);margin:0 2px 10px}
@@ -380,8 +397,20 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <ul class="list" id="carRem"></ul>
     <h2 id="statTitle">Расходы</h2>
     <div class="stats" id="carStats"></div>
+    <h2>Топливо</h2>
+    <div class="stats" id="fuelStats"></div>
+    <h2>Регламент <button class="link" id="mtAdd">Добавить</button></h2>
+    <ul class="list" id="mtList"></ul>
+    <h2>Поездки <button class="link" id="trAdd">Добавить</button></h2>
+    <div class="stats" id="trStats"></div>
+    <ul class="list" id="trList"></ul>
+    <div class="pbtns" style="margin-top:8px"><button id="trReport"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/></svg>Отчёт для компенсации</button></div>
+    <h2>Документы</h2>
+    <div class="docs" id="carDocs"></div>
     <h2>Журнал</h2>
     <ul class="list" id="carLog"></ul>
+    <h2>Расходы за 12 месяцев</h2>
+    <div class="bars" id="carBars"></div>
     <h2>История пробега <button class="link" id="odoAdd">Добавить</button></h2>
     <ul class="list" id="odoList"></ul>
   </section>
@@ -571,6 +600,8 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
       <div><p class="lbl">ОСАГО до</p><input class="field" type="date" id="crOsago"></div>
       <div><p class="lbl">Техосмотр до</p><input class="field" type="date" id="crDiag"></div>
     </div>
+    <p class="lbl">Компенсация за поездки на своей машине, ₽ за 1 км</p>
+    <input class="field" type="number" inputmode="decimal" id="crRate" placeholder="Например: 8">
     <p class="lbl">Резина: напоминание о сезонной замене</p>
     <div class="row" id="crTires">
       <button class="seg" data-r="1">Напоминать</button>
@@ -672,6 +703,59 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <div class="actions"><button class="btn ghost" id="kmDel" hidden>Удалить</button><button class="btn" id="kmSave">Сохранить</button></div>
   </div>
 
+  <div class="form" id="fMt" hidden>
+    <h3 id="fMtTitle">Пункт регламента</h3>
+    <input class="field" id="mtName" placeholder="Что обслуживаем, например: Масло и фильтр" maxlength="60" list="mtNames">
+    <datalist id="mtNames"></datalist>
+    <p class="lbl">Как часто (заполните одно или оба)</p>
+    <div class="two">
+      <input class="field" type="number" inputmode="numeric" id="mtKm" placeholder="Каждые, км">
+      <input class="field" type="number" inputmode="numeric" id="mtMon" placeholder="Каждые, мес.">
+    </div>
+    <p class="lbl">Когда делали последний раз</p>
+    <div class="two">
+      <input class="field" type="number" inputmode="numeric" id="mtLastKm" placeholder="Пробег, км">
+      <input class="field" type="date" id="mtLastDate" aria-label="Дата">
+    </div>
+    <button class="seg" type="button" id="mtNow" style="margin:-2px 0 14px">Сделано сегодня, на текущем пробеге</button>
+    <div class="actions"><button class="btn ghost" id="mtDel" hidden>Удалить</button><button class="btn" id="mtSave">Сохранить</button></div>
+  </div>
+
+  <div class="form" id="fTrip" hidden>
+    <h3 id="fTripTitle">Поездка</h3>
+    <p class="lbl">Объект</p>
+    <select class="field" id="trObj"></select>
+    <div class="two">
+      <input class="field" type="date" id="trDate" aria-label="Дата">
+      <div style="display:flex;gap:6px"><input class="field" type="number" inputmode="decimal" id="trDist" placeholder="Км за поездку" style="min-width:0"><button class="seg" type="button" id="trX2" title="Туда и обратно" style="margin-bottom:12px;flex:none">×2</button></div>
+    </div>
+    <input class="field" type="number" inputmode="decimal" id="trCost" placeholder="Парковка, платная дорога, ₽">
+    <input class="field" id="trNote" placeholder="Цель поездки: монтаж, ТО, закупка" maxlength="120">
+    <p class="hint" style="margin:-4px 0 14px" id="trHint"></p>
+    <div class="actions"><button class="btn ghost" id="trDel" hidden>Удалить</button><button class="btn" id="trSave">Сохранить</button></div>
+  </div>
+
+  <div class="form" id="fTrRep" hidden>
+    <h3>Отчёт о поездках</h3>
+    <div class="row" style="align-items:center;justify-content:space-between;margin-bottom:10px">
+      <button class="seg" type="button" id="rpPrev">‹</button><b id="rpMonth"></b><button class="seg" type="button" id="rpNext">›</button>
+    </div>
+    <pre class="report" id="rpText"></pre>
+    <div class="actions"><button class="btn" id="rpShare">Отправить</button></div>
+  </div>
+
+  <div class="form" id="fDoc" hidden>
+    <h3 id="fDocTitle">Документ</h3>
+    <div class="phprev" id="docPrev" hidden></div>
+    <div class="pbtns" style="margin:0 0 14px">
+      <button type="button" id="docCam"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Сфотографировать</button>
+      <button type="button" id="docGal"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>Из галереи</button>
+    </div>
+    <input type="file" id="docCamInput" accept="image/*" capture="environment" hidden>
+    <input type="file" id="docGalInput" accept="image/*" hidden>
+    <p class="hint">Фото хранится только в телефоне.</p>
+  </div>
+
   <div class="form" id="fNote" hidden>
     <h3 id="fNoteTitle">Новая заметка</h3>
     <input class="field" id="nTitle" placeholder="Заголовок" maxlength="120">
@@ -723,9 +807,11 @@ function esc(s){const d=document.createElement('div');d.textContent=s==null?'':S
 let state={tasks:[],notes:[],objects:[],car:{},carLog:[],hours:[],odo:[],timer:null,updatedAt:0};
 const APP=!!window.Android;
 function normalize(s){
-  s=Object.assign({tasks:[],notes:[],objects:[],car:{},carLog:[],hours:[],odo:[],timer:null,updatedAt:0},s||{});
-  ['tasks','notes','objects','carLog','hours','odo'].forEach(k=>{if(!Array.isArray(s[k]))s[k]=[]});
+  s=Object.assign({tasks:[],notes:[],objects:[],car:{},carLog:[],hours:[],odo:[],trips:[],timer:null,updatedAt:0},s||{});
+  ['tasks','notes','objects','carLog','hours','odo','trips'].forEach(k=>{if(!Array.isArray(s[k]))s[k]=[]});
   if(!s.car||typeof s.car!=='object')s.car={};
+  if(!Array.isArray(s.car.maint))s.car.maint=[];
+  if(!s.car.docs||typeof s.car.docs!=='object')s.car.docs={};
   s.objects.forEach(o=>{['mats','systems','photos','equip','checks'].forEach(k=>{if(!Array.isArray(o[k]))o[k]=[]});if(o.svc&&typeof o.svc!=='object')o.svc=null});
   if(!s.tpl||typeof s.tpl!=='object')s.tpl={};
   if(s.timer&&(!s.timer.objId||!s.timer.start))s.timer=null;
@@ -776,6 +862,11 @@ function buildReminders(){
     const day=new Date(c[k]+'T09:00:00'), week=new Date(addDays(new Date(c[k]+'T12:00:00'),-7).setHours(9,0,0,0));
     if(week.getTime()>now) out.push({id:'car_'+k+'_w_'+c[k],at:week.getTime(),title:name+': осталась неделя',text:'Действует до '+fmtDate(c[k])+'. Пора продлить.'});
     if(day.getTime()>now) out.push({id:'car_'+k+'_d_'+c[k],at:day.getTime(),title:name+' заканчивается сегодня',text:'Не забудьте продлить '+name+'.'});
+  });
+  (c.maint||[]).forEach(x=>{
+    const s=mtStatus(x); if(!s.nextDate) return;
+    const wk=new Date(addDays(new Date(s.nextDate+'T12:00:00'),-7).setHours(9,0,0,0));
+    if(wk.getTime()>now) out.push({id:'mt_'+x.id+'_'+s.nextDate,at:wk.getTime(),title:'Через неделю: '+x.name,text:'По регламенту до '+fmtDate(s.nextDate)+(c.name?', '+c.name:'')});
   });
   state.objects.forEach(o=>{
     if(!(o.svc&&o.svc.every>0&&o.svc.next)||o.status==='done') return;
@@ -852,7 +943,7 @@ function cmp(a,b){return a<b?-1:a>b?1:0}
 function sortTasks(a){return a.slice().sort((x,y)=>(x.done-y.done)||cmp(x.date||'9',y.date||'9')||cmp(x.time||'99',y.time||'99')||(y.prio-x.prio))}
 
 /* ---------- car reminders ---------- */
-function carReminders(){
+function carReminders(withMaint){
   const c=state.car, out=[], km=+c.mileage||0;
   if(c.nextToKm){
     const left=c.nextToKm-km;
@@ -866,6 +957,7 @@ function carReminders(){
     if((m===10&&d>=10)||(m===11&&d<=30)) out.push({t:'Зимняя резина',m:'обычно с середины октября',v:'пора',lvl:'warn'});
     if((m===3&&d>=20)||(m===4)) out.push({t:'Летняя резина',m:'обычно в апреле',v:'пора',lvl:'warn'});
   }
+  if(withMaint!==false) (c.maint||[]).forEach(x=>{ const s=mtStatus(x); if(s.lvl) out.push({t:x.name,m:s.m,v:s.v,lvl:s.lvl}); });
   return out;
 }
 function remEl(r){
@@ -1113,7 +1205,7 @@ function renderCar(){
   else $('#carPlate').innerHTML='';
   $('#carKm').textContent=c.mileage?num(c.mileage)+' км':'не указан';
   const rl=$('#carRem'); rl.innerHTML='';
-  const rems=carReminders();
+  const rems=carReminders(false);
   if(!rems.length) rl.appendChild(emptyEl('Укажите ТО, ОСАГО и техосмотр в «Данные авто», и здесь появятся напоминания'));
   rems.forEach(r=>rl.appendChild(remEl(r)));
   const now=new Date(), ym=now.getFullYear()+'-'+pad(now.getMonth()+1);
@@ -1128,13 +1220,16 @@ function renderCar(){
   const ll=$('#carLog'); ll.innerHTML='';
   const items=state.carLog.slice().sort((a,b)=>(b.date||'').localeCompare(a.date||'')||(b.km||0)-(a.km||0));
   if(!items.length) ll.appendChild(emptyEl('Записей пока нет. Нажмите «+», чтобы добавить заправку или ТО'));
-  items.forEach(l=>{
+  items.slice(0,logAll?items.length:8).forEach(l=>{
     const li=document.createElement('li'), b=document.createElement('button'); b.className='log';
-    const meta=[fmtDate(l.date)]; if(l.km) meta.push(num(l.km)+' км'); if(l.liters) meta.push(num(l.liters)+' л');
+    const meta=[fmtDate(l.date)]; if(l.km) meta.push(num(l.km)+' км'); if(l.liters) meta.push(num(l.liters)+' л'); if(l.type==='fuel'&&l.liters>0&&l.sum>0) meta.push(fix1(l.sum/l.liters)+' ₽/л');
     b.innerHTML='<span class="ic"><svg viewBox="0 0 24 24">'+LOGIC[l.type]+'</svg></span><span class="tbody"><span class="ttl">'+esc(LOGT[l.type]+(l.note?': '+l.note:''))+
       (l.photo?CAMIC:'')+'</span><span class="meta">'+esc(meta.join(', '))+'</span></span>'+(l.sum?'<span class="sum">'+num(l.sum)+' ₽</span>':'');
     b.onclick=()=>openLog(l); li.appendChild(b); ll.appendChild(li);
   });
+  if(items.length>8){ const li=document.createElement('li'), b=document.createElement('button'); b.className='more';
+    b.textContent=logAll?'Свернуть':'Показать все записи ('+items.length+')'; b.onclick=()=>{logAll=!logAll;renderCar();}; li.appendChild(b); ll.appendChild(li); }
+  renderCarExtra();
   const ol=$('#odoList'); ol.innerHTML='';
   const odo=state.odo.slice().sort((a,b)=>cmp(b.date,a.date)||b.km-a.km);
   if(!odo.length) ol.appendChild(emptyEl(APP?'Нажмите «Обновить» у пробега и сфотографируйте одометр: снимок сохранится с датой и километрами':'Записей пробега пока нет'));
@@ -1402,14 +1497,218 @@ function openCar(){
   $('#crName').value=c.name||''; $('#crPlate').value=c.plate||'';
   $('#crInt').value=c.toInterval||''; $('#crNextKm').value=c.nextToKm||'';
   $('#crOsago').value=c.osago||''; $('#crDiag').value=c.diag||'';
+  $('#crRate').value=c.rate||'';
   fTires=c.tires||'1'; syncTires(); openSheet('fCar');
 }
 $('#crSave').onclick=()=>{
   Object.assign(state.car,{name:$('#crName').value.trim(),plate:$('#crPlate').value.trim(),
     toInterval:parseInt($('#crInt').value,10)||0,nextToKm:parseInt($('#crNextKm').value,10)||0,
-    osago:$('#crOsago').value,diag:$('#crDiag').value,tires:fTires});
+    osago:$('#crOsago').value,diag:$('#crDiag').value,tires:fTires,rate:parseFloat(String($('#crRate').value).replace(',','.'))||0});
   save();render();closeSheet();
 };
+
+/* ---------- авто: топливо, регламент, поездки, документы, статистика ---------- */
+let logAll=false;
+const fix1=n=>Number(n||0).toLocaleString('ru-RU',{maximumFractionDigits:1});
+function addMonthsISO(d,m){ const x=new Date(d+'T12:00:00'), day=x.getDate(); x.setDate(1); x.setMonth(x.getMonth()+m); const last=new Date(x.getFullYear(),x.getMonth()+1,0).getDate(); x.setDate(Math.min(day,last)); return iso(x); }
+function ymOf(d){ return (d||'').slice(0,7); }
+function ymShift(ym,k){ const [y,m]=ym.split('-').map(Number); const d=new Date(y,m-1+k,1); return d.getFullYear()+'-'+pad(d.getMonth()+1); }
+function ymTitle(ym){ const [y,m]=ym.split('-').map(Number); return MONTHS_N[m-1]+' '+y; }
+const MON_S=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+
+/* топливо */
+function fuelInfo(){
+  const all=state.carLog.filter(l=>l.type==='fuel');
+  const fills=all.filter(l=>+l.km>0&&+l.liters>0).sort((a,b)=>a.km-b.km||cmp(a.date,b.date)).slice(-12);
+  const r={avg:null,last:null,n:0,dist:0,price:null};
+  if(fills.length>=2){
+    const dist=fills[fills.length-1].km-fills[0].km, lit=fills.slice(1).reduce((s,l)=>s+(+l.liters),0);
+    if(dist>0){ const v=lit/dist*100; if(v>1&&v<60){ r.avg=v; r.n=fills.length; r.dist=dist; } }
+    const a=fills[fills.length-2], b=fills[fills.length-1], d=b.km-a.km;
+    if(d>0){ const v=b.liters/d*100; if(v>1&&v<60) r.last=v; }
+  }
+  const priced=all.filter(l=>+l.liters>0&&+l.sum>0).sort((a,b)=>cmp(a.date,b.date)).slice(-5);
+  if(priced.length){ const s=priced.reduce((x,l)=>x+(+l.sum),0), lt=priced.reduce((x,l)=>x+(+l.liters),0); r.price=s/lt; }
+  return r;
+}
+
+/* регламент */
+const MT_TPL=[['Моторное масло и фильтр',10000,12],['Воздушный фильтр',20000,24],['Салонный фильтр',15000,12],['Свечи зажигания',30000,36],
+  ['Тормозная жидкость',0,24],['Тормозные колодки: проверка',15000,12],['Антифриз',60000,48],['Масло в коробке передач',60000,60],['Ремень ГРМ',60000,60]];
+function mtStatus(x){
+  const km=+state.car.mileage||0, r={lvl:'',m:'',v:'',nextDate:'',nextKm:0};
+  const hasKm=x.km>0&&x.lastKm>0, hasDate=x.mon>0&&x.lastDate;
+  const parts=[]; if(x.km>0) parts.push('каждые '+num(x.km)+' км'); if(x.mon>0) parts.push(x.mon%12===0?'раз в '+(x.mon/12===1?'год':x.mon/12+' '+(x.mon/12<5?'года':'лет')):'раз в '+x.mon+' мес.');
+  r.m=parts.join(' или ');
+  if(!hasKm&&!hasDate){ r.v='не отмечено'; r.unk=true; return r; }
+  let leftKm=null, leftD=null;
+  if(hasKm){ r.nextKm=+x.lastKm+ +x.km; leftKm=r.nextKm-km; }
+  if(hasDate){ r.nextDate=addMonthsISO(x.lastDate,+x.mon); leftD=daysTo(r.nextDate); }
+  const kmBad=leftKm!=null&&leftKm<=0, dBad=leftD!=null&&leftD<0;
+  if(kmBad||dBad){ r.lvl='bad'; r.v=kmBad?'просрочено на '+num(-leftKm)+' км':'просрочено на '+(-leftD)+' дн.'; }
+  else{
+    const kmW=leftKm!=null&&leftKm<=1000, dW=leftD!=null&&leftD<=30;
+    if(kmW||dW) r.lvl='warn';
+    // показываем то, что наступит раньше (км переводим в дни грубо не будем — берём более «тревожное»)
+    if(kmW||(!dW&&leftKm!=null&&(leftD==null||leftKm<2000))) r.v='через '+num(leftKm)+' км';
+    else if(leftD!=null) r.v=leftD===0?'сегодня':'через '+(leftD>60?Math.round(leftD/30)+' мес.':leftD+' дн.');
+    else r.v='через '+num(leftKm)+' км';
+  }
+  if(r.nextKm||r.nextDate) r.m=[r.nextKm?'на '+num(r.nextKm)+' км':'',r.nextDate?'до '+fmtDate(r.nextDate):''].filter(Boolean).join(' или ');
+  return r;
+}
+let mtEdit=null;
+function openMt(x){
+  mtEdit=x||null; $('#fMtTitle').textContent=x?x.name:'Пункт регламента';
+  $('#mtNames').innerHTML=MT_TPL.map(t=>'<option value="'+esc(t[0])+'">').join('');
+  $('#mtName').value=x?x.name:''; $('#mtKm').value=x&&x.km?x.km:''; $('#mtMon').value=x&&x.mon?x.mon:'';
+  $('#mtLastKm').value=x&&x.lastKm?x.lastKm:''; $('#mtLastDate').value=x&&x.lastDate?x.lastDate:'';
+  $('#mtDel').hidden=!x; openSheet('fMt');
+}
+$('#mtName').addEventListener('change',()=>{ const t=MT_TPL.find(t=>t[0]===$('#mtName').value.trim()); if(t){ if(!$('#mtKm').value&&t[1]) $('#mtKm').value=t[1]; if(!$('#mtMon').value&&t[2]) $('#mtMon').value=t[2]; } });
+$('#mtNow').onclick=()=>{ $('#mtLastKm').value=state.car.mileage||''; $('#mtLastDate').value=todayISO(); };
+$('#mtSave').onclick=()=>{
+  const name=$('#mtName').value.trim(); if(!name){$('#mtName').focus();return}
+  const km=parseInt($('#mtKm').value,10)||0, mon=parseInt($('#mtMon').value,10)||0;
+  if(!km&&!mon){ $('#mtKm').focus(); return; }
+  const data={name,km,mon,lastKm:parseInt($('#mtLastKm').value,10)||0,lastDate:$('#mtLastDate').value||''};
+  if(mtEdit) Object.assign(mtEdit,data); else state.car.maint.push(Object.assign({id:uid()},data));
+  save(); render(); closeSheet();
+};
+$('#mtDel').onclick=()=>{ if(!mtEdit||!confirm('Удалить «'+mtEdit.name+'» из регламента?')) return; state.car.maint=state.car.maint.filter(x=>x!==mtEdit); save(); render(); closeSheet(); };
+$('#mtAdd').onclick=()=>openMt();
+
+/* поездки */
+let trEdit=null;
+function tripObjName(id){ const o=id&&objById(id); return o?o.name:'Без объекта'; }
+function lastTripDist(objId){ const t=state.trips.filter(x=>x.objId===objId&&x.dist>0).sort((a,b)=>cmp(b.date,a.date))[0]; return t?t.dist:0; }
+function trHint(){
+  const id=$('#trObj').value, d=lastTripDist(id), o=id&&objById(id);
+  $('#trHint').textContent=(o&&o.addr?o.addr+'. ':'')+(d?'В прошлый раз: '+fix1(d)+' км.':'Кнопка ×2 удваивает расстояние, если ездили туда и обратно.');
+}
+function openTrip(x,presetObj){
+  trEdit=x||null; $('#fTripTitle').textContent=x?'Поездка':'Новая поездка';
+  const sel=$('#trObj'); sel.innerHTML='<option value="">Без объекта</option>'+
+    state.objects.filter(o=>o.status!=='done'||(x&&x.objId===o.id)).map(o=>'<option value="'+o.id+'">'+esc(o.name)+'</option>').join('');
+  sel.value=x?(x.objId||''):(presetObj||'');
+  $('#trDate').value=x?x.date:todayISO();
+  $('#trDist').value=x?(x.dist||''):(lastTripDist(sel.value)||'');
+  $('#trCost').value=x&&x.cost?x.cost:''; $('#trNote').value=x?(x.note||''):'';
+  trHint(); $('#trDel').hidden=!x; openSheet('fTrip');
+}
+$('#trObj').onchange=()=>{ const d=lastTripDist($('#trObj').value); if(d&&!trEdit) $('#trDist').value=d; trHint(); };
+$('#trX2').onclick=()=>{ const v=parseFloat(String($('#trDist').value).replace(',','.')); if(v>0) $('#trDist').value=Math.round(v*2*10)/10; };
+$('#trSave').onclick=()=>{
+  const dist=parseFloat(String($('#trDist').value).replace(',','.'))||0; if(!(dist>0)){$('#trDist').focus();return}
+  const data={date:$('#trDate').value||todayISO(),objId:$('#trObj').value||'',dist,cost:parseFloat(String($('#trCost').value).replace(',','.'))||0,note:$('#trNote').value.trim()};
+  if(trEdit) Object.assign(trEdit,data); else state.trips.push(Object.assign({id:uid()},data));
+  save(); render(); closeSheet();
+};
+$('#trDel').onclick=()=>{ if(!trEdit||!confirm('Удалить поездку?')) return; state.trips=state.trips.filter(x=>x!==trEdit); save(); render(); closeSheet(); };
+$('#trAdd').onclick=()=>openTrip();
+function tripsOf(ym){ return state.trips.filter(x=>ymOf(x.date)===ym).sort((a,b)=>cmp(a.date,b.date)); }
+function tripSum(list){ const km=list.reduce((s,x)=>s+(+x.dist||0),0), cost=list.reduce((s,x)=>s+(+x.cost||0),0), rate=+state.car.rate||0; return {km,cost,rate,comp:km*rate,total:km*rate+cost}; }
+function tripReport(ym){
+  const list=tripsOf(ym), s=tripSum(list), c=state.car, L=[];
+  L.push('Поездки на личном автомобиле за '+ymTitle(ym));
+  if(c.name||c.plate) L.push('Автомобиль: '+[c.name,(c.plate||'').toUpperCase()].filter(Boolean).join(', '));
+  L.push('');
+  if(!list.length){ L.push('Поездок нет.'); return L.join('\n'); }
+  list.forEach(x=>{ const o=x.objId&&objById(x.objId);
+    L.push(x.date.split('-').reverse().join('.')+' — '+(o?o.name+(o.addr?' ('+o.addr+')':''):'без объекта')+' — '+fix1(x.dist)+' км'+(x.note?' — '+x.note:'')+(x.cost?' — расходы '+num(x.cost)+' ₽':'')); });
+  L.push('');
+  const by={}; list.forEach(x=>{ const k=tripObjName(x.objId); by[k]=(by[k]||0)+(+x.dist||0); });
+  if(Object.keys(by).length>1){ L.push('По объектам:'); Object.entries(by).sort((a,b)=>b[1]-a[1]).forEach(([k,v])=>L.push('  '+k+': '+fix1(v)+' км')); L.push(''); }
+  L.push('Итого: '+list.length+' '+plural(list.length,'поездка','поездки','поездок')+', '+fix1(s.km)+' км');
+  if(s.rate) L.push('Компенсация: '+fix1(s.km)+' км × '+fix1(s.rate)+' ₽ = '+num(Math.round(s.comp))+' ₽');
+  if(s.cost) L.push('Парковки и платные дороги: '+num(Math.round(s.cost))+' ₽');
+  if(s.rate||s.cost) L.push('Всего к возмещению: '+num(Math.round(s.total))+' ₽');
+  return L.join('\n');
+}
+function plural(n,a,b,c){ const m=n%10, h=n%100; return m===1&&h!==11?a:m>=2&&m<=4&&(h<12||h>14)?b:c; }
+let rpYm='';
+function showRep(){ $('#rpMonth').textContent=ymTitle(rpYm)[0].toUpperCase()+ymTitle(rpYm).slice(1); $('#rpText').textContent=tripReport(rpYm); $('#rpNext').disabled=rpYm>=ymOf(todayISO()); }
+$('#trReport').onclick=()=>{ rpYm=ymOf(todayISO()); showRep(); openSheet('fTrRep'); };
+$('#rpPrev').onclick=()=>{ rpYm=ymShift(rpYm,-1); showRep(); };
+$('#rpNext').onclick=()=>{ if(rpYm<ymOf(todayISO())){ rpYm=ymShift(rpYm,1); showRep(); } };
+$('#rpShare').onclick=()=>shareText('Поездки за '+ymTitle(rpYm),tripReport(rpYm));
+
+/* документы */
+const DOCS=[['sts','СТС'],['vu','Права'],['osago','ОСАГО'],['dk','Диагн. карта']];
+let docKind=null;
+function openDoc(k){
+  docKind=k; const id=state.car.docs[k], name=DOCS.find(d=>d[0]===k)[1];
+  if(id){ showPhoto(id,name,()=>{ try{Android.deletePhoto(id)}catch(e){} delete state.car.docs[k]; save(); renderCar(); }); return; }
+  $('#fDocTitle').textContent=name; $('#docPrev').hidden=true; openSheet('fDoc');
+}
+async function docPick(files){
+  const f=files&&files[0]; if(!f||!docKind) return;
+  try{ const b64=await shrink(f), id=uid(); if(!Android.savePhoto(id,b64)) throw 0;
+    const old=state.car.docs[docKind]; if(old){try{Android.deletePhoto(old)}catch(e){}}
+    state.car.docs[docKind]=id; save(); renderCar(); closeSheet();
+  }catch(e){ alert('Не удалось сохранить фото'); }
+}
+$('#docCam').onclick=()=>$('#docCamInput').click();
+$('#docGal').onclick=()=>$('#docGalInput').click();
+$('#docCamInput').onchange=e=>{docPick([...e.target.files]);e.target.value=''};
+$('#docGalInput').onchange=e=>{docPick([...e.target.files]);e.target.value=''};
+
+/* отрисовка дополнительных блоков */
+function renderCarExtra(){
+  if(!Array.isArray(state.trips)) state.trips=[];
+  if(!Array.isArray(state.car.maint)) state.car.maint=[];
+  if(!state.car.docs||typeof state.car.docs!=='object') state.car.docs={};
+  const c=state.car, ym=ymOf(todayISO());
+  // топливо
+  const fi=fuelInfo(), fs=$('#fuelStats');
+  if(fi.avg==null&&fi.price==null) fs.innerHTML='<p class="meta stat wide" style="margin:0">Чтобы посчитать расход, при заправке указывайте пробег и литры. Точнее всего — если заправляться до полного бака.</p>';
+  else fs.innerHTML=
+    (fi.avg!=null?'<div class="stat"><b>'+fix1(fi.avg)+'</b><span>л/100 км в среднем, по '+fi.n+' заправкам</span></div>':'<div class="stat"><b>—</b><span>расход: нужно 2 заправки с пробегом и литрами</span></div>')+
+    (fi.last!=null?'<div class="stat"><b>'+fix1(fi.last)+'</b><span>л/100 км с прошлой заправки</span></div>':'')+
+    (fi.price!=null?'<div class="stat"><b>'+fix1(fi.price)+' ₽</b><span>средняя цена литра</span></div>':'')+
+    (fi.avg!=null&&fi.price!=null?'<div class="stat"><b>'+fix1(fi.avg*fi.price/100)+' ₽</b><span>стоимость 1 км</span></div>':'');
+  // регламент
+  const ml=$('#mtList'); ml.innerHTML='';
+  if(!c.maint.length){
+    ml.appendChild(emptyEl('Добавьте, что и как часто обслуживать: масло, фильтры, колодки. Приложение подскажет, когда подходит срок.'));
+    const li=document.createElement('li'), b=document.createElement('button'); b.className='more'; b.textContent='Заполнить типовым списком';
+    b.onclick=()=>{ MT_TPL.forEach(t=>c.maint.push({id:uid(),name:t[0],km:t[1],mon:t[2],lastKm:0,lastDate:''})); save(); render(); alert('Добавлен типовой список. Интервалы примерные — сверьте с сервисной книжкой и отметьте, когда что делали.'); };
+    li.appendChild(b); ml.appendChild(li);
+  }
+  c.maint.map(x=>({x,s:mtStatus(x)})).sort((a,b)=>({bad:0,warn:1}[a.s.lvl]??2)-({bad:0,warn:1}[b.s.lvl]??2)).forEach(({x,s})=>{
+    const li=remEl({t:x.name,m:s.m,v:s.v,lvl:s.lvl||(s.unk?'unk':'')}); li.classList.add('tap'); li.onclick=()=>openMt(x); ml.appendChild(li);
+  });
+  // поездки
+  const ml2=tripsOf(ym), ts=tripSum(ml2);
+  $('#trStats').innerHTML='<div class="stat"><b>'+fix1(ts.km)+' км</b><span>'+ml2.length+' '+plural(ml2.length,'поездка','поездки','поездок')+' за '+MONTHS_N[+ym.slice(5)-1]+'</span></div>'+
+    '<div class="stat"><b>'+num(Math.round(ts.total))+' ₽</b><span>'+(ts.rate?'к возмещению':'расходы в поездках · ставку за км задайте в «Данные авто»')+'</span></div>';
+  const tl=$('#trList'); tl.innerHTML='';
+  const recent=state.trips.slice().sort((a,b)=>cmp(b.date,a.date)).slice(0,5);
+  if(!recent.length) tl.appendChild(emptyEl('Записывайте поездки к объектам — в конце месяца получите готовый отчёт для компенсации'));
+  recent.forEach(x=>{
+    const li=document.createElement('li'), b=document.createElement('button'); b.className='log';
+    b.innerHTML='<span class="ic"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0119 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></span><span class="tbody"><span class="ttl">'+esc(tripObjName(x.objId)+(x.note?': '+x.note:''))+
+      '</span><span class="meta">'+esc(fmtDate(x.date)+(x.cost?', расходы '+num(x.cost)+' ₽':''))+'</span></span><span class="sum">'+fix1(x.dist)+' км</span>';
+    b.onclick=()=>openTrip(x); li.appendChild(b); tl.appendChild(li);
+  });
+  // документы
+  const dc=$('#carDocs'); dc.innerHTML='';
+  DOCS.forEach(([k,name])=>{
+    const id=c.docs[k], b=document.createElement('button'); b.className='doc'+(id&&APP?' has':'');
+    b.innerHTML=(id&&APP?'<img loading="lazy" alt="" src="'+Android.photoUrl(id)+'">':'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 9v6M9 12h6"/></svg>')+'<span>'+name+'</span>';
+    b.onclick=()=>{ if(!APP){ alert('Фото документов доступны в приложении на телефоне'); return; } openDoc(k); };
+    dc.appendChild(b);
+  });
+  // расходы за 12 месяцев
+  const months=[]; for(let i=11;i>=0;i--) months.push(ymShift(ym,-i));
+  const rows=months.map(m=>{ const l=state.carLog.filter(x=>ymOf(x.date)===m); const f=l.filter(x=>x.type==='fuel').reduce((s,x)=>s+(+x.sum||0),0), o=l.filter(x=>x.type!=='fuel').reduce((s,x)=>s+(+x.sum||0),0); return {m,f,o}; });
+  const max=Math.max(1,...rows.map(r=>r.f+r.o)), yr=ym.slice(0,4);
+  const year=state.carLog.filter(x=>(x.date||'').startsWith(yr)), byT={}; year.forEach(x=>byT[x.type]=(byT[x.type]||0)+(+x.sum||0));
+  const yTotal=Object.values(byT).reduce((a,b)=>a+b,0);
+  $('#carBars').innerHTML=rows.map(r=>'<div class="bar"><span>'+MON_S[+r.m.slice(5)-1]+(r.m.slice(5)==='01'||r===rows[0]?' '+r.m.slice(2,4):'')+'</span><span class="tr"><span class="f" style="width:'+(r.f/max*100)+'%"></span><span class="o" style="width:'+(r.o/max*100)+'%"></span></span><b>'+(r.f+r.o?num(Math.round(r.f+r.o))+' ₽':'—')+'</b></div>').join('')+
+    '<div class="leg"><span><i style="background:var(--accent)"></i>топливо</span><span><i style="background:var(--hot)"></i>ТО, ремонт, другое</span></div>'+
+    (yTotal?'<p class="meta" style="margin:6px 0 2px">За '+yr+' год: '+num(Math.round(yTotal))+' ₽ — '+['fuel','to','repair','other'].filter(k=>byT[k]).map(k=>LOGT[k].toLowerCase()+' '+num(Math.round(byT[k]))+' ₽').join(', ')+'</p>':'');
+}
 
 /* note form */
 let fColor=1;
