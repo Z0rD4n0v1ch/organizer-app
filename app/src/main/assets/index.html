@@ -175,6 +175,7 @@ textarea.field{min-height:120px;resize:vertical}
 .sugg{display:flex;gap:6px;overflow-x:auto;margin:-6px 0 12px;padding-bottom:2px;scrollbar-width:none}
 .sugg::-webkit-scrollbar{display:none}
 .sugg[hidden]{display:none}
+.sugg.after{margin:8px 0 0}
 .sugg button{flex:none;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:7px 12px;font-size:14px;white-space:nowrap;max-width:70vw;overflow:hidden;text-overflow:ellipsis}
 .sugg button.mdl{border-color:var(--accent)}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
@@ -363,7 +364,8 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
       <input type="file" id="oGalInput" accept="image/*" multiple hidden>
     </div>
     <h2>Заметки по объекту</h2>
-    <textarea class="objnote" id="oNote" placeholder="Коды доступа, где щитовая, кто открывает, нюансы трассы"></textarea>
+    <textarea class="objnote" id="oNote" spellcheck="true" autocapitalize="sentences" autocorrect="on" placeholder="Коды доступа, где щитовая, кто открывает, нюансы трассы"></textarea>
+    <div class="sugg after" id="oNoteSugg" hidden></div>
   </section>
 
   <!-- CAR -->
@@ -403,7 +405,8 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <form class="addrow" id="ckAddForm"><input id="ckAddInput" placeholder="Свой пункт" maxlength="160"><button>Добавить</button></form>
     <p class="cksum" id="ckSum"></p>
     <h2>Замечания</h2>
-    <textarea class="objnote" id="ckRemark" placeholder="Что неисправно, что заменили, что нужно докупить"></textarea>
+    <textarea class="objnote" id="ckRemark" spellcheck="true" autocapitalize="sentences" autocorrect="on" placeholder="Что неисправно, что заменили, что нужно докупить"></textarea>
+    <div class="sugg after" id="ckRemarkSugg" hidden></div>
     <div class="actions" style="margin-top:14px">
       <button class="btn ghost" id="ckDel" hidden>Удалить</button>
       <button class="btn ghost" id="ckShare" style="color:var(--accent)">Отправить</button>
@@ -1468,8 +1471,9 @@ const Sugg=(function(){
     if(e){ e.s+=score; if(mdl) e.mdl=true; if(score>=2&&/^\p{Lu}/u.test(e.w)&&!/^\p{Lu}/u.test(w)&&!mdl&&!e.mdl) e.w=w; }
     else dict.set(k,{w,k,s:score,mdl:!!mdl});
   }
+  let built=0;
   function build(){
-    dict=new Map(); big=new Map();
+    built=Date.now(); dict=new Map(); big=new Map();
     BASE.forEach(w=>add(w,2));
     for(const mk in CATS){ const c=CATS[mk]; if(c&&Array.isArray(c.items)) c.items.forEach(d=>{ String(d.m||'').split(/,\s+/).forEach(m=>{ m=m.trim(); if(m&&m.length<=30&&m.split(' ').length<=3&&/\d|[A-ZА-Я]{2}/.test(m)) add(m,1,true); }); }); }
     texts({t:state.tasks,n:state.notes,o:state.objects,l:state.carLog,tpl:state.tpl},[]).forEach(s=>{
@@ -1526,12 +1530,14 @@ const Sugg=(function(){
       ta.dispatchEvent(new Event('input',{bubbles:true}));
     }
     ta.addEventListener('input',upd); ta.addEventListener('click',upd); ta.addEventListener('keyup',e=>{ if(/Arrow|Home|End/.test(e.key)) upd(); });
-    ta.addEventListener('focus',upd); ta.addEventListener('blur',()=>setTimeout(()=>{ if(document.activeElement!==ta){ strip.hidden=true; } },150));
+    ta.addEventListener('focus',()=>{ if(Date.now()-built>15000) dict=null; upd(); }); ta.addEventListener('blur',()=>setTimeout(()=>{ if(document.activeElement!==ta){ strip.hidden=true; } },150));
     return {reset(){ dict=null; strip.hidden=true; }};
   }
   return {attach,reset(){dict=null}};
 })();
 const nSugg=Sugg.attach($('#nBody'),$('#nSugg'));
+Sugg.attach($('#oNote'),$('#oNoteSugg'));
+Sugg.attach($('#ckRemark'),$('#ckRemarkSugg'));
 
 /* fab */
 $('#fab').onclick=()=>{
