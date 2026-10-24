@@ -408,6 +408,57 @@ public class MainActivity extends Activity {
             });
         }
 
+        /* ---- автосохранение копии данных в «Загрузки/Органайзер» без вопросов ---- */
+        @JavascriptInterface
+        public String autoBackup(String fileName, String json, int keep) {
+            String safe = fileName.replaceAll("[^A-Za-z0-9_.-]", "");
+            byte[] data = json.getBytes(StandardCharsets.UTF_8);
+            try {
+                if (Build.VERSION.SDK_INT >= 29) {
+                    android.content.ContentResolver cr = getContentResolver();
+                    String rel = android.os.Environment.DIRECTORY_DOWNLOADS + "/Органайзер";
+                    ContentValues v = new ContentValues();
+                    v.put(MediaStore.MediaColumns.DISPLAY_NAME, safe);
+                    v.put(MediaStore.MediaColumns.MIME_TYPE, "application/json");
+                    v.put(MediaStore.MediaColumns.RELATIVE_PATH, rel);
+                    Uri u = cr.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
+                    if (u == null) return "";
+                    try (OutputStream out = cr.openOutputStream(u)) {
+                        if (out == null) return "";
+                        out.write(data);
+                    }
+                    // оставляем только последние keep автокопий
+                    try (android.database.Cursor c = cr.query(MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+                            new String[]{MediaStore.MediaColumns._ID},
+                            MediaStore.MediaColumns.RELATIVE_PATH + " LIKE ? AND " + MediaStore.MediaColumns.DISPLAY_NAME + " LIKE ?",
+                            new String[]{rel + "%", "organizer-auto-%"},
+                            MediaStore.MediaColumns.DATE_ADDED + " DESC")) {
+                        int i = 0;
+                        while (c != null && c.moveToNext()) {
+                            if (++i > Math.max(1, keep)) {
+                                Uri del = android.content.ContentUris.withAppendedId(MediaStore.Downloads.EXTERNAL_CONTENT_URI, c.getLong(0));
+                                try { cr.delete(del, null, null); } catch (Exception ignored) { }
+                            }
+                        }
+                    } catch (Exception ignored) { }
+                    return "Загрузки/Органайзер";
+                } else {
+                    File dir = new File(getExternalFilesDir(null), "backups");
+                    if (!dir.exists()) dir.mkdirs();
+                    try (OutputStream out = new FileOutputStream(new File(dir, safe))) { out.write(data); }
+                    File[] fs = dir.listFiles((d, n) -> n.startsWith("organizer-auto-"));
+                    if (fs != null && fs.length > keep) {
+                        java.util.Arrays.sort(fs, (a, b) -> Long.compare(b.lastModified(), a.lastModified()));
+                        for (int i = keep; i < fs.length; i++) //noinspection ResultOfMethodCallIgnored
+                            fs[i].delete();
+                    }
+                    return "Android/data/" + getPackageName() + "/files/backups";
+                }
+            } catch (Exception e) {
+                return "";
+            }
+        }
+
         /** Спрашивает GitHub о последней сборке и отдаёт ответ в window.onUpdateInfo. */
         @JavascriptInterface
         public void checkUpdate() {

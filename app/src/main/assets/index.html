@@ -198,6 +198,9 @@ textarea.field{min-height:120px;resize:vertical}
 .btn{flex:1;border:0;border-radius:14px;padding:14px;font-weight:600;background:var(--accent);color:var(--accent-ink)}
 .btn.ghost{flex:none;background:transparent;color:var(--red);border:1.5px solid var(--line)}
 .btn.ghost.plain{color:var(--ink)}
+.setrow.abevery{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.abevery .seg.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.abrow{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--bg);border-radius:12px;padding:8px 12px;font-size:14px}
 .stmsg{font-weight:500}.stmsg.ok{color:#2E9E5B}.stmsg.err{color:var(--red)}.stmsg.busy{color:var(--muted)}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .stmsg.ok{color:#5FD08A}}
 :root[data-theme="dark"] .stmsg.ok{color:#5FD08A}
@@ -811,6 +814,18 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <p class="hint" style="margin:6px 0 18px">Порядок вкладок меняется так: зажмите вкладку внизу и перетащите.</p>
     <p class="lbl">Telegram</p>
     <div class="setlist"><button class="setrow" id="setTg"><span>Telegram-бот для пробега</span><i id="setTgState"></i></button></div>
+    <p class="lbl" style="margin-top:18px">Автосохранение копии данных</p>
+    <div class="setlist">
+      <label class="setrow"><span>Сохранять копию автоматически</span><input type="checkbox" class="tgl" id="abOn"></label>
+      <div class="setrow abevery" id="abEvery">
+        <button class="seg" type="button" data-e="h">Каждый час</button>
+        <button class="seg" type="button" data-e="d">Каждый день</button>
+        <button class="seg" type="button" data-e="w">Каждую неделю</button>
+        <button class="seg" type="button" data-e="m">Каждый месяц</button>
+      </div>
+    </div>
+    <p class="hint stmsg" id="abInfo" style="margin:6px 0 0"></p>
+    <ul class="list" id="abList" style="margin-top:8px"></ul>
     <p class="lbl" style="margin-top:18px">Данные</p>
     <div class="backup">
       <button class="seg" id="bkExport">Сохранить копию данных</button>
@@ -2698,6 +2713,61 @@ $('#bkFile').onchange=e=>{
   };
   r.readAsText(f); e.target.value='';
 };
+/* ---------- автосохранение копии ---------- */
+const AB_MS={h:3600e3,d:86400e3,w:7*86400e3,m:30*86400e3}, AB_KEEP={h:24,d:14,w:8,m:12};
+const AB_NAME={h:'каждый час',d:'каждый день',w:'каждую неделю',m:'каждый месяц'};
+function abCfg(){ try{ return Object.assign({on:false,every:'d',last:0,data:0,where:''},JSON.parse(localStorage.getItem('auto-bk')||'{}')); }catch(e){ return {on:false,every:'d',last:0,data:0,where:''}; } }
+function abSet(c){ try{ localStorage.setItem('auto-bk',JSON.stringify(c)); }catch(e){} }
+const AB_OK=(APP&&!!Android.autoBackup)||(WEB&&'caches' in window);
+function abStamp(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'_'+pad(d.getHours())+'-'+pad(d.getMinutes()); }
+async function autoBackupRun(force){
+  const c=abCfg(); if(!c.on||!AB_OK) return false;
+  const now=Date.now();
+  if(!force&&now-(c.last||0)<AB_MS[c.every]) return false;
+  if(!force&&c.data&&(state.updatedAt||0)<=c.data) return false;   // с прошлой копии ничего не менялось
+  const json=JSON.stringify(state), name='organizer-auto-'+abStamp(new Date())+'.json', keep=AB_KEEP[c.every]||14;
+  let where='';
+  if(APP){ try{ where=Android.autoBackup(name,json,keep)||''; }catch(e){} }
+  else{
+    try{ const cc=await caches.open('org-backups'); await cc.put(new URL('backup/'+now+'.json',location.href).href,new Response(json,{headers:{'Content-Type':'application/json'}}));
+      const ks=(await cc.keys()).sort((a,b)=>b.url.localeCompare(a.url)); for(const k of ks.slice(keep)) await cc.delete(k);
+      where='память браузера'; }catch(e){}
+  }
+  if(!where) return false;
+  Object.assign(c,{last:now,data:state.updatedAt||now,where}); abSet(c);
+  if(!$('#fSet').hidden) abRender();
+  return true;
+}
+function abWhen(ts){ const d=new Date(ts); return fmtDate(iso(d))+', '+hm(d); }
+let abTok=0;
+async function abRender(){
+  const c=abCfg(), tok=++abTok;
+  $('#abOn').checked=!!c.on; $('#abOn').disabled=!AB_OK;
+  $$('#abEvery .seg').forEach(b=>{ b.classList.toggle('on',b.dataset.e===c.every); b.disabled=!c.on; });
+  const info=$('#abInfo');
+  if(!AB_OK){ info.textContent='Автосохранение доступно в приложении на телефоне'; info.className='hint stmsg'; }
+  else if(!c.on){ info.textContent=APP?'Копии будут сохраняться в папку «Загрузки/Органайзер» — они останутся, даже если удалить приложение.':'Копии будут храниться в памяти браузера на этом телефоне.'; info.className='hint stmsg'; }
+  else{ info.textContent=(c.last?'Последняя копия: '+abWhen(c.last)+' · '+c.where:'Копия ещё не сохранялась')+'. Новая — '+AB_NAME[c.every]+', если данные изменились.'; info.className='hint stmsg'+(c.last?' ok':''); }
+  const ul=$('#abList'); ul.innerHTML='';
+  if(WEB&&'caches' in window&&c.on){
+    try{ const cc=await caches.open('org-backups'); const ks=(await cc.keys()).sort((a,b)=>b.url.localeCompare(a.url)).slice(0,5);
+      if(tok!==abTok) return;
+      ks.forEach(k=>{ const ts=+k.url.replace(/.*\/backup\/(\d+)\.json.*/,'$1'); const li=document.createElement('li'); li.className='abrow';
+        li.innerHTML='<span>'+esc(abWhen(ts))+'</span><button class="link" type="button">Восстановить</button>';
+        li.querySelector('button').onclick=async()=>{ if(!confirm('Заменить текущие данные копией от '+abWhen(ts)+'?')) return;
+          try{ const d=await (await cc.match(k)).json(); if(!d||!Array.isArray(d.tasks)) throw 0; state=normalize(d); state.v2=true; save(); render(); closeSheet(); alert('Данные восстановлены'); }catch(e){ alert('Не удалось прочитать копию'); } };
+        ul.appendChild(li); }); }catch(e){}
+  }
+}
+$('#abOn').onchange=async()=>{ const c=abCfg(); c.on=$('#abOn').checked; abSet(c); if(c.on) await autoBackupRun(true); abRender(); };
+$$('#abEvery .seg').forEach(b=>b.onclick=()=>{ const c=abCfg(); c.every=b.dataset.e; abSet(c); abRender(); });
+{ const gb=$('#gearBtn').onclick; $('#gearBtn').onclick=()=>{ gb(); abRender(); }; }
+let abTimer=null;
+const _saveOrig=save;
+save=function(){ _saveOrig(); clearTimeout(abTimer); abTimer=setTimeout(()=>autoBackupRun(false),4000); };
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') autoBackupRun(false); });
+setInterval(()=>autoBackupRun(false),10*60e3);
+setTimeout(()=>autoBackupRun(false),6000);
 /* in-app updates */
 const isApp=!!(window.Android&&Android.checkUpdate);
 let upd=null, manualCheck=false, updBusy=false;
