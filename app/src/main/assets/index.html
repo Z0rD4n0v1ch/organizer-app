@@ -2,7 +2,15 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Органайзер">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#ECEBF3" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#15141C" media="(prefers-color-scheme: dark)">
 <title>Органайзер монтажника</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -267,6 +275,10 @@ textarea.field{min-height:120px;resize:vertical}
 .bars .leg{display:flex;gap:14px;font-size:12px;color:var(--muted);margin:8px 0 2px;flex-wrap:wrap}
 .bars .leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .rem.tap{cursor:pointer}
+.install{display:flex;gap:10px;align-items:flex-start;background:var(--surface);border:1.5px solid var(--accent);border-radius:16px;padding:12px 14px;margin:0 0 14px;font-size:14px}
+.install b{display:block;margin-bottom:2px}
+.install svg{width:16px;height:16px;stroke:var(--accent);fill:none;stroke-width:2;vertical-align:-3px}
+.install button{border:0;background:transparent;font-size:22px;line-height:1;color:var(--muted);padding:0 2px}
 .rem.unk{border-left-color:var(--line)}
 .rem.unk .val{color:var(--muted);font-weight:400;font-size:13px;white-space:normal;max-width:120px}
 .more{border:0;background:transparent;color:var(--accent);font-size:14px;padding:8px 0}
@@ -305,6 +317,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
   <!-- TODAY -->
   <section class="view on" id="v-today">
     <div class="upd" id="upd" hidden><span id="updText"></span><button id="updBtn">Обновить</button></div>
+    <div class="install" id="iosHint" hidden><span><b>Установите на экран «Домой»</b>Нажмите «Поделиться» <svg viewBox="0 0 24 24"><path d="M12 15V3M8 7l4-4 4 4M5 11v9h14v-9"/></svg> внизу Safari и выберите «На экран „Домой“». Так органайзер работает без интернета, а данные хранятся надёжно.</span><button id="iosHintX" aria-label="Скрыть">×</button></div>
     <button class="runbar" id="runbar" hidden><span><b id="runObj"></b>Идёт работа, нажмите, чтобы открыть объект</span><i id="runTime"></i></button>
     <h1 id="dayTitle">Сегодня</h1>
     <p class="sub" id="dayDate"></p>
@@ -806,6 +819,29 @@ function esc(s){const d=document.createElement('div');d.textContent=s==null?'':S
 /* ---------- state ---------- */
 let state={tasks:[],notes:[],objects:[],car:{},carLog:[],hours:[],odo:[],timer:null,updatedAt:0};
 const APP=!!window.Android;
+/* фото: в Android-приложении — файлы телефона, в веб-версии (iPhone) — хранилище браузера */
+const WEB=!APP&&/^https?:$/.test(location.protocol);
+const PHOTO=APP||(WEB&&'caches' in window);
+const PH=(function(){
+  if(APP) return {save:(id,b64)=>Android.savePhoto(id,b64), url:id=>Android.photoUrl(id), del:id=>{try{Android.deletePhoto(id)}catch(e){}}};
+  const mem={}, C='org-photos', key=id=>new URL('photo/'+id+'.jpg',location.href).href;
+  // если сервис-воркер ещё не управляет страницей — достаём фото из хранилища напрямую
+  document.addEventListener('error',e=>{
+    const img=e.target; if(!(img instanceof HTMLImageElement)||img.dataset.phfix) return;
+    const m=(img.getAttribute('src')||'').match(/^photo\/([^/?#]+)\.jpg/); if(!m||!('caches' in window)) return;
+    img.dataset.phfix='1';
+    caches.open(C).then(c=>c.match(key(m[1]))).then(r=>r&&r.blob()).then(b=>{ if(b){ mem[m[1]]=URL.createObjectURL(b); img.src=mem[m[1]]; } }).catch(()=>{});
+  },true);
+  return {
+    save(id,b64){ try{
+      const bin=atob(b64), u=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i]=bin.charCodeAt(i);
+      const blob=new Blob([u],{type:'image/jpeg'}); mem[id]=URL.createObjectURL(blob);
+      caches.open(C).then(c=>c.put(key(id),new Response(blob,{headers:{'Content-Type':'image/jpeg'}}))).catch(()=>{});
+      return true; }catch(e){ return false; } },
+    url:id=>mem[id]?mem[id]+'#':'photo/'+id+'.jpg',
+    del(id){ if(mem[id]){ try{URL.revokeObjectURL(mem[id])}catch(e){} delete mem[id]; } if('caches' in window) caches.open(C).then(c=>c.delete(key(id))).catch(()=>{}); }
+  };
+})();
 function normalize(s){
   s=Object.assign({tasks:[],notes:[],objects:[],car:{},carLog:[],hours:[],odo:[],trips:[],timer:null,updatedAt:0},s||{});
   ['tasks','notes','objects','carLog','hours','odo','trips'].forEach(k=>{if(!Array.isArray(s[k]))s[k]=[]});
@@ -1142,12 +1178,12 @@ setInterval(()=>{ if(!state.timer) return; renderRunbar(); if(view==='object'){c
 
 /* ---------- photos ---------- */
 function renderPhotos(o){
-  $('#oPhotoBlock').hidden=!APP; if(!APP) return;
+  $('#oPhotoBlock').hidden=!PHOTO; if(!PHOTO) return;
   if(!Array.isArray(o.photos)) o.photos=[];
   const g=$('#oPhotos'); g.innerHTML='';
   o.photos.slice().sort((a,b)=>b.ts-a.ts).forEach(p=>{
     const b=document.createElement('button'); b.setAttribute('aria-label','Фото');
-    const img=document.createElement('img'); img.loading='lazy'; img.src=Android.photoUrl(p.id)+'?'+p.ts; img.alt='';
+    const img=document.createElement('img'); img.loading='lazy'; img.src=PH.url(p.id)+'?'+p.ts; img.alt='';
     b.appendChild(img); b.onclick=()=>openViewer(o,p); g.appendChild(b);
   });
 }
@@ -1169,7 +1205,7 @@ async function addPhotos(files){
   if(!Array.isArray(o.photos)) o.photos=[];
   let fail=0;
   for(const f of files){
-    try{ const b64=await shrink(f), id=uid(); if(Android.savePhoto(id,b64)) o.photos.push({id,ts:Date.now()}); else fail++; }
+    try{ const b64=await shrink(f), id=uid(); if(PH.save(id,b64)) o.photos.push({id,ts:Date.now()}); else fail++; }
     catch(e){ fail++; }
   }
   save(); renderObject();
@@ -1181,12 +1217,12 @@ $('#oCamInput').onchange=e=>{addPhotos([...e.target.files]); e.target.value='';}
 $('#oGalInput').onchange=e=>{addPhotos([...e.target.files]); e.target.value='';};
 let vCur=null;
 function showPhoto(id,caption,onDel){
-  vCur={onDel}; $('#vImg').src=Android.photoUrl(id)+'?'+Date.now();
+  vCur={onDel}; $('#vImg').src=PH.url(id)+'?'+Date.now();
   $('#vDate').textContent=caption||''; $('#vDel').style.visibility=onDel?'visible':'hidden'; $('#viewer').hidden=false;
 }
 function openViewer(o,p){
   const d=new Date(p.ts);
-  showPhoto(p.id,fmtDate(iso(d))+', '+hm(d),()=>{ o.photos=o.photos.filter(x=>x!==p); try{Android.deletePhoto(p.id)}catch(e){} save(); renderObject(); });
+  showPhoto(p.id,fmtDate(iso(d))+', '+hm(d),()=>{ o.photos=o.photos.filter(x=>x!==p); try{PH.del(p.id)}catch(e){} save(); renderObject(); });
 }
 function closeViewer(){ $('#viewer').hidden=true; $('#vImg').removeAttribute('src'); vCur=null; }
 $('#vClose').onclick=closeViewer;
@@ -1232,10 +1268,10 @@ function renderCar(){
   renderCarExtra();
   const ol=$('#odoList'); ol.innerHTML='';
   const odo=state.odo.slice().sort((a,b)=>cmp(b.date,a.date)||b.km-a.km);
-  if(!odo.length) ol.appendChild(emptyEl(APP?'Нажмите «Обновить» у пробега и сфотографируйте одометр: снимок сохранится с датой и километрами':'Записей пробега пока нет'));
+  if(!odo.length) ol.appendChild(emptyEl(PHOTO?'Нажмите «Обновить» у пробега и сфотографируйте одометр: снимок сохранится с датой и километрами':'Записей пробега пока нет'));
   odo.forEach(r=>{
     const li=document.createElement('li'), b=document.createElement('button'); b.className='log';
-    b.innerHTML=(r.photo&&APP?'<span class="odoth"><img loading="lazy" alt="" src="'+Android.photoUrl(r.photo)+'"></span>':'<span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 13l4-3M8 5h8"/></svg></span>')+
+    b.innerHTML=(r.photo&&PHOTO?'<span class="odoth"><img loading="lazy" alt="" src="'+PH.url(r.photo)+'"></span>':'<span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 13l4-3M8 5h8"/></svg></span>')+
       '<span class="tbody"><span class="ttl">'+esc(num(r.km)+' км')+'</span><span class="meta">'+esc(fmtDate(r.date)+(r.photo?'':', без фото'))+'</span></span>';
     b.onclick=()=>openKm(r); li.appendChild(b); ol.appendChild(li);
   });
@@ -1258,16 +1294,16 @@ function photoPicker(px){
   function show(){
     box.hidden=!st.id; box.innerHTML='';
     if(!st.id) return;
-    box.innerHTML='<button type="button" class="th"><img alt="Фото" src="'+Android.photoUrl(st.id)+'?'+Date.now()+'"></button><button type="button" class="rm">Убрать фото</button>';
+    box.innerHTML='<button type="button" class="th"><img alt="Фото" src="'+PH.url(st.id)+'?'+Date.now()+'"></button><button type="button" class="rm">Убрать фото</button>';
     box.querySelector('.th').onclick=()=>showPhoto(st.id,'');
-    box.querySelector('.rm').onclick=()=>{ if(st.fresh){try{Android.deletePhoto(st.id)}catch(e){}} else st.drop=st.id; st.id=null; st.fresh=false; show(); };
+    box.querySelector('.rm').onclick=()=>{ if(st.fresh){try{PH.del(st.id)}catch(e){}} else st.drop=st.id; st.id=null; st.fresh=false; show(); };
   }
   async function pick(files){
     const f=files&&files[0]; if(!f) return;
     try{
       const b64=await shrink(f), id=uid();
-      if(!Android.savePhoto(id,b64)) throw 0;
-      if(st.id){ if(st.fresh){try{Android.deletePhoto(st.id)}catch(e){}} else st.drop=st.id; }
+      if(!PH.save(id,b64)) throw 0;
+      if(st.id){ if(st.fresh){try{PH.del(st.id)}catch(e){}} else st.drop=st.id; }
       st.id=id; st.fresh=true; show();
     }catch(e){ alert('Не удалось добавить фото'); }
   }
@@ -1276,10 +1312,10 @@ function photoPicker(px){
   $('#'+px+'CamInput').onchange=e=>{pick([...e.target.files]);e.target.value=''};
   $('#'+px+'GalInput').onchange=e=>{pick([...e.target.files]);e.target.value=''};
   return {
-    set(id){ st.id=id||null; st.fresh=false; st.drop=null; $('#'+px+'PhBlock').hidden=!APP; if(APP) show(); },
+    set(id){ st.id=id||null; st.fresh=false; st.drop=null; $('#'+px+'PhBlock').hidden=!PHOTO; if(PHOTO) show(); },
     get(){ return st.id; },
-    commit(){ if(st.drop){try{Android.deletePhoto(st.drop)}catch(e){}} st.fresh=false; st.drop=null; },
-    discard(){ if(st.fresh&&st.id){try{Android.deletePhoto(st.id)}catch(e){}} st.id=null; st.fresh=false; st.drop=null; }
+    commit(){ if(st.drop){try{PH.del(st.drop)}catch(e){}} st.fresh=false; st.drop=null; },
+    discard(){ if(st.fresh&&st.id){try{PH.del(st.id)}catch(e){}} st.id=null; st.fresh=false; st.drop=null; }
   };
 }
 if(!Array.isArray(state.odo)) state.odo=[];
@@ -1304,7 +1340,7 @@ $('#kmSave').onclick=()=>{
 };
 $('#kmDel').onclick=()=>{
   if(!kmEdit||!confirm('Удалить запись пробега'+(kmEdit.photo?' вместе с фото':'')+'?')) return;
-  if(kmEdit.photo){try{Android.deletePhoto(kmEdit.photo)}catch(e){}}
+  if(kmEdit.photo){try{PH.del(kmEdit.photo)}catch(e){}}
   state.odo=state.odo.filter(x=>x!==kmEdit); kmPick.discard();
   const pts=kmPoints(); if(pts.length) state.car.mileage=Math.max(...pts.map(x=>x.k));
   save(); render(); closeSheet();
@@ -1460,7 +1496,7 @@ $('#obDel').onclick=()=>{
   if(!confirm('Удалить объект «'+editing.name+'»? Задачи останутся, но без привязки.'))return;
   const id=editing.id; state.objects=state.objects.filter(x=>x!==editing);
   state.tasks.forEach(t=>{if(t.objId===id)t.objId=''});
-  (editing.photos||[]).forEach(p=>{try{Android.deletePhoto(p.id)}catch(e){}});
+  (editing.photos||[]).forEach(p=>{try{PH.del(p.id)}catch(e){}});
   state.hours=state.hours.filter(h=>h.objId!==id);
   if(state.timer&&state.timer.objId===id) state.timer=null;
   save(); closeSheet(); go('objects'); render();
@@ -1487,7 +1523,7 @@ $('#lgSave').onclick=()=>{
   if(fType==='to'&&km&&!editing){state.car.nextToKm=km+(+state.car.toInterval||10000);}
   save();render();closeSheet();
 };
-$('#lgDel').onclick=()=>{ if(editing&&editing.photo){try{Android.deletePhoto(editing.photo)}catch(e){}} lgPick.discard(); state.carLog=state.carLog.filter(x=>x!==editing);save();render();closeSheet();};
+$('#lgDel').onclick=()=>{ if(editing&&editing.photo){try{PH.del(editing.photo)}catch(e){}} lgPick.discard(); state.carLog=state.carLog.filter(x=>x!==editing);save();render();closeSheet();};
 
 /* car form */
 let fTires='1';
@@ -1638,13 +1674,13 @@ const DOCS=[['sts','СТС'],['vu','Права'],['osago','ОСАГО'],['dk','�
 let docKind=null;
 function openDoc(k){
   docKind=k; const id=state.car.docs[k], name=DOCS.find(d=>d[0]===k)[1];
-  if(id){ showPhoto(id,name,()=>{ try{Android.deletePhoto(id)}catch(e){} delete state.car.docs[k]; save(); renderCar(); }); return; }
+  if(id){ showPhoto(id,name,()=>{ try{PH.del(id)}catch(e){} delete state.car.docs[k]; save(); renderCar(); }); return; }
   $('#fDocTitle').textContent=name; $('#docPrev').hidden=true; openSheet('fDoc');
 }
 async function docPick(files){
   const f=files&&files[0]; if(!f||!docKind) return;
-  try{ const b64=await shrink(f), id=uid(); if(!Android.savePhoto(id,b64)) throw 0;
-    const old=state.car.docs[docKind]; if(old){try{Android.deletePhoto(old)}catch(e){}}
+  try{ const b64=await shrink(f), id=uid(); if(!PH.save(id,b64)) throw 0;
+    const old=state.car.docs[docKind]; if(old){try{PH.del(old)}catch(e){}}
     state.car.docs[docKind]=id; save(); renderCar(); closeSheet();
   }catch(e){ alert('Не удалось сохранить фото'); }
 }
@@ -1694,9 +1730,9 @@ function renderCarExtra(){
   // документы
   const dc=$('#carDocs'); dc.innerHTML='';
   DOCS.forEach(([k,name])=>{
-    const id=c.docs[k], b=document.createElement('button'); b.className='doc'+(id&&APP?' has':'');
-    b.innerHTML=(id&&APP?'<img loading="lazy" alt="" src="'+Android.photoUrl(id)+'">':'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 9v6M9 12h6"/></svg>')+'<span>'+name+'</span>';
-    b.onclick=()=>{ if(!APP){ alert('Фото документов доступны в приложении на телефоне'); return; } openDoc(k); };
+    const id=c.docs[k], b=document.createElement('button'); b.className='doc'+(id&&PHOTO?' has':'');
+    b.innerHTML=(id&&PHOTO?'<img loading="lazy" alt="" src="'+PH.url(id)+'">':'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M12 9v6M9 12h6"/></svg>')+'<span>'+name+'</span>';
+    b.onclick=()=>{ if(!PHOTO){ alert('Фото документов доступны в приложении на телефоне'); return; } openDoc(k); };
     dc.appendChild(b);
   });
   // расходы за 12 месяцев
@@ -2087,8 +2123,8 @@ function refreshMakers(){
 }
 /* хранилище скачанных каталогов: файлы приложения или localStorage */
 const CSTORE={
-  load(name){ try{ if(window.Android&&Android.loadFile) return Android.loadFile(name); return localStorage.getItem('f-'+name); }catch(e){ return null; } },
-  save(name,txt){ try{ if(window.Android&&Android.saveFile) return Android.saveFile(name,txt); localStorage.setItem('f-'+name,txt); return true; }catch(e){ return false; } }
+  load(name){ try{ if(window.Android&&Android.loadFile) return Android.loadFile(name); if(WEB) return null; return localStorage.getItem('f-'+name); }catch(e){ return null; } },
+  save(name,txt){ try{ if(window.Android&&Android.saveFile) return Android.saveFile(name,txt); if(WEB) return true; localStorage.setItem('f-'+name,txt); return true; }catch(e){ return false; } }
 };
 function storedKeys(){ let k=[]; try{k=JSON.parse(localStorage.getItem('cat-keys')||'[]')}catch(e){} return Array.from(new Set(k.concat(MAKER_ORDER))); }
 storedKeys().forEach(k=>{
@@ -2241,6 +2277,8 @@ $('#bkExport').onclick=()=>{
   const json=JSON.stringify(state);
   const name='organizer-'+todayISO()+'.json';
   if(window.Android&&Android.saveBackup){Android.saveBackup(name,json);return}
+  try{ const file=new File([json],name,{type:'application/json'});
+    if(navigator.canShare&&navigator.canShare({files:[file]})){ navigator.share({files:[file],title:'Копия данных органайзера'}).catch(()=>{}); return; } }catch(e){}
   const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([json],{type:'application/json'}));a.download=name;a.click();
 };
 $('#bkImport').onclick=()=>$('#bkFile').click();
@@ -2289,6 +2327,15 @@ if(isApp){
   let v=0; try{v=Android.versionCode()}catch(e){}
   $('#sync').textContent='Данные хранятся в телефоне'+(v?', сборка '+v:'');
   setTimeout(()=>{ try{Android.checkUpdate()}catch(e){} }, 1500);
+}
+if(WEB){
+  if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+  try{ navigator.storage&&navigator.storage.persist&&navigator.storage.persist(); }catch(e){}
+  const ios=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  const standalone=navigator.standalone||matchMedia('(display-mode: standalone)').matches;
+  let off=false; try{ off=localStorage.getItem('ios-hint-off')==='1'; }catch(e){}
+  if(ios&&!standalone&&!off) $('#iosHint').hidden=false;
+  $('#iosHintX').onclick=()=>{ $('#iosHint').hidden=true; try{localStorage.setItem('ios-hint-off','1')}catch(e){} };
 }
 save(); render(); connect();
 })();
