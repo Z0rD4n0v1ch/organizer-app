@@ -265,6 +265,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
 .facts li{margin:0 0 8px;line-height:1.45}
 .doclinks{display:flex;flex-direction:column;gap:8px}
 .doclinks a{display:block;background:var(--surface);border-radius:14px;padding:12px 14px;color:var(--accent);text-decoration:none;font-weight:500;word-wrap:break-word}
+.eqtag.old{color:var(--muted,#888);border-color:var(--muted,#888)}
 .eqtag{display:inline-block;font:500 11px "Golos Text",sans-serif;color:var(--accent);border:1.5px solid var(--accent);border-radius:6px;padding:0 5px;margin-left:6px;vertical-align:1px}
 .backup{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:30px}
 .sync{font-size:12px;color:var(--muted);text-align:center;margin-top:12px}
@@ -1687,7 +1688,7 @@ let mk=MAKERS[0]||'', catCat='', devFrom='catalog';
 try{const v=localStorage.getItem('org-maker'); if(v&&CATS[v]) mk=v;}catch(e){}
 function catItem(d,onClick,showMaker){
   const li=document.createElement('li'), b=document.createElement('button'); b.className='log';
-  b.innerHTML='<span class="tbody"><span class="ttl">'+esc(d.m)+(showMaker?'<span class="eqtag">'+esc(CATS[d._mk].name)+'</span>':'')+'</span><span class="meta">'+esc(d.p)+'</span></span>';
+  b.innerHTML='<span class="tbody"><span class="ttl">'+esc(d.m)+(showMaker?'<span class="eqtag">'+esc(CATS[d._mk].name)+'</span>':'')+(/^Снято с производства/.test(d.c)?'<span class="eqtag old">снят с произв.</span>':'')+'</span><span class="meta">'+esc(d.p)+'</span></span>';
   b.onclick=()=>onClick(d); li.appendChild(b); return li;
 }
 function renderCatalog(){
