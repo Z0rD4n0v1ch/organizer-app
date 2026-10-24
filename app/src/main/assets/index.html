@@ -197,6 +197,10 @@ textarea.field{min-height:120px;resize:vertical}
 .actions{display:flex;gap:10px;margin-top:6px}
 .btn{flex:1;border:0;border-radius:14px;padding:14px;font-weight:600;background:var(--accent);color:var(--accent-ink)}
 .btn.ghost{flex:none;background:transparent;color:var(--red);border:1.5px solid var(--line)}
+.btn.ghost.plain{color:var(--ink)}
+.stmsg{font-weight:500}.stmsg.ok{color:#2E9E5B}.stmsg.err{color:var(--red)}.stmsg.busy{color:var(--muted)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .stmsg.ok{color:#5FD08A}}
+:root[data-theme="dark"] .stmsg.ok{color:#5FD08A}
 .upd{display:flex;align-items:center;gap:12px;background:var(--accent);color:var(--accent-ink);border-radius:18px;padding:12px 14px;margin:8px 0 6px}
 .upd[hidden]{display:none}
 .upd span{flex:1;min-width:0;font-size:14px;line-height:1.35}
@@ -755,7 +759,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
       <input type="file" id="kmGalInput" accept="image/*" hidden>
     </div>
     <div class="actions"><button class="btn ghost" id="kmDel" hidden>Удалить</button><button class="btn" id="kmSave">Сохранить</button></div>
-    <button class="btn ghost tgbtn" id="kmSend"><svg viewBox="0 0 24 24"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/><path d="M9 13l12-9"/></svg>Сохранить и отправить в Telegram</button>
+    <button class="btn ghost plain tgbtn" id="kmSend"><svg viewBox="0 0 24 24"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/><path d="M9 13l12-9"/></svg>Сохранить и отправить в Telegram</button>
     <p class="hint" style="text-align:center;margin:8px 0 0"><button class="link" type="button" id="kmTgSet">Настроить Telegram-бота</button></p>
   </div>
 
@@ -796,7 +800,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     </div>
     <p class="dydist" id="dyDist"></p>
     <div class="actions"><button class="btn ghost" id="dyDel" hidden>Удалить день</button><button class="btn" id="dySave">Сохранить</button></div>
-    <button class="btn ghost tgbtn" id="dySend"><svg viewBox="0 0 24 24"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/><path d="M9 13l12-9"/></svg>Сохранить и отправить день в Telegram</button>
+    <button class="btn ghost plain tgbtn" id="dySend"><svg viewBox="0 0 24 24"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/><path d="M9 13l12-9"/></svg>Сохранить и отправить день в Telegram</button>
     <p class="hint" style="text-align:center;margin:8px 0 0"><button class="link" type="button" id="dyTgSet">Настроить Telegram-бота</button></p>
   </div>
 
@@ -826,8 +830,8 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
       <p class="hint" style="margin:6px 0 8px">Отправка ботом идёт напрямую на сервер api.telegram.org. Если он недоступен, включите на телефоне VPN для всего устройства (или добавьте Органайзер в приложения VPN) либо укажите адрес своего прокси-сервера Bot API. Способ через «Поделиться» работает всегда, пока работает приложение Telegram.</p>
       <input class="field" id="tgBase" placeholder="https://api.telegram.org" autocomplete="off" autocapitalize="off" spellcheck="false">
     </details>
-    <p class="hint" id="tgInfo" style="margin:-4px 0 12px"></p>
-    <div class="actions"><button class="btn ghost" id="tgTest">Проверить</button><button class="btn" id="tgSave">Сохранить</button></div>
+    <p class="hint stmsg" id="tgInfo" style="margin:-4px 0 12px"></p>
+    <div class="actions"><button class="btn ghost plain" id="tgTest">Проверить</button><button class="btn" id="tgSave">Сохранить</button></div>
     <p class="hint" style="text-align:center;margin:10px 0 0"><button class="link" type="button" id="tgOff">Отключить бота</button></p>
   </div>
 
@@ -1474,6 +1478,7 @@ $('#kmDel').onclick=()=>{
 };
 
 /* ---------- запись пробега → Telegram ---------- */
+function tgMsg(txt,kind){ const el=$('#tgInfo'); el.textContent=txt||''; el.className='hint stmsg'+(kind?' '+kind:''); }
 function tgCfg(){ try{ return JSON.parse(localStorage.getItem('tg-bot')||'null')||{}; }catch(e){ return {}; } }
 function tgBase(b){ b=String(b||'').trim().replace(/\/+$/,''); return /^https?:\/\//.test(b)?b:'https://api.telegram.org'; }
 function tgErr(code,body){ if(code===-1){ const m=String(body||''); return 'нет связи с сервером Telegram'+(/UnknownHost|resolve/i.test(m)?' (адрес не найден — возможна блокировка)':/timed? ?out|Timeout/i.test(m)?' (истекло время ожидания — возможна блокировка)':/SSL|Handshake|reset|refused/i.test(m)?' (соединение сброшено — возможна блокировка)':m?' ('+m.slice(0,80)+')':''); } return 'ошибка '+code; }
@@ -1491,7 +1496,7 @@ window.onTg=function(id,code,body){ const f=tgCb[id]; delete tgCb[id]; if(f) f(c
 function tgApi(method,params,photoId){
   const cfg=tgCfg();
   return new Promise(async res=>{
-    if(APP&&Android.tgSend&&(method==='sendPhoto'||method==='sendMessage')){
+    if(APP&&(Android.tgSendVia||Android.tgSend)&&(method==='sendPhoto'||method==='sendMessage')){
       const id='t'+(++tgSeq); tgCb[id]=(code,body)=>{ let j=null; try{j=JSON.parse(body)}catch(e){} res(j||{ok:false,description:tgErr(code,body)}); };
       const base=tgBase(params.base!=null?params.base:cfg.base);
       if(Android.tgSendVia) Android.tgSendVia(id,base,params.token||cfg.token,params.chat_id,params.caption||params.text||'',photoId||'');
@@ -1534,23 +1539,23 @@ async function odoSend(r){
 }
 function openTg(){
   const c=tgCfg(); $('#tgToken').value=c.token||''; $('#tgChat').value=c.chat||''; $('#tgBase').value=c.base||''; $('.tgadv').open=!!c.base;
-  $('#tgInfo').textContent=c.title?'Чат: '+c.title:''; $('#tgOff').hidden=!c.token; openSheet('fTg');
+  tgMsg(c.title?'Чат: '+c.title:''); $('#tgOff').hidden=!c.token; openSheet('fTg');
 }
 $('#tgFind').onclick=async()=>{
   const token=$('#tgToken').value.trim(); if(!token){ $('#tgToken').focus(); return; }
-  $('#tgInfo').textContent='Ищу чат…';
+  tgMsg('Ищу чат…','busy');
   const r=await tgApi('getUpdates',{token,base:$('#tgBase').value});
-  if(!r||!r.ok){ $('#tgInfo').textContent='Не получилось: '+((r&&r.description)||'ошибка'); return; }
+  if(!r||!r.ok){ tgMsg('Не получилось: '+((r&&r.description)||'ошибка'),'err'); return; }
   const ups=(r.result||[]).map(u=>u.message||u.channel_post||u.my_chat_member||u.edited_message).filter(m=>m&&m.chat);
-  if(!ups.length){ $('#tgInfo').textContent='Сообщений нет. Напишите боту /start или добавьте его в группу и отправьте сообщение, затем нажмите ещё раз.'; return; }
+  if(!ups.length){ tgMsg('Сообщений нет. Напишите боту /start или добавьте его в группу и отправьте сообщение, затем нажмите ещё раз.','err'); return; }
   const ch=ups[ups.length-1].chat, title=ch.title||[ch.first_name,ch.last_name].filter(Boolean).join(' ')||ch.username||String(ch.id);
-  $('#tgChat').value=ch.id; $('#tgChat').dataset.title=title; $('#tgInfo').textContent='Найден чат: '+title;
+  $('#tgChat').value=ch.id; $('#tgChat').dataset.title=title; tgMsg('Найден чат: '+title,'ok');
 };
 $('#tgTest').onclick=async()=>{
   const token=$('#tgToken').value.trim(), chat=$('#tgChat').value.trim(); if(!token||!chat){ (token?$('#tgChat'):$('#tgToken')).focus(); return; }
-  $('#tgInfo').textContent='Отправляю проверочное сообщение…';
+  tgMsg('Отправляю проверочное сообщение…','busy');
   const r=await tgApi('sendMessage',{token,base:$('#tgBase').value,chat_id:chat,text:'Органайзер монтажника: проверка связи ✓'});
-  $('#tgInfo').textContent=r&&r.ok?'Работает: сообщение отправлено':'Не получилось: '+((r&&r.description)||'ошибка');
+  if(r&&r.ok) tgMsg('Работает: сообщение отправлено','ok'); else tgMsg('Не получилось: '+((r&&r.description)||'ошибка'),'err');
 };
 $('#tgSave').onclick=()=>{
   const token=$('#tgToken').value.trim(), chat=$('#tgChat').value.trim();
