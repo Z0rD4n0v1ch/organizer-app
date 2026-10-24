@@ -153,6 +153,10 @@ nav button{border:0;background:transparent;padding:9px 0 11px;display:flex;flex-
 nav button svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8}
 nav button.on{color:var(--ink)}
 nav button.on svg{stroke:var(--accent)}
+nav button{touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+nav .in.sorting button{transition:transform .15s ease}
+nav .in.sorting button.drag{transition:none;position:relative;z-index:2;background:var(--surface);border-radius:12px;box-shadow:0 4px 14px rgba(0,0,0,.25);color:var(--ink)}
+.navhint{position:fixed;left:50%;bottom:calc(76px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:30;background:var(--ink);color:var(--surface);font-size:13px;padding:7px 12px;border-radius:10px;pointer-events:none;white-space:nowrap}
 .fab{position:fixed;right:max(16px,calc(50% - 264px));bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:21;width:58px;height:58px;border-radius:20px;border:0;
   background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;box-shadow:0 8px 22px color-mix(in srgb,var(--accent) 40%,transparent)}
 .fab svg{width:26px;height:26px;stroke:currentColor;stroke-width:2.4}
@@ -1227,6 +1231,44 @@ function showView(v){
 }
 function go(v){showView(v); if(v==='catalog') renderCatalog();}
 $$('nav button').forEach(b=>b.onclick=()=>go(b.dataset.v));
+
+/* ---------- перестановка вкладок: зажать вкладку и тянуть влево/вправо ---------- */
+(function(){
+  const box=$('nav .in'), K='nav-order';
+  try{ const o=JSON.parse(localStorage.getItem(K)||'null'); if(Array.isArray(o)) o.forEach(v=>{ const b=box.querySelector('button[data-v="'+v+'"]'); if(b) box.appendChild(b); }); }catch(e){}
+  let timer=null, drag=null, sx=0, sy=0, eat=false, hint=null;
+  function showHint(txt){ if(!hint){ hint=document.createElement('div'); hint.className='navhint'; document.body.appendChild(hint); } hint.textContent=txt; hint.hidden=false; }
+  function hideHint(){ if(hint) hint.hidden=true; }
+  box.addEventListener('contextmenu',e=>e.preventDefault());
+  box.addEventListener('pointerdown',e=>{
+    const b=e.target.closest('button'); if(!b||drag) return;
+    sx=e.clientX; sy=e.clientY; const id=e.pointerId;
+    clearTimeout(timer);
+    timer=setTimeout(()=>{ timer=null; drag={b,base:sx};
+      b.classList.add('drag'); box.classList.add('sorting');
+      try{ b.setPointerCapture(id) }catch(_){}
+      try{ navigator.vibrate&&navigator.vibrate(25) }catch(_){}
+      showHint('Перетащите вкладку на новое место');
+    },450);
+  });
+  box.addEventListener('pointermove',e=>{
+    if(!drag){ if(timer&&(Math.abs(e.clientX-sx)>10||Math.abs(e.clientY-sy)>10)){ clearTimeout(timer); timer=null; } return; }
+    e.preventDefault();
+    const b=drag.b, w=b.offsetWidth||1; let dx=e.clientX-drag.base;
+    while(dx>w/2 && b.nextElementSibling){ box.insertBefore(b.nextElementSibling,b); drag.base+=w; dx-=w; }
+    while(dx<-w/2 && b.previousElementSibling){ box.insertBefore(b,b.previousElementSibling); drag.base-=w; dx+=w; }
+    b.style.transform='translateX('+dx+'px)';
+  });
+  function end(){
+    clearTimeout(timer); timer=null; if(!drag) return;
+    const b=drag.b; drag=null; b.style.transform=''; b.classList.remove('drag');
+    setTimeout(()=>box.classList.remove('sorting'),160);
+    eat=true; setTimeout(()=>eat=false,400); hideHint();
+    try{ localStorage.setItem(K,JSON.stringify([...box.querySelectorAll('button')].map(x=>x.dataset.v))) }catch(_){}
+  }
+  box.addEventListener('pointerup',end); box.addEventListener('pointercancel',end);
+  box.addEventListener('click',e=>{ if(eat){ e.stopPropagation(); e.preventDefault(); eat=false; } },true);
+})();
 function bindChips(sel,set){$$(sel+' .chip').forEach(c=>c.onclick=()=>{set(c.dataset.f);$$(sel+' .chip').forEach(x=>x.classList.toggle('on',x===c));render();})}
 bindChips('#taskFilter',f=>taskFilter=f);
 bindChips('#objFilter',f=>objFilter=f);
