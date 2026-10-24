@@ -275,6 +275,8 @@ textarea.field{min-height:120px;resize:vertical}
 .bars .leg{display:flex;gap:14px;font-size:12px;color:var(--muted);margin:8px 0 2px;flex-wrap:wrap}
 .bars .leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .rem.tap{cursor:pointer}
+.btn.tgbtn{width:100%;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px}
+.btn.tgbtn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8}
 h2.fold{cursor:pointer;-webkit-user-select:none;user-select:none}
 h2.fold .ft{display:flex;align-items:center;gap:6px;min-width:0;flex:1}
 h2.fold .chev{flex:none;width:9px;height:9px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);margin:0 6px 4px 2px;transition:transform .2s}
@@ -631,6 +633,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
       <button class="seg" data-r="0">Не надо</button>
     </div>
     <div class="actions"><button class="btn" id="crSave">Сохранить</button></div>
+    <p class="hint" style="text-align:center;margin:10px 0 0"><button class="link" type="button" id="crTg">Telegram-бот для записей пробега</button></p>
   </div>
 
   <div class="form" id="fSvc" hidden>
@@ -713,6 +716,9 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
       <input class="field" type="number" inputmode="numeric" id="kmInput" placeholder="Пробег, км">
       <input class="field" type="date" id="kmDate" aria-label="Дата">
     </div>
+    <input class="field" id="kmCity" placeholder="Город" maxlength="60" list="kmCities" autocapitalize="words">
+    <datalist id="kmCities"></datalist>
+    <p class="hint" id="kmDist" style="margin:-4px 0 12px"></p>
     <div class="phblock" id="kmPhBlock">
       <p class="lbl">Фото одометра</p>
       <div class="phprev" id="kmPhoto" hidden></div>
@@ -724,6 +730,18 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
       <input type="file" id="kmGalInput" accept="image/*" hidden>
     </div>
     <div class="actions"><button class="btn ghost" id="kmDel" hidden>Удалить</button><button class="btn" id="kmSave">Сохранить</button></div>
+    <button class="btn ghost tgbtn" id="kmSend"><svg viewBox="0 0 24 24"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/><path d="M9 13l12-9"/></svg>Сохранить и отправить в Telegram</button>
+    <p class="hint" style="text-align:center;margin:8px 0 0"><button class="link" type="button" id="kmTgSet">Настроить Telegram-бота</button></p>
+  </div>
+
+  <div class="form" id="fTg" hidden>
+    <h3>Telegram-бот</h3>
+    <p class="hint" style="margin:0 0 12px">Без настройки записи пробега отправляются через «Поделиться»: выберите Telegram и чат бота. Чтобы отправлять в один тап, укажите бота: создайте его у @BotFather и вставьте токен. Затем напишите боту /start (или добавьте его в группу и отправьте любое сообщение) и нажмите «Найти чат».</p>
+    <input class="field" id="tgToken" placeholder="Токен бота, например 123456:ABC…" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <div style="display:flex;gap:8px"><input class="field" id="tgChat" placeholder="ID чата" autocomplete="off" style="min-width:0"><button class="seg" type="button" id="tgFind" style="margin-bottom:12px;flex:none">Найти чат</button></div>
+    <p class="hint" id="tgInfo" style="margin:-4px 0 12px"></p>
+    <div class="actions"><button class="btn ghost" id="tgTest">Проверить</button><button class="btn" id="tgSave">Сохранить</button></div>
+    <p class="hint" style="text-align:center;margin:10px 0 0"><button class="link" type="button" id="tgOff">Отключить бота</button></p>
   </div>
 
   <div class="form" id="fMt" hidden>
@@ -849,6 +867,7 @@ const PH=(function(){
       caches.open(C).then(c=>c.put(key(id),new Response(blob,{headers:{'Content-Type':'image/jpeg'}}))).catch(()=>{});
       return true; }catch(e){ return false; } },
     url:id=>mem[id]?mem[id]+'#':'photo/'+id+'.jpg',
+    blob(id){ if(mem[id]) return fetch(mem[id]).then(r=>r.blob()).catch(()=>null); return ('caches' in window)?caches.open(C).then(c=>c.match(key(id))).then(r=>r?r.blob():null).catch(()=>null):Promise.resolve(null); },
     del(id){ if(mem[id]){ try{URL.revokeObjectURL(mem[id])}catch(e){} delete mem[id]; } if('caches' in window) caches.open(C).then(c=>c.delete(key(id))).catch(()=>{}); }
   };
 })();
@@ -1282,7 +1301,7 @@ function renderCar(){
   odo.forEach(r=>{
     const li=document.createElement('li'), b=document.createElement('button'); b.className='log';
     b.innerHTML=(r.photo&&PHOTO?'<span class="odoth"><img loading="lazy" alt="" src="'+PH.url(r.photo)+'"></span>':'<span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 13l4-3M8 5h8"/></svg></span>')+
-      '<span class="tbody"><span class="ttl">'+esc(num(r.km)+' км')+'</span><span class="meta">'+esc(fmtDate(r.date)+(r.photo?'':', без фото'))+'</span></span>';
+      '<span class="tbody"><span class="ttl">'+esc(num(r.km)+' км'+(r.city?' · '+r.city:''))+'</span><span class="meta">'+esc(fmtDate(r.date)+(r.photo?'':', без фото')+(r.sent?', отправлено в Telegram':''))+'</span></span>'+(odoDist(r)?'<span class="sum">+'+num(odoDist(r).d)+' км</span>':'');
     b.onclick=()=>openKm(r); li.appendChild(b); ol.appendChild(li);
   });
 }
@@ -1332,22 +1351,41 @@ if(!Array.isArray(state.odo)) state.odo=[];
 const kmPick=photoPicker('km'), lgPick=photoPicker('lg');
 $('#carEdit').onclick=()=>openCar();
 let kmEdit=null;
+function odoPrev(r,km,date){
+  km=km!=null?km:+r.km; date=date||r.date;
+  return state.odo.filter(x=>x!==r&&+x.km<km&&(x.date||'')<=date).sort((a,b)=>b.km-a.km)[0]||null;
+}
+function odoDist(r){ const p=odoPrev(r); return p?{d:r.km-p.km,from:p}:null; }
+function kmDistHint(){
+  const v=parseInt($('#kmInput').value,10), p=v>0?odoPrev(kmEdit,v,$('#kmDate').value||todayISO()):null;
+  $('#kmDist').textContent=p?'Проехано с прошлой записи ('+fmtDate(p.date)+(p.city?', '+p.city:'')+'): '+num(v-p.km)+' км':'';
+}
 function openKm(r){
   kmEdit=r||null; $('#fKmTitle').textContent=r?'Запись пробега':'Пробег';
   $('#kmInput').value=r?r.km:(state.car.mileage||''); $('#kmDate').value=r?r.date:todayISO();
-  kmPick.set(r?r.photo:null); $('#kmDel').hidden=!r; openSheet('fKm');
+  const cities=[...new Set(state.odo.slice().sort((a,b)=>(b.ts||0)-(a.ts||0)).map(x=>x.city).filter(Boolean))];
+  $('#kmCities').innerHTML=cities.map(c=>'<option value="'+esc(c)+'">').join('');
+  $('#kmCity').value=r?(r.city||''):(cities[0]||'');
+  kmPick.set(r?r.photo:null); $('#kmDel').hidden=!r; kmDistHint();
+  $('#kmSend').lastChild.textContent=r?'Отправить в Telegram':'Сохранить и отправить в Telegram';
+  openSheet('fKm');
 }
+$('#kmInput').addEventListener('input',kmDistHint); $('#kmDate').addEventListener('change',kmDistHint);
 $('#kmBtn').onclick=()=>openKm(); $('#odoAdd').onclick=()=>openKm();
-$('#kmSave').onclick=()=>{
-  const v=parseInt($('#kmInput').value,10); if(!(v>=0)){$('#kmInput').focus();return}
+function kmStore(){
+  const v=parseInt($('#kmInput').value,10); if(!(v>=0)){$('#kmInput').focus();return null}
   const date=$('#kmDate').value||todayISO(), cur=+state.car.mileage||0;
-  if(!kmEdit&&v<cur&&!confirm('Пробег меньше текущего ('+num(cur)+' км). Записать всё равно?')) return;
-  const data={km:v,date,photo:kmPick.get()||''};
-  if(kmEdit) Object.assign(kmEdit,data); else state.odo.push(Object.assign({id:uid(),ts:Date.now()},data));
+  if(!kmEdit&&v<cur&&!confirm('Пробег меньше текущего ('+num(cur)+' км). Записать всё равно?')) return null;
+  const data={km:v,date,photo:kmPick.get()||'',city:$('#kmCity').value.trim()};
+  let rec=kmEdit;
+  if(kmEdit) Object.assign(kmEdit,data); else { rec=Object.assign({id:uid(),ts:Date.now()},data); state.odo.push(rec); }
   kmPick.commit();
   if(!kmEdit) state.car.mileage=v; else state.car.mileage=Math.max(0,...kmPoints().map(x=>x.k));
-  save(); render(); closeSheet();
-};
+  save(); render(); return rec;
+}
+$('#kmSave').onclick=()=>{ if(kmStore()) closeSheet(); };
+$('#kmSend').onclick=()=>{ const r=kmStore(); if(!r) return; closeSheet(); odoSend(r); };
+$('#kmTgSet').onclick=()=>openTg(); $('#crTg').onclick=()=>openTg();
 $('#kmDel').onclick=()=>{
   if(!kmEdit||!confirm('Удалить запись пробега'+(kmEdit.photo?' вместе с фото':'')+'?')) return;
   if(kmEdit.photo){try{PH.del(kmEdit.photo)}catch(e){}}
@@ -1355,6 +1393,90 @@ $('#kmDel').onclick=()=>{
   const pts=kmPoints(); if(pts.length) state.car.mileage=Math.max(...pts.map(x=>x.k));
   save(); render(); closeSheet();
 };
+
+/* ---------- запись пробега → Telegram ---------- */
+function tgCfg(){ try{ return JSON.parse(localStorage.getItem('tg-bot')||'null')||{}; }catch(e){ return {}; } }
+function odoCaption(r){
+  const c=state.car, d=odoDist(r), L=[];
+  L.push('Пробег: '+num(r.km)+' км');
+  if(r.city) L.push('Город: '+r.city);
+  if(d) L.push('Проехано: '+num(d.d)+' км (с '+d.from.date.split('-').reverse().join('.')+(d.from.city?', '+d.from.city:'')+')');
+  L.push('Дата: '+(r.date||todayISO()).split('-').reverse().join('.'));
+  const car=[c.name,(c.plate||'').toUpperCase()].filter(Boolean).join(', '); if(car) L.push('Авто: '+car);
+  return L.join('\n');
+}
+let tgSeq=0; const tgCb={};
+window.onTg=function(id,code,body){ const f=tgCb[id]; delete tgCb[id]; if(f) f(code,body); };
+function tgApi(method,params,photoId){
+  const cfg=tgCfg();
+  return new Promise(async res=>{
+    if(APP&&Android.tgSend&&(method==='sendPhoto'||method==='sendMessage')){
+      const id='t'+(++tgSeq); tgCb[id]=(code,body)=>{ let j=null; try{j=JSON.parse(body)}catch(e){} res(j||{ok:false,description:code===-1?'нет связи с Telegram':'ошибка '+code}); };
+      Android.tgSend(id,params.token||cfg.token,params.chat_id,params.caption||params.text||'',photoId||'');
+      return;
+    }
+    if(APP&&method==='getUpdates'){
+      const r=await httpGet('https://api.telegram.org/bot'+params.token+'/getUpdates');
+      let j=null; try{j=JSON.parse(r.body)}catch(e){} res(j||{ok:false,description:r.code===-1?'нет связи с Telegram':(r.code===401||r.code===404?'неверный токен':'ошибка '+r.code)}); return;
+    }
+    try{
+      const fd=new FormData(); Object.keys(params).forEach(k=>{ if(k!=='token') fd.append(k,params[k]); });
+      if(photoId&&method==='sendPhoto'){ const b=await PH.blob(photoId); if(b) fd.append('photo',b,'probeg.jpg'); else { method='sendMessage'; fd.append('text',params.caption||''); fd.delete('caption'); } }
+      const r=await fetch('https://api.telegram.org/bot'+(params.token||cfg.token)+'/'+method,{method:'POST',body:fd});
+      res(await r.json());
+    }catch(e){ res({ok:false,description:'нет связи с Telegram'}); }
+  });
+}
+async function odoShare(r,caption){
+  if(APP){
+    if(r.photo&&Android.sharePhoto) Android.sharePhoto(r.photo,caption);
+    else shareText('Пробег',caption);
+    return;
+  }
+  if(r.photo&&navigator.canShare){
+    try{ const b=await PH.blob(r.photo);
+      if(b){ const f=new File([b],'probeg.jpg',{type:'image/jpeg'});
+        if(navigator.canShare({files:[f]})){ await navigator.share({files:[f],text:caption}).catch(()=>{}); return; } } }catch(e){}
+  }
+  shareText('Пробег',caption);
+}
+async function odoSend(r){
+  const caption=odoCaption(r), cfg=tgCfg();
+  if(cfg.token&&cfg.chat){
+    const res=await tgApi(r.photo?'sendPhoto':'sendMessage',r.photo?{chat_id:cfg.chat,caption}:{chat_id:cfg.chat,text:caption},r.photo);
+    if(res&&res.ok){ r.sent=Date.now(); save(); renderCar(); alert('Отправлено в Telegram'+(cfg.title?': '+cfg.title:'')); return; }
+    if(!confirm('Не удалось отправить боту: '+((res&&res.description)||'ошибка')+'.\nОтправить через «Поделиться»?')) return;
+  }
+  odoShare(r,caption);
+}
+function openTg(){
+  const c=tgCfg(); $('#tgToken').value=c.token||''; $('#tgChat').value=c.chat||'';
+  $('#tgInfo').textContent=c.title?'Чат: '+c.title:''; $('#tgOff').hidden=!c.token; openSheet('fTg');
+}
+$('#tgFind').onclick=async()=>{
+  const token=$('#tgToken').value.trim(); if(!token){ $('#tgToken').focus(); return; }
+  $('#tgInfo').textContent='Ищу чат…';
+  const r=await tgApi('getUpdates',{token});
+  if(!r||!r.ok){ $('#tgInfo').textContent='Не получилось: '+((r&&r.description)||'ошибка'); return; }
+  const ups=(r.result||[]).map(u=>u.message||u.channel_post||u.my_chat_member||u.edited_message).filter(m=>m&&m.chat);
+  if(!ups.length){ $('#tgInfo').textContent='Сообщений нет. Напишите боту /start или добавьте его в группу и отправьте сообщение, затем нажмите ещё раз.'; return; }
+  const ch=ups[ups.length-1].chat, title=ch.title||[ch.first_name,ch.last_name].filter(Boolean).join(' ')||ch.username||String(ch.id);
+  $('#tgChat').value=ch.id; $('#tgChat').dataset.title=title; $('#tgInfo').textContent='Найден чат: '+title;
+};
+$('#tgTest').onclick=async()=>{
+  const token=$('#tgToken').value.trim(), chat=$('#tgChat').value.trim(); if(!token||!chat){ (token?$('#tgChat'):$('#tgToken')).focus(); return; }
+  $('#tgInfo').textContent='Отправляю проверочное сообщение…';
+  const r=await tgApi('sendMessage',{token,chat_id:chat,text:'Органайзер монтажника: проверка связи ✓'});
+  $('#tgInfo').textContent=r&&r.ok?'Работает: сообщение отправлено':'Не получилось: '+((r&&r.description)||'ошибка');
+};
+$('#tgSave').onclick=()=>{
+  const token=$('#tgToken').value.trim(), chat=$('#tgChat').value.trim();
+  if(token&&!chat){ $('#tgChat').focus(); return; }
+  const old=tgCfg(), title=$('#tgChat').dataset.title||(old.chat===chat?old.title:'')||'';
+  try{ localStorage.setItem('tg-bot',JSON.stringify(token?{token,chat,title}:{})); }catch(e){}
+  $('#tgChat').dataset.title=''; closeSheet();
+};
+$('#tgOff').onclick=()=>{ if(!confirm('Отключить бота? Записи будут отправляться через «Поделиться».')) return; try{ localStorage.removeItem('tg-bot'); }catch(e){} closeSheet(); };
 
 /* ---------- render: notes ---------- */
 function renderNotes(){

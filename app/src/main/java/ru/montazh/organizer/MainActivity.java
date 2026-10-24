@@ -272,6 +272,81 @@ public class MainActivity extends Activity {
             });
         }
 
+        /* ---- отправка фото с подписью (выбор приложения, например Telegram) ---- */
+        @JavascriptInterface
+        public void sharePhoto(final String photoId, final String text) {
+            runOnUiThread(() -> {
+                Uri u = PhotoProvider.uriFor(photoId);
+                Intent i = new Intent(Intent.ACTION_SEND);
+                i.setType("image/jpeg");
+                i.putExtra(Intent.EXTRA_STREAM, u);
+                i.putExtra(Intent.EXTRA_TEXT, text);
+                i.setClipData(android.content.ClipData.newRawUri("", u));
+                i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                try {
+                    Intent ch = Intent.createChooser(i, "Отправить");
+                    ch.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    startActivity(ch);
+                } catch (Exception e) {
+                    Toast.makeText(MainActivity.this, "Нет приложения для отправки", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+
+        /* ---- отправка в Telegram от имени бота (Bot API) ---- */
+        @JavascriptInterface
+        public void tgSend(final String id, final String token, final String chat, final String caption, final String photoId) {
+            new Thread(() -> {
+                int code = -1;
+                String body = "";
+                try {
+                    File photo = (photoId == null || photoId.isEmpty()) ? null : photoFile(photoId);
+                    boolean withPhoto = photo != null && photo.exists();
+                    URL url = new URL("https://api.telegram.org/bot" + token + (withPhoto ? "/sendPhoto" : "/sendMessage"));
+                    HttpURLConnection c = (HttpURLConnection) url.openConnection();
+                    c.setConnectTimeout(15000);
+                    c.setReadTimeout(60000);
+                    c.setDoOutput(true);
+                    String b = "----org" + System.currentTimeMillis();
+                    c.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + b);
+                    try (OutputStream out = c.getOutputStream()) {
+                        writePart(out, b, "chat_id", chat);
+                        writePart(out, b, withPhoto ? "caption" : "text", caption);
+                        if (withPhoto) {
+                            out.write(("--" + b + "\r\nContent-Disposition: form-data; name=\"photo\"; filename=\"probeg.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+                            try (InputStream in = new java.io.FileInputStream(photo)) {
+                                byte[] buf = new byte[65536];
+                                int n;
+                                while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                            }
+                            out.write("\r\n".getBytes(StandardCharsets.UTF_8));
+                        }
+                        out.write(("--" + b + "--\r\n").getBytes(StandardCharsets.UTF_8));
+                    }
+                    code = c.getResponseCode();
+                    InputStream is = code >= 400 ? c.getErrorStream() : c.getInputStream();
+                    if (is != null) {
+                        StringBuilder sb = new StringBuilder();
+                        try (BufferedReader r = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+                            String line;
+                            while ((line = r.readLine()) != null) sb.append(line);
+                        }
+                        body = sb.toString();
+                    }
+                } catch (Exception e) {
+                    code = -1;
+                    body = String.valueOf(e.getMessage());
+                }
+                callJs("window.onTg && window.onTg(" + JSONObject.quote(id) + "," + code + "," + JSONObject.quote(body) + ")");
+            }).start();
+        }
+
+        private void writePart(OutputStream out, String b, String name, String value) throws java.io.IOException {
+            out.write(("--" + b + "\r\nContent-Disposition: form-data; name=\"" + name + "\"\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+            out.write(value.getBytes(StandardCharsets.UTF_8));
+            out.write("\r\n".getBytes(StandardCharsets.UTF_8));
+        }
+
         /* ---- напоминания ---- */
         @JavascriptInterface
         public void setReminders(final String json) {
