@@ -172,6 +172,11 @@ nav .in.sorting button.drag{transition:none;position:relative;z-index:2;backgrou
 .form[hidden],.fab[hidden]{display:none}
 .field{width:100%;border:1.5px solid var(--line);background:var(--bg);border-radius:14px;padding:12px 14px;margin-bottom:12px}
 textarea.field{min-height:120px;resize:vertical}
+.sugg{display:flex;gap:6px;overflow-x:auto;margin:-6px 0 12px;padding-bottom:2px;scrollbar-width:none}
+.sugg::-webkit-scrollbar{display:none}
+.sugg[hidden]{display:none}
+.sugg button{flex:none;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);border-radius:999px;padding:7px 12px;font-size:14px;white-space:nowrap;max-width:70vw;overflow:hidden;text-overflow:ellipsis}
+.sugg button.mdl{border-color:var(--accent)}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
 .lbl{font-size:13px;color:var(--muted);margin:0 0 6px}
@@ -667,7 +672,8 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
   <div class="form" id="fNote" hidden>
     <h3 id="fNoteTitle">Новая заметка</h3>
     <input class="field" id="nTitle" placeholder="Заголовок" maxlength="120">
-    <textarea class="field" id="nBody" placeholder="Текст заметки"></textarea>
+    <textarea class="field" id="nBody" placeholder="Текст заметки" spellcheck="true" autocapitalize="sentences" autocorrect="on"></textarea>
+    <div class="sugg" id="nSugg" hidden></div>
     <div class="row" id="nColor">
       <button class="sw c1" data-c="1" aria-label="Жёлтый"></button>
       <button class="sw c2" data-c="2" aria-label="Голубой"></button>
@@ -1409,7 +1415,7 @@ function openNote(n){
   editing=n||null;
   $('#fNoteTitle').textContent=n?'Заметка':'Новая заметка';
   $('#nTitle').value=n?n.title:''; $('#nBody').value=n?n.body:'';
-  fColor=n?(n.color||1):1; syncColor(); $('#nDel').hidden=!n; openSheet('fNote');
+  fColor=n?(n.color||1):1; syncColor(); $('#nDel').hidden=!n; nSugg.reset(); openSheet('fNote');
 }
 $('#nSave').onclick=()=>{
   const title=$('#nTitle').value.trim(), body=$('#nBody').value.trim(); if(!title&&!body){$('#nTitle').focus();return}
@@ -1418,6 +1424,114 @@ $('#nSave').onclick=()=>{
   save();render();closeSheet();
 };
 $('#nDel').onclick=()=>{state.notes=state.notes.filter(x=>x!==editing);save();render();closeSheet();};
+
+/* ---------- умный подбор слов при наборе заметки ---------- */
+const Sugg=(function(){
+  const BASE=('адрес адресный адресная адресные аккумулятор аккумуляторы антенна аварийный автоматика акт акты '+
+  'бокс болт блок блоки бирки бухта '+
+  'видеокамера видеокамеры видеонаблюдение видеорегистратор вывод ввод выключатель выезд '+
+  'гофра гофрированная гермоввод герметик гипсокартон гарантия '+
+  'датчик датчики дюбель дюбели домофон домофония доводчик дверь двери договор доступ '+
+  'жила жилы журнал '+
+  'замок заземление защита заказчик заказчику заявка '+
+  'извещатель извещатели извещателей изолятор изоляция инструмент исполнительная '+
+  'кабель кабеля кабельный канал кабель-канал коробка коробки коммутатор камера камеры клипса клипсы клеммы клеммник контроллер контроллеры кронштейн клапан клапаны кнопка кнопки ключ ключи коридор коридоре '+
+  'лоток лотки линия линии лестница '+
+  'монтаж монтажа монтажная материал материалы маркировка мультиметр модуль модули метров '+
+  'наладка настройка неисправность неисправен низковольтные '+
+  'оповещатель оповещатели оповещение обслуживание объект объекта объекте оборудование оборудования обрыв '+
+  'пожарная пожарный пожарные пожаротушение пульт протяжка проводка прибор приборы питание пусконаладка подвал потолок перфоратор паспорт проект проверка пломба '+
+  'распаечная распределительная регистратор резерв реле розетка роутер ручной '+
+  'сигнализация сигнализации система системы саморез саморезы стяжки стяжка сверло сервер считыватель считыватели сопротивление сирена смета схема сработка '+
+  'табло трасса трассы турникет тестер табличка '+
+  'установка установить узел '+
+  'фильтр фасад '+
+  'хомут хомуты '+
+  'щит щиток щитовая щитовой '+
+  'шлейф шлейфа шлейфы шкаф шкафа шуруповёрт '+
+  'электрощит электрика этаж этаже эвакуация '+
+  'ИБП АПС СПС СОУЭ СКУД СОТ ОПС АУПТ ППКП ППКОП РИП ПЦН КСПВ КПСнг(А)-FRLS КПСЭнг(А)-FRLS КСРВнг(А)-FRLS ШВВП ВВГнг-LS UTP FTP PoE RS-485 IP-камера NVR').split(' ');
+  const LAT={a:'а',b:'в',c:'с',e:'е',h:'н',k:'к',m:'м',o:'о',p:'р',t:'т',x:'х',y:'у'};
+  const key=s=>String(s).toLowerCase().replace(/ё/g,'е').replace(/[abcehkmoptxy]/g,ch=>LAT[ch]);
+  const TOK=/[\p{L}\d]+(?:[-\/.,×()]+[\p{L}\d]+\)?)*\)?/gu;
+  const SKIP=/^(id|pass|password|login|phone|ts|updated|date|time|start|photo|photos|url|src|color|prio|status|v2|deadline)$/i;
+  let dict=null, big=null, use={};
+  try{ use=JSON.parse(localStorage.getItem('sugg-use')||'{}')||{}; }catch(e){}
+  function texts(o,out,k){
+    if(typeof o==='string'){ if(!SKIP.test(k||'')&&o.length>1) out.push(o); }
+    else if(Array.isArray(o)) o.forEach(x=>texts(x,out,k));
+    else if(o&&typeof o==='object') for(const kk in o){ if(!SKIP.test(kk)) texts(o[kk],out,kk); }
+    return out;
+  }
+  function add(w,score,mdl){
+    if(w.length<3) return; const k=key(w); const e=dict.get(k);
+    if(e){ e.s+=score; if(mdl) e.mdl=true; if(score>=2&&/^\p{Lu}/u.test(e.w)&&!/^\p{Lu}/u.test(w)&&!mdl&&!e.mdl) e.w=w; }
+    else dict.set(k,{w,k,s:score,mdl:!!mdl});
+  }
+  function build(){
+    dict=new Map(); big=new Map();
+    BASE.forEach(w=>add(w,2));
+    for(const mk in CATS){ const c=CATS[mk]; if(c&&Array.isArray(c.items)) c.items.forEach(d=>{ String(d.m||'').split(/,\s+/).forEach(m=>{ m=m.trim(); if(m&&m.length<=30&&m.split(' ').length<=3&&/\d|[A-ZА-Я]{2}/.test(m)) add(m,1,true); }); }); }
+    texts({t:state.tasks,n:state.notes,o:state.objects,l:state.carLog,tpl:state.tpl},[]).forEach(s=>{
+      s.split(/[\n.!?;]+/).forEach(sent=>{
+        const ws=sent.match(TOK)||[];
+        ws.forEach((w,i)=>{ add(w,3); if(i){ const p=key(ws[i-1]); let m=big.get(p); if(!m){m=new Map();big.set(p,m)} m.set(w,(m.get(w)||0)+1); } });
+      });
+    });
+  }
+  function current(ta){
+    const v=ta.value, c=ta.selectionStart; if(c!==ta.selectionEnd) return null;
+    const before=v.slice(0,c); const m=before.match(/[\p{L}\d][\p{L}\d\-\/.,×()]*$/u);
+    let end=c; const after=v.slice(c).match(/^[\p{L}\d\-\/()]*/u); if(after) end+=after[0].length;
+    if(m) return {start:c-m[0].length,end,pre:m[0].replace(/[.,]$/,''),prev:null};
+    const pm=before.match(/([\p{L}\d][\p{L}\d\-\/.,×()]*)[ \t]+$/u);
+    return {start:c,end:c,pre:'',prev:pm?pm[1]:null};
+  }
+  function list(cur){
+    if(!dict) build();
+    if(cur.pre){
+      if(cur.pre.length<2) return [];
+      const q=key(cur.pre), up=cur.pre.length>1&&/\p{L}/u.test(cur.pre)&&cur.pre===cur.pre.toUpperCase(), cap=up?2:(/^\p{Lu}/u.test(cur.pre)?1:0);
+      const r=[];
+      dict.forEach(e=>{ if(e.k.length>q.length&&e.k.startsWith(q)) r.push(e); });
+      r.sort((a,b)=>(b.s+(use[b.k]||0)*10)-(a.s+(use[a.k]||0)*10)||a.w.length-b.w.length);
+      return r.slice(0,6).map(e=>{ let w=e.w;
+        if(!e.mdl&&w===w.toLowerCase()){ if(cap===2&&cur.pre.length>2) w=w.toUpperCase(); else if(cap) w=w[0].toUpperCase()+w.slice(1); }
+        return {w,mdl:e.mdl,k:e.k}; });
+    }
+    if(cur.prev){
+      const m=big.get(key(cur.prev)); if(!m) return [];
+      return [...m.entries()].sort((a,b)=>b[1]-a[1]).slice(0,5).map(([w])=>({w,k:key(w)}));
+    }
+    return [];
+  }
+  function attach(ta,strip){
+    let items=[];
+    function upd(){
+      const cur=document.activeElement===ta?current(ta):null; items=cur?list(cur):[];
+      strip.innerHTML=''; strip.hidden=!items.length;
+      items.forEach(it=>{ const b=document.createElement('button'); b.type='button'; b.textContent=it.w; if(it.mdl) b.className='mdl';
+        b.addEventListener('pointerdown',e=>e.preventDefault());
+        b.addEventListener('mousedown',e=>e.preventDefault());
+        b.onclick=()=>pick(it); strip.appendChild(b); });
+      strip.scrollLeft=0;
+    }
+    function pick(it){
+      const cur=current(ta); if(!cur) return;
+      const nxt=ta.value.charAt(cur.end);
+      const ins=it.w+(nxt===' '||nxt==='\n'?'':' ');
+      ta.focus(); ta.setRangeText(ins,cur.start,cur.end,'end');
+      if(nxt===' '){ ta.selectionStart=ta.selectionEnd=ta.selectionEnd+1; }
+      use[it.k]=(use[it.k]||0)+1; try{localStorage.setItem('sugg-use',JSON.stringify(use))}catch(e){}
+      ta.dispatchEvent(new Event('input',{bubbles:true}));
+    }
+    ta.addEventListener('input',upd); ta.addEventListener('click',upd); ta.addEventListener('keyup',e=>{ if(/Arrow|Home|End/.test(e.key)) upd(); });
+    ta.addEventListener('focus',upd); ta.addEventListener('blur',()=>setTimeout(()=>{ if(document.activeElement!==ta){ strip.hidden=true; } },150));
+    return {reset(){ dict=null; strip.hidden=true; }};
+  }
+  return {attach,reset(){dict=null}};
+})();
+const nSugg=Sugg.attach($('#nBody'),$('#nSugg'));
 
 /* fab */
 $('#fab').onclick=()=>{
