@@ -7,6 +7,8 @@ on:
       - 'catalogs/**'
       - 'web/**'
       - '.github/workflows/pages.yml'
+      - 'README.md'
+      - 'CHANGELOG.md'
   workflow_dispatch:
 
 permissions:
@@ -17,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-java@v4
         with:
@@ -38,11 +42,33 @@ jobs:
           name: organizer-apk
           path: organizer.apk
 
-      - name: Опубликовать в Releases
+      - name: Описание изменений
+        run: |
+          N=${{ github.run_number }}
+          PREV=$(git tag --list 'v1.*' --sort=-v:refname | head -n1)
+          {
+            echo "## Что нового"
+            echo
+            if [ -n "$PREV" ]; then RANGE="$PREV..HEAD"; else RANGE="-n 15"; fi
+            git log $RANGE --no-merges --pretty='- %s' | grep -v -e '^- Create build.yml' -e '^- Merge' || echo "- Технические изменения"
+            echo
+            echo "## Установка"
+            echo
+            echo "Скачайте **organizer.apk** ниже и откройте на телефоне. Если органайзер уже установлен, он предложит обновиться сам, данные сохранятся."
+            echo
+            if [ -n "$PREV" ]; then echo "Изменения с версии ${PREV#v}. Полная история — [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/main/CHANGELOG.md) и предыдущие релизы."; else echo "История до этой версии — [CHANGELOG.md](https://github.com/${GITHUB_REPOSITORY}/blob/main/CHANGELOG.md)."; fi
+          } > notes.md
+          cat notes.md
+
+      - name: Опубликовать релиз
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          N=${{ github.run_number }}
+          # прежний единственный релиз «latest» больше не нужен: теперь у каждой сборки свой релиз
           gh release delete latest -y --cleanup-tag || true
-          gh release create latest organizer.apk \
-            --title "Органайзер, сборка ${{ github.run_number }}" \
-            --notes "Скачайте organizer.apk на телефон и установите."
+          gh release create "v1.$N" organizer.apk \
+            --target "$GITHUB_SHA" \
+            --title "Органайзер 1.$N, сборка $N" \
+            --notes-file notes.md \
+            --latest
