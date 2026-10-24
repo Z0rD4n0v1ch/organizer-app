@@ -2775,7 +2775,7 @@ function runText(r){
 function shareText(title,text){
   if(window.Android&&Android.shareText){Android.shareText(title,text);return}
   if(navigator.share){navigator.share({title,text}).catch(()=>{});return}
-  try{navigator.clipboard.writeText(text);alert('Текст скопирован')}catch(e){alert(text)}
+  try{ navigator.clipboard.writeText(text).then(()=>alert('Текст скопирован'),()=>alert(text)); }catch(e){ alert(text); }
 }
 $('#ckShare').onclick=()=>{ck.remark=$('#ckRemark').value.trim();shareText(KIND[ck.kind],runText(ck))};
 
