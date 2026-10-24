@@ -276,6 +276,35 @@ textarea.field{min-height:120px;resize:vertical}
 .bars .leg{display:flex;gap:14px;font-size:12px;color:var(--muted);margin:8px 0 2px;flex-wrap:wrap}
 .bars .leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .rem.tap{cursor:pointer}
+.wrap{position:relative}
+#v-today>.upd,#v-today>.install,#v-today>.runbar{margin-top:14px}
+.gear{position:absolute;top:calc(14px + env(safe-area-inset-top,0px));right:10px;width:42px;height:42px;border:0;border-radius:12px;background:transparent;display:grid;place-items:center;z-index:5;color:var(--muted)}
+.gear svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.7}
+.view>h1:first-child,#v-today h1{padding-right:46px}
+.view>.back:first-child{margin-right:46px}
+.setlist{background:var(--bg);border-radius:16px;overflow:hidden}
+.setrow{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;padding:12px 14px;border:0;background:transparent;text-align:left;font-size:15px;border-bottom:1px solid var(--line)}
+.setlist>.setrow:last-child{border-bottom:0}
+.setrow i{font-style:normal;color:var(--muted);font-size:13px}
+.setrow .sic{display:flex;align-items:center;gap:10px}
+.setrow .sic svg{width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:1.8}
+.tgl{appearance:none;-webkit-appearance:none;flex:none;width:46px;height:28px;border-radius:14px;background:var(--line);position:relative;margin:0;transition:background .15s;cursor:pointer}
+.tgl::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .15s}
+.tgl:checked{background:var(--accent)}.tgl:checked::after{transform:translateX(18px)}
+.dblk{background:var(--bg);border-radius:16px;padding:12px 12px 6px;margin:0 0 12px}
+.dblk .field{background:var(--surface)}
+.dlbl{font-weight:600;margin:0 0 10px}
+.dydist{font:500 16px "Unbounded",sans-serif;margin:2px 0 14px;text-align:center}
+.dydist:empty{display:none}
+.odday{display:block;width:100%;text-align:left;background:var(--surface);border:0;border-radius:16px;padding:12px 14px}
+.odhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:4px}
+.odhead .sum{font-weight:600;white-space:nowrap}
+.odrow{display:flex;align-items:center;gap:12px;margin-top:8px}
+.odrow .ic{flex:none;width:44px;height:44px;border-radius:10px;display:grid;place-items:center;background:var(--bg)}
+.odrow .ic svg{width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:1.8}
+.odrow .meta{display:block;margin:0;font-size:12px}
+.odrow .ttl{display:block}
+.odrow .miss{color:var(--muted)}
 .btn.tgbtn{width:100%;margin-top:10px;display:flex;align-items:center;justify-content:center;gap:8px}
 .btn.tgbtn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8}
 h2.fold{cursor:pointer;-webkit-user-select:none;user-select:none}
@@ -324,14 +353,15 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
 </head>
 <body>
 <div class="wrap">
+  <button class="gear" id="gearBtn" aria-label="Настройки"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.3 1.8l.1.1a2 2 0 11-2.8 2.8l-.1-.1a1.7 1.7 0 00-1.8-.3 1.7 1.7 0 00-1 1.5V21a2 2 0 11-4 0v-.1a1.7 1.7 0 00-1.1-1.5 1.7 1.7 0 00-1.8.3l-.1.1a2 2 0 11-2.8-2.8l.1-.1a1.7 1.7 0 00.3-1.8 1.7 1.7 0 00-1.5-1H3a2 2 0 110-4h.1a1.7 1.7 0 001.5-1.1 1.7 1.7 0 00-.3-1.8l-.1-.1a2 2 0 112.8-2.8l.1.1a1.7 1.7 0 001.8.3H9a1.7 1.7 0 001-1.5V3a2 2 0 114 0v.1a1.7 1.7 0 001 1.5 1.7 1.7 0 001.8-.3l.1-.1a2 2 0 112.8 2.8l-.1.1a1.7 1.7 0 00-.3 1.8V9a1.7 1.7 0 001.5 1H21a2 2 0 110 4h-.1a1.7 1.7 0 00-1.5 1z"/></svg></button>
 
   <!-- TODAY -->
   <section class="view on" id="v-today">
+    <h1 id="dayTitle">Сегодня</h1>
+    <p class="sub" id="dayDate"></p>
     <div class="upd" id="upd" hidden><span id="updText"></span><button id="updBtn">Обновить</button></div>
     <div class="install" id="iosHint" hidden><span><b>Установите на экран «Домой»</b>Нажмите «Поделиться» <svg viewBox="0 0 24 24"><path d="M12 15V3M8 7l4-4 4 4M5 11v9h14v-9"/></svg> внизу Safari и выберите «На экран „Домой“». Так органайзер работает без интернета, а данные хранятся надёжно.</span><button id="iosHintX" aria-label="Скрыть">×</button></div>
     <button class="runbar" id="runbar" hidden><span><b id="runObj"></b>Идёт работа, нажмите, чтобы открыть объект</span><i id="runTime"></i></button>
-    <h1 id="dayTitle">Сегодня</h1>
-    <p class="sub" id="dayDate"></p>
     <div class="week" id="week"></div>
     <div class="progress"><i id="bar"></i></div>
     <div class="ptext" id="ptext"></div>
@@ -501,13 +531,6 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <div class="notes" id="noteGrid"></div>
   </section>
 
-  <div class="backup">
-    <button class="seg" id="bkExport">Сохранить копию данных</button>
-    <button class="seg" id="bkImport">Восстановить из копии</button>
-    <button class="seg" id="updCheck" hidden>Проверить обновления</button>
-    <input type="file" id="bkFile" accept=".json,application/json,text/plain" hidden>
-  </div>
-  <p class="sync" id="sync">Данные хранятся в телефоне</p>
 </div>
 
 <button class="fab" id="fab" aria-label="Добавить"><svg viewBox="0 0 24 24" fill="none" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
@@ -733,6 +756,64 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <div class="actions"><button class="btn ghost" id="kmDel" hidden>Удалить</button><button class="btn" id="kmSave">Сохранить</button></div>
     <button class="btn ghost tgbtn" id="kmSend"><svg viewBox="0 0 24 24"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/><path d="M9 13l12-9"/></svg>Сохранить и отправить в Telegram</button>
     <p class="hint" style="text-align:center;margin:8px 0 0"><button class="link" type="button" id="kmTgSet">Настроить Telegram-бота</button></p>
+  </div>
+
+  <div class="form" id="fDay" hidden>
+    <h3 id="fDayTitle">Пробег за день</h3>
+    <input class="field" type="date" id="dyDate" aria-label="Дата">
+    <div class="dblk">
+      <p class="dlbl">Начало дня</p>
+      <div class="two">
+        <input class="field" type="number" inputmode="numeric" id="dsKm" placeholder="Пробег, км">
+        <input class="field" id="dsCity" placeholder="Город" maxlength="60" list="kmCities" autocapitalize="words">
+      </div>
+      <div class="phblock" id="dsPhBlock">
+        <div class="phprev" id="dsPhoto" hidden></div>
+        <div class="pbtns" style="margin:0 0 6px">
+          <button type="button" id="dsCam"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Сфотографировать</button>
+          <button type="button" id="dsGal"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>Из галереи</button>
+        </div>
+        <input type="file" id="dsCamInput" accept="image/*" capture="environment" hidden>
+        <input type="file" id="dsGalInput" accept="image/*" hidden>
+      </div>
+    </div>
+    <div class="dblk">
+      <p class="dlbl">Конец дня</p>
+      <div class="two">
+        <input class="field" type="number" inputmode="numeric" id="deKm" placeholder="Пробег, км">
+        <input class="field" id="deCity" placeholder="Город" maxlength="60" list="kmCities" autocapitalize="words">
+      </div>
+      <div class="phblock" id="dePhBlock">
+        <div class="phprev" id="dePhoto" hidden></div>
+        <div class="pbtns" style="margin:0 0 6px">
+          <button type="button" id="deCam"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Сфотографировать</button>
+          <button type="button" id="deGal"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>Из галереи</button>
+        </div>
+        <input type="file" id="deCamInput" accept="image/*" capture="environment" hidden>
+        <input type="file" id="deGalInput" accept="image/*" hidden>
+      </div>
+    </div>
+    <p class="dydist" id="dyDist"></p>
+    <div class="actions"><button class="btn ghost" id="dyDel" hidden>Удалить день</button><button class="btn" id="dySave">Сохранить</button></div>
+    <button class="btn ghost tgbtn" id="dySend"><svg viewBox="0 0 24 24"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/><path d="M9 13l12-9"/></svg>Сохранить и отправить день в Telegram</button>
+    <p class="hint" style="text-align:center;margin:8px 0 0"><button class="link" type="button" id="dyTgSet">Настроить Telegram-бота</button></p>
+  </div>
+
+  <div class="form" id="fSet" hidden>
+    <h3>Настройки</h3>
+    <p class="lbl">Вкладки внизу экрана</p>
+    <div class="setlist" id="setTabs"></div>
+    <p class="hint" style="margin:6px 0 18px">Порядок вкладок меняется так: зажмите вкладку внизу и перетащите.</p>
+    <p class="lbl">Telegram</p>
+    <div class="setlist"><button class="setrow" id="setTg"><span>Telegram-бот для пробега</span><i id="setTgState"></i></button></div>
+    <p class="lbl" style="margin-top:18px">Данные</p>
+    <div class="backup">
+      <button class="seg" id="bkExport">Сохранить копию данных</button>
+      <button class="seg" id="bkImport">Восстановить из копии</button>
+      <button class="seg" id="updCheck" hidden>Проверить обновления</button>
+      <input type="file" id="bkFile" accept=".json,application/json,text/plain" hidden>
+    </div>
+    <p class="sync" id="sync">Данные хранятся в телефоне</p>
   </div>
 
   <div class="form" id="fTg" hidden>
@@ -1296,15 +1377,7 @@ function renderCar(){
   if(items.length>8){ const li=document.createElement('li'), b=document.createElement('button'); b.className='more';
     b.textContent=logAll?'Свернуть':'Показать все записи ('+items.length+')'; b.onclick=()=>{logAll=!logAll;renderCar();}; li.appendChild(b); ll.appendChild(li); }
   renderCarExtra();
-  const ol=$('#odoList'); ol.innerHTML='';
-  const odo=state.odo.slice().sort((a,b)=>cmp(b.date,a.date)||b.km-a.km);
-  if(!odo.length) ol.appendChild(emptyEl(PHOTO?'Нажмите «Обновить» у пробега и сфотографируйте одометр: снимок сохранится с датой и километрами':'Записей пробега пока нет'));
-  odo.forEach(r=>{
-    const li=document.createElement('li'), b=document.createElement('button'); b.className='log';
-    b.innerHTML=(r.photo&&PHOTO?'<span class="odoth"><img loading="lazy" alt="" src="'+PH.url(r.photo)+'"></span>':'<span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 13l4-3M8 5h8"/></svg></span>')+
-      '<span class="tbody"><span class="ttl">'+esc(num(r.km)+' км'+(r.city?' · '+r.city:''))+'</span><span class="meta">'+esc(fmtDate(r.date)+(r.photo?'':', без фото')+(r.sent?', отправлено в Telegram':''))+'</span></span>'+(odoDist(r)?'<span class="sum">+'+num(odoDist(r).d)+' км</span>':'');
-    b.onclick=()=>openKm(r); li.appendChild(b); ol.appendChild(li);
-  });
+  renderOdoDays();
 }
 const CAMIC='<svg class="camic" viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
 function kmPoints(){
@@ -1479,6 +1552,134 @@ $('#tgSave').onclick=()=>{
 };
 $('#tgOff').onclick=()=>{ if(!confirm('Отключить бота? Записи будут отправляться через «Поделиться».')) return; try{ localStorage.removeItem('tg-bot'); }catch(e){} closeSheet(); };
 
+/* ---------- пробег по дням: начало и конец дня ---------- */
+function odoDays(){
+  const m={}; state.odo.forEach(r=>{ if(r.date) (m[r.date]=m[r.date]||[]).push(r); });
+  return Object.keys(m).sort().reverse().map(d=>{
+    const l=m[d].slice().sort((a,b)=>a.km-b.km||(a.ts||0)-(b.ts||0));
+    let s=l.find(x=>x.part==='start')||null, e=l.find(x=>x.part==='end')||null;
+    const rest=l.filter(x=>!x.part);
+    if(!s&&rest.length) s=rest[0];
+    if(!e){ const c=rest.filter(x=>x!==s); if(c.length) e=c[c.length-1]; }
+    return {date:d,start:s,end:e,all:l,dist:s&&e?e.km-s.km:null};
+  });
+}
+const dateRu=d=>(d||'').split('-').reverse().join('.');
+function odoCap(r,ref){
+  const c=state.car, L=['Пробег: '+num(r.km)+' км'];
+  if(r.city) L.push('Город: '+r.city);
+  if(ref) L.push('Проехано: '+num(r.km-ref.km)+' км (с '+dateRu(ref.date)+(ref.city?', '+ref.city:'')+')');
+  L.push('Дата: '+dateRu(r.date));
+  const car=[c.name,(c.plate||'').toUpperCase()].filter(Boolean).join(', '); if(car) L.push('Авто: '+car);
+  return L.join('\n');
+}
+const dsPick=photoPicker('ds'), dePick=photoPicker('de');
+let dyEdit=null;
+function lastCity(){ const r=state.odo.filter(x=>x.city).sort((a,b)=>cmp(b.date,a.date)||(b.ts||0)-(a.ts||0))[0]; return r?r.city:''; }
+function dyHint(){
+  const s=parseInt($('#dsKm').value,10), e=parseInt($('#deKm').value,10);
+  $('#dyDist').textContent=s>=0&&e>=0?(e>=s?'За день: '+num(e-s)+' км':'Конечный пробег меньше начального'):'';
+}
+function openDay(date){
+  date=date||todayISO();
+  const g=odoDays().find(x=>x.date===date)||null;
+  dyEdit={date,s:g?g.start:null,e:g?g.end:null,exists:!!g};
+  const cities=[...new Set(state.odo.slice().sort((a,b)=>(b.ts||0)-(a.ts||0)).map(x=>x.city).filter(Boolean))];
+  $('#kmCities').innerHTML=cities.map(c=>'<option value="'+esc(c)+'">').join('');
+  const s=dyEdit.s, e=dyEdit.e, lc=lastCity();
+  $('#fDayTitle').textContent=g?'Пробег: '+fmtDate(date):'Пробег за день';
+  $('#dyDate').value=date;
+  $('#dsKm').value=s?s.km:(state.car.mileage||''); $('#dsCity').value=s?(s.city||''):lc; dsPick.set(s?s.photo:null);
+  $('#deKm').value=e?e.km:''; $('#deCity').value=e?(e.city||''):(s&&s.city?s.city:lc); dePick.set(e?e.photo:null);
+  $('#dyDel').hidden=!g; dyHint(); openSheet('fDay');
+  // если начало уже записано — сразу к концу дня
+  if(s&&!e) setTimeout(()=>{ try{ $('#deKm').focus({preventScroll:true}); $('#deKm').scrollIntoView({block:'center'}); }catch(_){} },300);
+}
+['#dsKm','#deKm'].forEach(s=>$(s).addEventListener('input',dyHint));
+$('#dsCity').addEventListener('change',()=>{ if(!$('#deCity').value) $('#deCity').value=$('#dsCity').value; });
+function dayStore(){
+  const date=$('#dyDate').value||todayISO();
+  const sk=parseInt($('#dsKm').value,10), ek=parseInt($('#deKm').value,10);
+  const hasS=sk>=0, hasE=ek>=0;
+  if(!hasS&&!hasE){ $('#dsKm').focus(); return null; }
+  if(!hasS&&dsPick.get()){ $('#dsKm').focus(); return null; }
+  if(!hasE&&dePick.get()){ $('#deKm').focus(); return null; }
+  if(hasS&&hasE&&ek<sk&&!confirm('Конечный пробег меньше начального. Сохранить так?')) return null;
+  function up(rec,km,ok,city,pick,part){
+    if(ok){
+      const data={km,date,city,photo:pick.get()||'',part};
+      if(rec) Object.assign(rec,data); else { rec=Object.assign({id:uid(),ts:Date.now()},data); state.odo.push(rec); }
+      pick.commit(); return rec;
+    }
+    if(rec){ if(rec.photo) PH.del(rec.photo); state.odo=state.odo.filter(x=>x!==rec); }
+    pick.discard(); return null;
+  }
+  up(dyEdit.s,sk,hasS,$('#dsCity').value.trim(),dsPick,'start');
+  up(dyEdit.e,ek,hasE,$('#deCity').value.trim(),dePick,'end');
+  const pts=kmPoints(); if(pts.length) state.car.mileage=Math.max(...pts.map(x=>x.k));
+  save(); render(); return date;
+}
+$('#dySave').onclick=()=>{ if(dayStore()) closeSheet(); };
+$('#dySend').onclick=()=>{ const d=dayStore(); if(!d) return; closeSheet(); daySend(d); };
+$('#dyDel').onclick=()=>{
+  const g=odoDays().find(x=>x.date===dyEdit.date); if(!g||!confirm('Удалить пробег за '+fmtDate(g.date)+' вместе с фото?')) return;
+  g.all.forEach(r=>{ if(r.photo) PH.del(r.photo); }); state.odo=state.odo.filter(r=>!g.all.includes(r));
+  dsPick.discard(); dePick.discard();
+  const pts=kmPoints(); if(pts.length) state.car.mileage=Math.max(...pts.map(x=>x.k));
+  save(); render(); closeSheet();
+};
+$('#dyTgSet').onclick=()=>openTg();
+$('#kmBtn').onclick=()=>openDay(todayISO()); $('#odoAdd').onclick=()=>openDay(todayISO());
+
+/* отправка дня: начало и конец — двумя сообщениями с фото */
+let sharePending=null;
+function runSharePending(){ const f=sharePending; sharePending=null; if(f) setTimeout(f,450); }
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') runSharePending(); });
+function shareThen(r,cap,next){
+  if(next){ sharePending=next; const prev=window.onAppResume; window.onAppResume=function(){ window.onAppResume=prev; try{ prev&&prev(); }catch(e){} runSharePending(); }; }
+  odoShare(r,cap);
+}
+async function daySend(date){
+  const g=odoDays().find(x=>x.date===date); if(!g) return;
+  const msgs=[]; if(g.start) msgs.push({r:g.start,cap:odoCap(g.start,null)}); if(g.end&&g.end!==g.start) msgs.push({r:g.end,cap:odoCap(g.end,g.start)});
+  if(!msgs.length) return;
+  const cfg=tgCfg();
+  if(cfg.token&&cfg.chat){
+    let sent=0, err='';
+    for(const m of msgs){
+      const res=await tgApi(m.r.photo?'sendPhoto':'sendMessage',m.r.photo?{chat_id:cfg.chat,caption:m.cap}:{chat_id:cfg.chat,text:m.cap},m.r.photo);
+      if(res&&res.ok){ m.r.sent=Date.now(); sent++; } else { err=(res&&res.description)||'ошибка'; break; }
+    }
+    save(); renderCar();
+    if(sent===msgs.length){ alert('День отправлен в Telegram'+(cfg.title?': '+cfg.title:'')); return; }
+    if(!confirm('Не удалось отправить боту: '+err+'.\nОтправить через «Поделиться»?')) return;
+    msgs.splice(0,sent);
+  }
+  const step=i=>{ const m=msgs[i]; if(!m) return;
+    shareThen(m.r,m.cap,msgs[i+1]?()=>{ if(confirm('Отправить фото конца дня?')) step(i+1); }:null); };
+  step(0);
+}
+
+/* список по дням */
+function renderOdoDays(){
+  const ol=$('#odoList'); ol.innerHTML='';
+  const days=odoDays();
+  if(!days.length){ ol.appendChild(emptyEl('Утром нажмите «Обновить» у пробега и запишите начальный пробег с фото и городом, вечером — конечный. Приложение посчитает, сколько проехано за день')); return; }
+  const row=(r,label)=>'<div class="odrow">'+(r&&r.photo&&PHOTO?'<span class="odoth"><img loading="lazy" alt="" src="'+PH.url(r.photo)+'"></span>':'<span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 13l4-3M8 5h8"/></svg></span>')+
+    '<span class="tbody"><span class="meta">'+label+'</span><span class="ttl'+(r?'':' miss')+'">'+(r?esc(num(r.km)+' км'+(r.city?' · '+r.city:'')):'не записан')+'</span></span></div>';
+  days.slice(0,odoAll?days.length:14).forEach(g=>{
+    const li=document.createElement('li'), b=document.createElement('button'); b.className='odday';
+    const sent=g.all.length&&g.all.every(r=>r.sent);
+    const dl=new Date(g.date+'T12:00:00').toLocaleDateString('ru-RU',{weekday:'short',day:'numeric',month:'long'}), rel=g.date===todayISO()?'Сегодня, ':g.date===iso(addDays(new Date(),-1))?'Вчера, ':'';
+    b.innerHTML='<div class="odhead"><b>'+esc(rel+dl)+'</b>'+(g.dist!=null?'<span class="sum">'+num(g.dist)+' км за день</span>':'')+'</div>'+
+      row(g.start,'Начало дня')+row(g.end,'Конец дня')+(sent?'<p class="meta" style="margin:8px 0 0">Отправлено в Telegram</p>':'');
+    b.onclick=()=>openDay(g.date); li.appendChild(b); ol.appendChild(li);
+  });
+  if(days.length>14){ const li=document.createElement('li'), b=document.createElement('button'); b.className='more';
+    b.textContent=odoAll?'Свернуть':'Показать все дни ('+days.length+')'; b.onclick=()=>{odoAll=!odoAll;renderOdoDays();}; li.appendChild(b); ol.appendChild(li); }
+}
+let odoAll=false;
+
 /* ---------- render: notes ---------- */
 function renderNotes(){
   const q=$('#noteSearch').value.trim().toLowerCase(), g=$('#noteGrid'); g.innerHTML='';
@@ -1528,8 +1729,9 @@ $$('nav button').forEach(b=>b.onclick=()=>go(b.dataset.v));
     if(!drag){ if(timer&&(Math.abs(e.clientX-sx)>10||Math.abs(e.clientY-sy)>10)){ clearTimeout(timer); timer=null; } return; }
     e.preventDefault();
     const b=drag.b, w=b.offsetWidth||1; let dx=e.clientX-drag.base;
-    while(dx>w/2 && b.nextElementSibling){ box.insertBefore(b.nextElementSibling,b); drag.base+=w; dx-=w; }
-    while(dx<-w/2 && b.previousElementSibling){ box.insertBefore(b,b.previousElementSibling); drag.base-=w; dx+=w; }
+    const nx=x=>{ let n=x.nextElementSibling; while(n&&n.hidden) n=n.nextElementSibling; return n; }, pv=x=>{ let n=x.previousElementSibling; while(n&&n.hidden) n=n.previousElementSibling; return n; };
+    while(dx>w/2 && nx(b)){ box.insertBefore(nx(b),b); drag.base+=w; dx-=w; }
+    while(dx<-w/2 && pv(b)){ box.insertBefore(b,pv(b)); drag.base-=w; dx+=w; }
     b.style.transform='translateX('+dx+'px)';
   });
   function end(){
@@ -1552,9 +1754,9 @@ let editing=null;
 function openSheet(id){
   $$('.form').forEach(f=>f.hidden=f.id!==id);
   $('#scrim').classList.add('on'); $('#sheet').classList.add('on'); $('#sheet').scrollTop=0;
-  const first=$('#'+id+' input, #'+id+' textarea'); if(first) setTimeout(()=>first.focus({preventScroll:true}),260);
+  const first=(id==='fSet'||id==='fDay'||id==='fTrRep')?null:$('#'+id+' input, #'+id+' textarea'); if(first) setTimeout(()=>first.focus({preventScroll:true}),260);
 }
-function closeSheet(){try{kmPick.discard();lgPick.discard()}catch(e){}$('#scrim').classList.remove('on');$('#sheet').classList.remove('on');document.activeElement&&document.activeElement.blur();}
+function closeSheet(){try{kmPick.discard();lgPick.discard()}catch(e){}try{dsPick.discard();dePick.discard()}catch(e){}$('#scrim').classList.remove('on');$('#sheet').classList.remove('on');document.activeElement&&document.activeElement.blur();}
 $('#scrim').onclick=closeSheet;
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
 function segGroup(sel,attr,get,set){
@@ -1845,7 +2047,7 @@ function carBadges(){
   const dn=DOCS.filter(([k])=>c.docs&&c.docs[k]).length; fb('docs',dn?dn+' из '+DOCS.length:'');
   fb('log',state.carLog.length?state.carLog.length+' '+plural(state.carLog.length,'запись','записи','записей'):'');
   const yr=ym.slice(0,4), ys=state.carLog.filter(l=>(l.date||'').startsWith(yr)).reduce((s,l)=>s+(+l.sum||0),0); fb('year',ys?num(Math.round(ys))+' ₽ за '+yr:'');
-  fb('odo',state.odo.length?state.odo.length+' '+plural(state.odo.length,'запись','записи','записей'):'');
+  const odn=odoDays().length; fb('odo',odn?odn+' '+plural(odn,'день','дня','дней'):'');
 }
 /* отрисовка дополнительных блоков */
 function renderCarExtra(){
@@ -1922,6 +2124,35 @@ $('#nSave').onclick=()=>{
 };
 $('#nDel').onclick=()=>{state.notes=state.notes.filter(x=>x!==editing);save();render();closeSheet();};
 
+/* ---------- настройки: видимые вкладки ---------- */
+let navHidden=[]; try{ navHidden=JSON.parse(localStorage.getItem('nav-hidden')||'[]')||[]; }catch(e){}
+function applyNav(){
+  const bs=[...document.querySelectorAll('nav .in button')];
+  bs.forEach(b=>b.hidden=navHidden.includes(b.dataset.v));
+  const vis=bs.filter(b=>!b.hidden);
+  $('nav .in').style.gridTemplateColumns='repeat('+Math.max(1,vis.length)+',minmax(0,1fr))';
+  const key={object:'objects',check:'objects',tpl:'objects',dev:'catalog'}[view]||view;
+  if(vis.length&&navHidden.includes(key)) go(vis[0].dataset.v);
+}
+function renderSettings(){
+  const box=$('#setTabs'); box.innerHTML='';
+  document.querySelectorAll('nav .in button').forEach(b=>{
+    const row=document.createElement('label'); row.className='setrow';
+    row.innerHTML='<span class="sic">'+b.querySelector('svg').outerHTML+esc(b.textContent.trim())+'</span><input type="checkbox" class="tgl"'+(navHidden.includes(b.dataset.v)?'':' checked')+'>';
+    const cb=row.querySelector('input');
+    cb.onchange=()=>{
+      const v=b.dataset.v;
+      if(!cb.checked){ const left=[...document.querySelectorAll('nav .in button')].filter(x=>!navHidden.includes(x.dataset.v)&&x.dataset.v!==v); if(!left.length){ cb.checked=true; alert('Должна остаться хотя бы одна вкладка'); return; } navHidden.push(v); }
+      else navHidden=navHidden.filter(x=>x!==v);
+      try{ localStorage.setItem('nav-hidden',JSON.stringify(navHidden)); }catch(e){}
+      applyNav();
+    };
+    box.appendChild(row);
+  });
+  const c=tgCfg(); $('#setTgState').textContent=c.token?(c.title||'настроен'):'не настроен';
+}
+$('#gearBtn').onclick=()=>{ renderSettings(); openSheet('fSet'); };
+$('#setTg').onclick=()=>openTg();
 /* ---------- умный подбор слов при наборе заметки ---------- */
 const Sugg=(function(){
   const BASE=('адрес адресный адресная адресные аккумулятор аккумуляторы антенна аварийный автоматика акт акты '+
@@ -2496,6 +2727,7 @@ if(WEB){
   if(ios&&!standalone&&!off) $('#iosHint').hidden=false;
   $('#iosHintX').onclick=()=>{ $('#iosHint').hidden=true; try{localStorage.setItem('ios-hint-off','1')}catch(e){} };
 }
+applyNav();
 save(); render(); connect();
 })();
 </script>
