@@ -275,6 +275,14 @@ textarea.field{min-height:120px;resize:vertical}
 .bars .leg{display:flex;gap:14px;font-size:12px;color:var(--muted);margin:8px 0 2px;flex-wrap:wrap}
 .bars .leg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .rem.tap{cursor:pointer}
+h2.fold{cursor:pointer;-webkit-user-select:none;user-select:none}
+h2.fold .ft{display:flex;align-items:center;gap:6px;min-width:0;flex:1}
+h2.fold .chev{flex:none;width:9px;height:9px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);margin:0 6px 4px 2px;transition:transform .2s}
+h2.fold.closed .chev{transform:rotate(-45deg);margin:0 6px 0 0}
+h2.fold .fb{font:500 13px "Golos Text",system-ui,sans-serif;color:var(--muted);margin-left:auto;white-space:nowrap;padding-left:8px}
+h2.fold:not(.closed) .fb{display:none}
+h2.fold .fb.warn{color:var(--hot)}h2.fold .fb.bad{color:var(--red)}
+h2.fold.closed+.secb{display:none}
 .install{display:flex;gap:10px;align-items:flex-start;background:var(--surface);border:1.5px solid var(--accent);border-radius:16px;padding:12px 14px;margin:0 0 14px;font-size:14px}
 .install b{display:block;margin-bottom:2px}
 .install svg{width:16px;height:16px;stroke:var(--accent);fill:none;stroke-width:2;vertical-align:-3px}
@@ -406,26 +414,28 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
       <div><span>Пробег</span><b id="carKm">—</b></div>
       <button id="kmBtn">Обновить</button>
     </div>
-    <h2>Сроки <button class="link" id="carEdit">Данные авто</button></h2>
-    <ul class="list" id="carRem"></ul>
-    <h2 id="statTitle">Расходы</h2>
-    <div class="stats" id="carStats"></div>
-    <h2>Топливо</h2>
-    <div class="stats" id="fuelStats"></div>
-    <h2>Регламент <button class="link" id="mtAdd">Добавить</button></h2>
-    <ul class="list" id="mtList"></ul>
-    <h2>Поездки <button class="link" id="trAdd">Добавить</button></h2>
+    <h2 class="fold" data-sec="dates"><span class="ft"><i class="chev"></i><span>Сроки</span><small class="fb" id="fb_dates"></small></span><button class="link" id="carEdit">Данные авто</button></h2>
+    <div class="secb"><ul class="list" id="carRem"></ul></div>
+    <h2 class="fold" data-sec="month"><span class="ft"><i class="chev"></i><span id="statTitle">Расходы</span><small class="fb" id="fb_month"></small></span></h2>
+    <div class="secb"><div class="stats" id="carStats"></div></div>
+    <h2 class="fold closed" data-sec="fuel"><span class="ft"><i class="chev"></i><span>Топливо</span><small class="fb" id="fb_fuel"></small></span></h2>
+    <div class="secb"><div class="stats" id="fuelStats"></div></div>
+    <h2 class="fold closed" data-sec="mt"><span class="ft"><i class="chev"></i><span>Регламент</span><small class="fb" id="fb_mt"></small></span><button class="link" id="mtAdd">Добавить</button></h2>
+    <div class="secb"><ul class="list" id="mtList"></ul></div>
+    <h2 class="fold" data-sec="trips"><span class="ft"><i class="chev"></i><span>Поездки</span><small class="fb" id="fb_trips"></small></span><button class="link" id="trAdd">Добавить</button></h2>
+    <div class="secb">
     <div class="stats" id="trStats"></div>
     <ul class="list" id="trList"></ul>
     <div class="pbtns" style="margin-top:8px"><button id="trReport"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/></svg>Отчёт для компенсации</button></div>
-    <h2>Документы</h2>
-    <div class="docs" id="carDocs"></div>
-    <h2>Журнал</h2>
-    <ul class="list" id="carLog"></ul>
-    <h2>Расходы за 12 месяцев</h2>
-    <div class="bars" id="carBars"></div>
-    <h2>История пробега <button class="link" id="odoAdd">Добавить</button></h2>
-    <ul class="list" id="odoList"></ul>
+    </div>
+    <h2 class="fold closed" data-sec="docs"><span class="ft"><i class="chev"></i><span>Документы</span><small class="fb" id="fb_docs"></small></span></h2>
+    <div class="secb"><div class="docs" id="carDocs"></div></div>
+    <h2 class="fold" data-sec="log"><span class="ft"><i class="chev"></i><span>Журнал</span><small class="fb" id="fb_log"></small></span></h2>
+    <div class="secb"><ul class="list" id="carLog"></ul></div>
+    <h2 class="fold closed" data-sec="year"><span class="ft"><i class="chev"></i><span>Расходы за 12 месяцев</span><small class="fb" id="fb_year"></small></span></h2>
+    <div class="secb"><div class="bars" id="carBars"></div></div>
+    <h2 class="fold closed" data-sec="odo"><span class="ft"><i class="chev"></i><span>История пробега</span><small class="fb" id="fb_odo"></small></span><button class="link" id="odoAdd">Добавить</button></h2>
+    <div class="secb"><ul class="list" id="odoList"></ul></div>
   </section>
 
   <!-- NOTES -->
@@ -1689,6 +1699,31 @@ $('#docGal').onclick=()=>$('#docGalInput').click();
 $('#docCamInput').onchange=e=>{docPick([...e.target.files]);e.target.value=''};
 $('#docGalInput').onchange=e=>{docPick([...e.target.files]);e.target.value=''};
 
+/* спойлеры разделов на вкладке «Авто» */
+let carFold={}; try{ carFold=JSON.parse(localStorage.getItem('car-fold')||'{}')||{}; }catch(e){}
+$$('#v-car h2.fold').forEach(h=>{
+  const k=h.dataset.sec; if(k in carFold) h.classList.toggle('closed',!!carFold[k]);
+  h.addEventListener('click',e=>{
+    if(e.target.closest('button')){ h.classList.remove('closed'); carFold[k]=false; }   // «Добавить» раскрывает раздел
+    else { h.classList.toggle('closed'); carFold[k]=h.classList.contains('closed'); }
+    try{ localStorage.setItem('car-fold',JSON.stringify(carFold)); }catch(_){}
+  });
+});
+function fb(k,txt,lvl){ const el=$('#fb_'+k); if(!el) return; el.textContent=txt||''; el.className='fb'+(lvl?' '+lvl:''); }
+function carBadges(){
+  const c=state.car, ym=ymOf(todayISO());
+  const r=carReminders(false), rb=r.filter(x=>x.lvl==='bad').length, rw=r.filter(x=>x.lvl==='warn').length;
+  fb('dates',rb?'просрочено: '+rb:rw?'скоро: '+rw:(r.length?'всё в порядке':''),rb?'bad':rw?'warn':'');
+  const ms=state.carLog.filter(l=>ymOf(l.date)===ym).reduce((s,l)=>s+(+l.sum||0),0); fb('month',ms?num(Math.round(ms))+' ₽':'');
+  const fi=fuelInfo(); fb('fuel',fi.avg!=null?fix1(fi.avg)+' л/100 км':'');
+  const st=(c.maint||[]).map(mtStatus), mb=st.filter(s=>s.lvl==='bad').length, mw=st.filter(s=>s.lvl==='warn').length;
+  fb('mt',mb?'просрочено: '+mb:mw?'скоро: '+mw:(st.length?st.length+' '+plural(st.length,'пункт','пункта','пунктов'):''),mb?'bad':mw?'warn':'');
+  const ts=tripSum(tripsOf(ym)); fb('trips',ts.km?fix1(ts.km)+' км за месяц':'');
+  const dn=DOCS.filter(([k])=>c.docs&&c.docs[k]).length; fb('docs',dn?dn+' из '+DOCS.length:'');
+  fb('log',state.carLog.length?state.carLog.length+' '+plural(state.carLog.length,'запись','записи','записей'):'');
+  const yr=ym.slice(0,4), ys=state.carLog.filter(l=>(l.date||'').startsWith(yr)).reduce((s,l)=>s+(+l.sum||0),0); fb('year',ys?num(Math.round(ys))+' ₽ за '+yr:'');
+  fb('odo',state.odo.length?state.odo.length+' '+plural(state.odo.length,'запись','записи','записей'):'');
+}
 /* отрисовка дополнительных блоков */
 function renderCarExtra(){
   if(!Array.isArray(state.trips)) state.trips=[];
@@ -1744,6 +1779,7 @@ function renderCarExtra(){
   $('#carBars').innerHTML=rows.map(r=>'<div class="bar"><span>'+MON_S[+r.m.slice(5)-1]+(r.m.slice(5)==='01'||r===rows[0]?' '+r.m.slice(2,4):'')+'</span><span class="tr"><span class="f" style="width:'+(r.f/max*100)+'%"></span><span class="o" style="width:'+(r.o/max*100)+'%"></span></span><b>'+(r.f+r.o?num(Math.round(r.f+r.o))+' ₽':'—')+'</b></div>').join('')+
     '<div class="leg"><span><i style="background:var(--accent)"></i>топливо</span><span><i style="background:var(--hot)"></i>ТО, ремонт, другое</span></div>'+
     (yTotal?'<p class="meta" style="margin:6px 0 2px">За '+yr+' год: '+num(Math.round(yTotal))+' ₽ — '+['fuel','to','repair','other'].filter(k=>byT[k]).map(k=>LOGT[k].toLowerCase()+' '+num(Math.round(byT[k]))+' ₽').join(', ')+'</p>':'');
+  carBadges();
 }
 
 /* note form */
