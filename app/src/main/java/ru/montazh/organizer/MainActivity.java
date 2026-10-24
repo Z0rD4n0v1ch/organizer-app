@@ -296,13 +296,19 @@ public class MainActivity extends Activity {
         /* ---- отправка в Telegram от имени бота (Bot API) ---- */
         @JavascriptInterface
         public void tgSend(final String id, final String token, final String chat, final String caption, final String photoId) {
+            tgSendVia(id, "https://api.telegram.org", token, chat, caption, photoId);
+        }
+
+        @JavascriptInterface
+        public void tgSendVia(final String id, final String base, final String token, final String chat, final String caption, final String photoId) {
             new Thread(() -> {
                 int code = -1;
                 String body = "";
                 try {
                     File photo = (photoId == null || photoId.isEmpty()) ? null : photoFile(photoId);
                     boolean withPhoto = photo != null && photo.exists();
-                    URL url = new URL("https://api.telegram.org/bot" + token + (withPhoto ? "/sendPhoto" : "/sendMessage"));
+                    String b0 = (base == null || base.isEmpty()) ? "https://api.telegram.org" : base.replaceAll("/+$", "");
+                    URL url = new URL(b0 + "/bot" + token + (withPhoto ? "/sendPhoto" : "/sendMessage"));
                     HttpURLConnection c = (HttpURLConnection) url.openConnection();
                     c.setConnectTimeout(15000);
                     c.setReadTimeout(60000);
@@ -335,7 +341,7 @@ public class MainActivity extends Activity {
                     }
                 } catch (Exception e) {
                     code = -1;
-                    body = String.valueOf(e.getMessage());
+                    body = e.getClass().getSimpleName() + ": " + e.getMessage();
                 }
                 callJs("window.onTg && window.onTg(" + JSONObject.quote(id) + "," + code + "," + JSONObject.quote(body) + ")");
             }).start();

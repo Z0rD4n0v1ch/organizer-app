@@ -288,6 +288,7 @@ textarea.field{min-height:120px;resize:vertical}
 .setrow i{font-style:normal;color:var(--muted);font-size:13px}
 .setrow .sic{display:flex;align-items:center;gap:10px}
 .setrow .sic svg{width:20px;height:20px;stroke:var(--accent);fill:none;stroke-width:1.8}
+.tgadv{margin:0 0 12px;font-size:14px}.tgadv summary{color:var(--accent);cursor:pointer;padding:4px 0}
 .tgl{appearance:none;-webkit-appearance:none;flex:none;width:46px;height:28px;border-radius:14px;background:var(--line);position:relative;margin:0;transition:background .15s;cursor:pointer}
 .tgl::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .15s}
 .tgl:checked{background:var(--accent)}.tgl:checked::after{transform:translateX(18px)}
@@ -821,6 +822,10 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <p class="hint" style="margin:0 0 12px">Без настройки записи пробега отправляются через «Поделиться»: выберите Telegram и чат бота. Чтобы отправлять в один тап, укажите бота: создайте его у @BotFather и вставьте токен. Затем напишите боту /start (или добавьте его в группу и отправьте любое сообщение) и нажмите «Найти чат».</p>
     <input class="field" id="tgToken" placeholder="Токен бота, например 123456:ABC…" autocomplete="off" autocapitalize="off" spellcheck="false">
     <div style="display:flex;gap:8px"><input class="field" id="tgChat" placeholder="ID чата" autocomplete="off" style="min-width:0"><button class="seg" type="button" id="tgFind" style="margin-bottom:12px;flex:none">Найти чат</button></div>
+    <details class="tgadv"><summary>Если Telegram заблокирован у провайдера</summary>
+      <p class="hint" style="margin:6px 0 8px">Отправка ботом идёт напрямую на сервер api.telegram.org. Если он недоступен, включите на телефоне VPN для всего устройства (или добавьте Органайзер в приложения VPN) либо укажите адрес своего прокси-сервера Bot API. Способ через «Поделиться» работает всегда, пока работает приложение Telegram.</p>
+      <input class="field" id="tgBase" placeholder="https://api.telegram.org" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </details>
     <p class="hint" id="tgInfo" style="margin:-4px 0 12px"></p>
     <div class="actions"><button class="btn ghost" id="tgTest">Проверить</button><button class="btn" id="tgSave">Сохранить</button></div>
     <p class="hint" style="text-align:center;margin:10px 0 0"><button class="link" type="button" id="tgOff">Отключить бота</button></p>
@@ -1470,6 +1475,8 @@ $('#kmDel').onclick=()=>{
 
 /* ---------- запись пробега → Telegram ---------- */
 function tgCfg(){ try{ return JSON.parse(localStorage.getItem('tg-bot')||'null')||{}; }catch(e){ return {}; } }
+function tgBase(b){ b=String(b||'').trim().replace(/\/+$/,''); return /^https?:\/\//.test(b)?b:'https://api.telegram.org'; }
+function tgErr(code,body){ if(code===-1){ const m=String(body||''); return 'нет связи с сервером Telegram'+(/UnknownHost|resolve/i.test(m)?' (адрес не найден — возможна блокировка)':/timed? ?out|Timeout/i.test(m)?' (истекло время ожидания — возможна блокировка)':/SSL|Handshake|reset|refused/i.test(m)?' (соединение сброшено — возможна блокировка)':m?' ('+m.slice(0,80)+')':''); } return 'ошибка '+code; }
 function odoCaption(r){
   const c=state.car, d=odoDist(r), L=[];
   L.push('Пробег: '+num(r.km)+' км');
@@ -1485,20 +1492,22 @@ function tgApi(method,params,photoId){
   const cfg=tgCfg();
   return new Promise(async res=>{
     if(APP&&Android.tgSend&&(method==='sendPhoto'||method==='sendMessage')){
-      const id='t'+(++tgSeq); tgCb[id]=(code,body)=>{ let j=null; try{j=JSON.parse(body)}catch(e){} res(j||{ok:false,description:code===-1?'нет связи с Telegram':'ошибка '+code}); };
-      Android.tgSend(id,params.token||cfg.token,params.chat_id,params.caption||params.text||'',photoId||'');
+      const id='t'+(++tgSeq); tgCb[id]=(code,body)=>{ let j=null; try{j=JSON.parse(body)}catch(e){} res(j||{ok:false,description:tgErr(code,body)}); };
+      const base=tgBase(params.base!=null?params.base:cfg.base);
+      if(Android.tgSendVia) Android.tgSendVia(id,base,params.token||cfg.token,params.chat_id,params.caption||params.text||'',photoId||'');
+      else Android.tgSend(id,params.token||cfg.token,params.chat_id,params.caption||params.text||'',photoId||'');
       return;
     }
     if(APP&&method==='getUpdates'){
-      const r=await httpGet('https://api.telegram.org/bot'+params.token+'/getUpdates');
-      let j=null; try{j=JSON.parse(r.body)}catch(e){} res(j||{ok:false,description:r.code===-1?'нет связи с Telegram':(r.code===401||r.code===404?'неверный токен':'ошибка '+r.code)}); return;
+      const r=await httpGet(tgBase(params.base!=null?params.base:cfg.base)+'/bot'+params.token+'/getUpdates');
+      let j=null; try{j=JSON.parse(r.body)}catch(e){} res(j||{ok:false,description:r.code===401||r.code===404?'неверный токен':tgErr(r.code,r.body)}); return;
     }
     try{
-      const fd=new FormData(); Object.keys(params).forEach(k=>{ if(k!=='token') fd.append(k,params[k]); });
+      const fd=new FormData(); Object.keys(params).forEach(k=>{ if(k!=='token'&&k!=='base') fd.append(k,params[k]); });
       if(photoId&&method==='sendPhoto'){ const b=await PH.blob(photoId); if(b) fd.append('photo',b,'probeg.jpg'); else { method='sendMessage'; fd.append('text',params.caption||''); fd.delete('caption'); } }
-      const r=await fetch('https://api.telegram.org/bot'+(params.token||cfg.token)+'/'+method,{method:'POST',body:fd});
+      const r=await fetch(tgBase(params.base!=null?params.base:cfg.base)+'/bot'+(params.token||cfg.token)+'/'+method,{method:'POST',body:fd});
       res(await r.json());
-    }catch(e){ res({ok:false,description:'нет связи с Telegram'}); }
+    }catch(e){ res({ok:false,description:'нет связи с сервером Telegram (возможна блокировка)'}); }
   });
 }
 async function odoShare(r,caption){
@@ -1524,13 +1533,13 @@ async function odoSend(r){
   odoShare(r,caption);
 }
 function openTg(){
-  const c=tgCfg(); $('#tgToken').value=c.token||''; $('#tgChat').value=c.chat||'';
+  const c=tgCfg(); $('#tgToken').value=c.token||''; $('#tgChat').value=c.chat||''; $('#tgBase').value=c.base||''; $('.tgadv').open=!!c.base;
   $('#tgInfo').textContent=c.title?'Чат: '+c.title:''; $('#tgOff').hidden=!c.token; openSheet('fTg');
 }
 $('#tgFind').onclick=async()=>{
   const token=$('#tgToken').value.trim(); if(!token){ $('#tgToken').focus(); return; }
   $('#tgInfo').textContent='Ищу чат…';
-  const r=await tgApi('getUpdates',{token});
+  const r=await tgApi('getUpdates',{token,base:$('#tgBase').value});
   if(!r||!r.ok){ $('#tgInfo').textContent='Не получилось: '+((r&&r.description)||'ошибка'); return; }
   const ups=(r.result||[]).map(u=>u.message||u.channel_post||u.my_chat_member||u.edited_message).filter(m=>m&&m.chat);
   if(!ups.length){ $('#tgInfo').textContent='Сообщений нет. Напишите боту /start или добавьте его в группу и отправьте сообщение, затем нажмите ещё раз.'; return; }
@@ -1540,14 +1549,15 @@ $('#tgFind').onclick=async()=>{
 $('#tgTest').onclick=async()=>{
   const token=$('#tgToken').value.trim(), chat=$('#tgChat').value.trim(); if(!token||!chat){ (token?$('#tgChat'):$('#tgToken')).focus(); return; }
   $('#tgInfo').textContent='Отправляю проверочное сообщение…';
-  const r=await tgApi('sendMessage',{token,chat_id:chat,text:'Органайзер монтажника: проверка связи ✓'});
+  const r=await tgApi('sendMessage',{token,base:$('#tgBase').value,chat_id:chat,text:'Органайзер монтажника: проверка связи ✓'});
   $('#tgInfo').textContent=r&&r.ok?'Работает: сообщение отправлено':'Не получилось: '+((r&&r.description)||'ошибка');
 };
 $('#tgSave').onclick=()=>{
   const token=$('#tgToken').value.trim(), chat=$('#tgChat').value.trim();
   if(token&&!chat){ $('#tgChat').focus(); return; }
   const old=tgCfg(), title=$('#tgChat').dataset.title||(old.chat===chat?old.title:'')||'';
-  try{ localStorage.setItem('tg-bot',JSON.stringify(token?{token,chat,title}:{})); }catch(e){}
+  const base=$('#tgBase').value.trim();
+  try{ localStorage.setItem('tg-bot',JSON.stringify(token?{token,chat,title,base}:{})); }catch(e){}
   $('#tgChat').dataset.title=''; closeSheet();
 };
 $('#tgOff').onclick=()=>{ if(!confirm('Отключить бота? Записи будут отправляться через «Поделиться».')) return; try{ localStorage.removeItem('tg-bot'); }catch(e){} closeSheet(); };
