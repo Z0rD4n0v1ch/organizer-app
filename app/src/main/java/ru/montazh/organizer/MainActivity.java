@@ -417,6 +417,7 @@ public class MainActivity extends Activity {
                     break;
                 }
                 code = c.getResponseCode();
+                if (code != 200) err = "HTTP " + code + (c.getResponseMessage() != null ? " " + c.getResponseMessage() : "") + (u.equals(url) ? "" : " (после перенаправления на " + u + ")");
                 if (code == 200) {
                     String cd = c.getHeaderField("Content-Disposition");
                     if (cd != null) {
@@ -430,7 +431,13 @@ public class MainActivity extends Activity {
                         while ((n = in.read(buf)) > 0) { out.write(buf, 0, n); size += n; }
                     }
                     ext = Store.sniff(tmp, hint);
-                    if ("html".equals(ext)) { code = -2; err = "по ссылке не файл, а страница сайта"; }
+                    if ("html".equals(ext)) {
+                        code = -2;
+                        String head = "";
+                        try (java.io.FileInputStream in = new java.io.FileInputStream(tmp)) { byte[] hb = new byte[600]; int hn = in.read(hb); if (hn > 0) head = new String(hb, 0, hn, StandardCharsets.UTF_8); } catch (Exception ignored) { }
+                        Matcher tm = Pattern.compile("<title>([^<]{1,120})", Pattern.CASE_INSENSITIVE).matcher(head);
+                        err = "по ссылке не файл, а страница сайта" + (tm.find() ? ": «" + tm.group(1).trim() + "»" : "") + (u.equals(url) ? "" : " (" + u + ")");
+                    }
                     else {
                         File[] old = dir.listFiles((d, nm) -> nm.startsWith(sid + ".") && !nm.endsWith(".part"));
                         if (old != null) for (File x : old) //noinspection ResultOfMethodCallIgnored
@@ -539,7 +546,7 @@ public class MainActivity extends Activity {
                 if (it == null) continue;
                 batch.execute(() -> {
                     String id = it.optString("id"), url = it.optString("url");
-                    String ext = "";
+                    String ext = "", err = "";
                     long sz = 0;
                     int code = 0;
                     if (!batchStop) {
@@ -548,7 +555,7 @@ public class MainActivity extends Activity {
                         else {
                             StatFs st = new StatFs(Store.catDir(MainActivity.this).getPath());
                             if (st.getAvailableBytes() < 50L * 1024 * 1024) { batchStop = true; code = -3; }
-                            else { Object[] r = download(url, id); code = (int) r[0]; ext = (String) r[2]; sz = (long) r[3]; }
+                            else { Object[] r = download(url, id); code = (int) r[0]; err = (String) r[1]; ext = (String) r[2]; sz = (long) r[3]; }
                         }
                     }
                     if (code == 200) { ok.incrementAndGet(); bytes.addAndGet(sz); } else if (!batchStop || code == -3) fail.incrementAndGet();
@@ -556,12 +563,32 @@ public class MainActivity extends Activity {
                     try {
                         JSONObject o = new JSONObject();
                         o.put("done", d); o.put("total", total); o.put("ok", ok.get()); o.put("fail", fail.get()); o.put("bytes", bytes.get());
-                        o.put("id", id); o.put("code", code); o.put("ext", ext); o.put("size", sz); o.put("stopped", batchStop); o.put("nospace", code == -3);
+                        o.put("id", id); o.put("url", url); o.put("err", err); o.put("code", code); o.put("ext", ext); o.put("size", sz); o.put("stopped", batchStop); o.put("nospace", code == -3);
                         callJs("window.onCatBatch && window.onCatBatch(" + JSONObject.quote(o.toString()) + ")");
                     } catch (Exception ignored) { }
                     if (d == total) batch.shutdown();
                 });
             }
+        }
+
+        /** Текстовый файл (отчёт об ошибках) для отправки или сохранения: id вида r_… */
+        @JavascriptInterface
+        public boolean writeText(String id, String text) {
+            try (OutputStream out = new FileOutputStream(docFile(id))) {
+                out.write(text.getBytes(StandardCharsets.UTF_8));
+                return true;
+            } catch (Exception e) { return false; }
+        }
+
+        @JavascriptInterface
+        public String deviceInfo() {
+            try {
+                JSONObject o = new JSONObject();
+                o.put("model", Build.MANUFACTURER + " " + Build.MODEL);
+                o.put("android", Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + ")");
+                o.put("build", currentVersion());
+                return o.toString();
+            } catch (Exception e) { return "{}"; }
         }
 
         @JavascriptInterface

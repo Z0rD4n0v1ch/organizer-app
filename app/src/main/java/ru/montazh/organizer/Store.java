@@ -58,6 +58,12 @@ final class Store {
             if (fs != null && fs.length > 0) return fs[0];
             return new File(dir, s + ".pdf");
         }
+        if (s.startsWith("r_")) {
+            File dir = new File(c.getCacheDir(), "reports");
+            if (!dir.exists()) //noinspection ResultOfMethodCallIgnored
+                dir.mkdirs();
+            return new File(dir, s + ".txt");
+        }
         File dir = new File(s.startsWith("c_") ? c.getCacheDir() : c.getFilesDir(), "docs");
         if (!dir.exists()) //noinspection ResultOfMethodCallIgnored
             dir.mkdirs();

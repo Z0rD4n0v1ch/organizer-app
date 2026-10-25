@@ -164,6 +164,7 @@ h2{font:500 16px/1.2 "Unbounded",system-ui,sans-serif;margin:26px 0 10px;display
 .strow span{color:var(--muted)}.strow b{font-weight:600;text-align:right}
 .strow.big{font-size:15px}.strow.big span{color:var(--ink)}
 .stbar{height:6px;border-radius:3px;background:var(--line);overflow:hidden;margin:8px 0 2px}.stbar i{display:block;height:100%;background:var(--accent);border-radius:3px;width:0}
+.cbfails{margin:-4px 0 10px}.cbfails summary{color:var(--red);font-size:13.5px;cursor:pointer}.cbfails ul{list-style:none;margin:6px 0;padding:0;max-height:40vh;overflow:auto}.cbfails li{padding:6px 0;border-bottom:1px solid var(--line)}.cbfails b{display:block;font-weight:500;font-size:13px}.cbfails small{color:var(--muted);font-size:12px;word-break:break-word}
 .prjitems{margin-top:14px}
 .prjih b{display:block;font-weight:600}.prjih small{color:var(--muted);font-size:12.5px}
 .prjall{display:flex;align-items:center;gap:6px;margin:8px 0 4px;font-size:12.5px;color:var(--muted)}
@@ -970,7 +971,8 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <div id="cbMakers"></div>
     <div class="strow" style="margin-top:10px"><span id="cbWhere"></span><button class="link" type="button" id="cbChange">Изменить</button></div>
     <p class="hint" id="cbEst" style="margin:4px 0 10px"></p>
-    <div id="cbProg" hidden><div class="stbar"><i id="cbBar"></i></div><p class="hint" id="cbTxt" style="margin:6px 0 10px"></p></div>
+    <div id="cbProg" hidden><div class="stbar"><i id="cbBar"></i></div><p class="hint" id="cbTxt" style="margin:6px 0 10px"></p>
+      <details class="cbfails" id="cbFails" hidden><summary></summary><ul></ul><p class="hint">Подробности попадают в журнал ошибок: «Настройки» → «Отчёт об ошибке».</p></details></div>
     <div class="actions"><button class="btn ghost" id="cbStop" hidden>Остановить</button><button class="btn" id="cbGo">Скачать</button></div>
     <p class="hint" style="margin:10px 0 0">Скачивание идёт в фоне — можно закрыть это окно и пользоваться приложением.</p>
   </div>
@@ -1175,6 +1177,14 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
       <button class="seg" id="bkImport">Восстановить из копии</button>
       <input type="file" id="bkFile" accept=".json,application/json,text/plain" hidden>
     </div>
+    <p class="lbl" style="margin-top:18px">Отчёт об ошибке</p>
+    <div class="stinfo"><div class="strow"><span id="elInfo">Журнал пуст</span></div></div>
+    <div class="backup" style="margin-top:8px">
+      <button class="seg" id="elSend">Отправить отчёт</button>
+      <button class="seg" id="elShow">Посмотреть журнал</button>
+      <button class="seg" id="elClear">Очистить журнал</button>
+    </div>
+    <pre class="hsText" id="elView" hidden style="margin-top:8px;max-height:50vh;font-size:11.5px"></pre>
     <p class="sync" id="sync">Данные хранятся в телефоне</p>
     <p class="hint" style="text-align:center;margin:4px 0 0">Свободная программа, лицензия GPL-3.0. <a href="https://github.com/Z0rD4n0v1ch/organizer-app" target="_blank" rel="noopener">Исходный код</a></p>
   </div>
@@ -1271,6 +1281,18 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
 <script src="smartec.js"></script>
 <script>
 (function(){
+/* ---------- журнал ошибок для отчёта (только ошибки и технические сведения, без ваших записей и токенов) ---------- */
+const ELOG=(function(){
+  let L=[]; try{ L=JSON.parse(localStorage.getItem('errlog')||'[]')||[]; }catch(e){}
+  let tm=null; const flush=()=>{ try{ localStorage.setItem('errlog',JSON.stringify(L)); }catch(e){} };
+  const scrub=s=>String(s==null?'':s).replace(/bot\d+:[\w-]{20,}/g,'bot***').replace(/\d{6,}:[\w-]{30,}/g,'***');
+  function add(kind,msg,info){ L.push({t:Date.now(),k:kind,m:scrub(msg).slice(0,600),x:info?scrub(typeof info==='string'?info:JSON.stringify(info)).slice(0,900):''}); if(L.length>400) L=L.slice(-400); clearTimeout(tm); tm=setTimeout(flush,400); }
+  window.addEventListener('error',e=>add('js',e.message,{file:String(e.filename||'').split('/').pop(),line:e.lineno,col:e.colno}));
+  window.addEventListener('unhandledrejection',e=>add('js','Promise: '+((e.reason&&(e.reason.stack||e.reason.message))||e.reason)));
+  const ce=console.error; console.error=function(...a){ try{ add('console',a.map(x=>x&&x.stack?x.stack:String(x)).join(' ')); }catch(e){} return ce.apply(console,a); };
+  return {add,list:()=>L.slice(),clear(){ L=[]; flush(); }};
+})();
+const logErr=ELOG.add;
 const KEY='organizer-v1';
 const $=s=>document.querySelector(s);
 const $$=s=>document.querySelectorAll(s);
@@ -1881,6 +1903,7 @@ async function tgSend(p,photo,text){
     r=await call('sendPhoto',{caption:cap},photo);
   } else rest=tgSplit(text,4000);
   for(const pt of rest){ if(!(r&&r.ok)) break; if(!pt.trim()) continue; r=await call('sendMessage',{text:pt}); }
+  if(!(r&&r.ok)) logErr('telegram','отправка ('+(TG_P[p||'car']||{}).name+'): '+((r&&r.description)||'нет ответа'),{code:r&&r.error_code});
   return r&&r.ok?{ok:true,title:cfg.title||''}:{ok:false,description:tgHuman(r&&r.description)};
 }
 let tgSeq=0; const tgCb={};
@@ -2525,7 +2548,7 @@ const DOC=(function(){
     async load(id){ const n=Android.docSize(id); if(!(n>0)) return null; const out=new Uint8Array(n); for(let o=0;o<n;o+=CH*2){ const s=Android.docRead(id,o,CH*2); if(s==null) return null; out.set(unb64(s),o); } return out; },
     del(id){ try{Android.docDelete(id)}catch(e){} },
     share(id,name){ Android.docShare(id,name); },
-    fetch(url,id){ return new Promise(res=>{ const r='d'+(++httpSeq); docCb[r]=(code,err,ext,size)=>{ if(code===200&&/^k_/.test(id)&&typeof catDlMark==='function') catDlMark(id,ext||'pdf',size||1); res(code===200?true:(err||(code===404?'файла нет на сайте (404)':code===403?'сайт не отдал файл (403)':'сервер ответил '+code))); }; Android.docFetch(r,url,id); }); }
+    fetch(url,id){ return new Promise(res=>{ const r='d'+(++httpSeq); docCb[r]=(code,err,ext,size)=>{ if(code===200&&/^k_/.test(id)&&typeof catDlMark==='function') catDlMark(id,ext||'pdf',size||1); const msg=code===200?true:(err||(code===404?'файла нет на сайте (404)':code===403?'сайт не отдал файл (403)':'сервер ответил '+code)); if(msg!==true) logErr('download',msg,{code,url}); res(msg); }; Android.docFetch(r,url,id); }); }
   };
   const ok=WEB&&'caches' in window;
   return {
@@ -2913,7 +2936,7 @@ async function prjStart(o,docEntry,bytes,auto){
     R.items.forEach(e=>{ e.match=prjMatch(e); e.cls=prjClass(e); });
     prjCur.opts={};
     prjSummary();
-  }catch(e){ $('#prjBody').innerHTML='<p>Не удалось разобрать проект: '+esc(e.message||e)+'</p>'; }
+  }catch(e){ logErr('project','разбор «'+docEntry.name+'»: '+((e&&e.stack)||e)); $('#prjBody').innerHTML='<p>Не удалось разобрать проект: '+esc(e.message||e)+'</p>'; }
 }
 /* что считать оборудованием, а что расходником: по словам в наименовании + ваш прошлый выбор */
 const PRJ_CONS=/кронштейн|цанг|уголок|адаптер|крепл|площадк|планк|коробк|короб|дюбел|хомут|стяжк|саморез|винт|болт|гайк|шуруп|клемм|изолент|маркер|бирк|труб|гофр|кабел|провод|витая|патч|разъ[её]м|коннектор|наконечник|держател|скоб|лоток|канал|герметик|пена|гильз|муфт|сальник|переходник|кожух|козыр[её]к|рамк|подставк|набор|монтажн|заглушк|перемычк|предохранител|шина|din|дин-рейк|втулк|вставк|накладк|пластин|перфолент|изоляц|кабельн/i;
@@ -3056,6 +3079,7 @@ function cbStorageLine(){ try{ const s=JSON.parse(Android.storageInfo()); $('#cb
 function cbUi(){
   const r=cbRun; $('#cbProg').hidden=!r; $('#cbStop').hidden=!r||r.fin; $('#cbGo').hidden=!!(r&&!r.fin);
   if(r){ const pct=r.total?Math.round(r.done/r.total*100):0; $('#cbBar').style.width=pct+'%';
+    const fl=$('#cbFails'); fl.hidden=!(r.fails&&r.fails.length); if(r.fails&&r.fails.length){ fl.querySelector('summary').textContent='Не скачалось: '+r.fails.length+' — почему'; fl.querySelector('ul').innerHTML=r.fails.map(f=>'<li><b>'+esc(f.name)+'</b><small>'+esc(f.why)+'</small></li>').join(''); }
     $('#cbTxt').textContent=(r.fin?(r.stopped?(r.nospace?'Остановлено: мало места. ':'Остановлено. '):'Готово. '):'Скачиваю: ')+r.done+' из '+r.total+' · '+fmtSize(r.bytes||0)+(r.fail?' · не скачалось: '+r.fail:''); }
   const st=r&&!r.fin?'Скачиваю документацию: '+r.done+' из '+r.total:''; if(st) setCatStatus(st); else if(r&&r.fin) setCatStatus('');
 }
@@ -3063,7 +3087,7 @@ $('#ctDocs').onclick=catDlOpen;
 $('#cbChange').onclick=()=>{ closeSheet(); renderSettings(); openSheet('fSet'); setTimeout(()=>{ const el=$('#stBlock'); if(el) el.scrollIntoView({block:'start'}); },300); };
 $('#cbGo').onclick=()=>{
   const list=catDocsAll(cbSel()).filter(x=>!catDl[x.id]); if(!list.length||!APP) return;
-  cbRun={done:0,total:list.length,bytes:0,fail:0,fin:false}; cbUi(); cbCount();
+  cbRun={done:0,total:list.length,bytes:0,fail:0,fin:false,fails:[]}; cbUi(); cbCount();
   Android.catBatch(JSON.stringify(list.map(x=>({id:x.id,url:x.url}))));
 };
 $('#cbStop').onclick=()=>{ if(cbRun){ Android.catBatchCancel(); cbRun.fin=true; cbRun.stopped=true; cbUi(); cbCount(); } };
@@ -3071,6 +3095,7 @@ window.onCatBatch=function(json){
   let o={}; try{ o=JSON.parse(json); }catch(e){ return; }
   if(o.code===200&&o.ext) catDl[o.id]={ext:o.ext,size:o.size};
   if(!cbRun) cbRun={};
+  if(o.code!==200&&!o.stopped){ const doc=catDocsAll().find(x=>x.id===o.id); const why=o.err||(o.code===-3?'мало места':'код '+o.code); (cbRun.fails=cbRun.fails||[]).push({name:doc?CATS[doc.mk].name+': '+doc.name:o.id,why,url:o.url||(doc&&doc.url)}); logErr('download',(doc?CATS[doc.mk].name+': '+doc.name+' — ':'')+why,{code:o.code,url:o.url||(doc&&doc.url)}); }
   Object.assign(cbRun,{done:o.done,total:o.total,bytes:o.bytes,fail:o.fail,nospace:o.nospace||cbRun.nospace});
   if(o.done%10===0||o.done===o.total) catDlSave();
   if(o.done>=o.total||o.nospace){ cbRun.fin=true; cbRun.stopped=o.stopped||o.nospace; catDlSave(); cbCount(); if(!$('#fCatDl').hidden&&$('#sheet').classList.contains('on')){} else alert('Документация скачана: '+(o.ok||0)+' '+plural(o.ok||0,'файл','файла','файлов')+(o.fail?', не скачалось: '+o.fail:'')+(o.nospace?'. Остановлено: мало свободного места.':'')); }
@@ -3115,6 +3140,37 @@ $$('#stLoc [data-loc]').forEach(b=>b.onclick=()=>{
 window.onStorageMoved=function(err){ $('#stMsg').textContent=err?'Не удалось перенести: '+err:'Готово: документация теперь хранится '+(JSON.parse(Android.storageInfo()).loc==='sd'?'на флешке':'в памяти телефона'); renderStorage(); };
 $('#stClear').onclick=()=>{ if(!confirm('Удалить всю скачанную документацию справочника? Её можно будет скачать снова.')) return; Android.catClear(); catDl={}; catDlSave(); renderStorage(); $('#stMsg').textContent='Скачанная документация удалена'; };
 
+/* ---------- отчёт об ошибке ---------- */
+function bugReport(){
+  const L=[], d=new Date(), pad2=n=>String(n).padStart(2,'0'), ts=x=>{ const q=new Date(x); return pad2(q.getDate())+'.'+pad2(q.getMonth()+1)+' '+pad2(q.getHours())+':'+pad2(q.getMinutes())+':'+pad2(q.getSeconds()); };
+  L.push('Отчёт органайзера монтажника','Создан: '+d.toLocaleString('ru-RU'));
+  let dev={}; try{ if(APP&&Android.deviceInfo) dev=JSON.parse(Android.deviceInfo()); }catch(e){}
+  L.push('Версия: '+(dev.build?'1.'+dev.build+' (сборка '+dev.build+')':(APP?'Android-приложение':'веб-версия')));
+  if(dev.model) L.push('Телефон: '+dev.model+', Android '+dev.android);
+  L.push('Браузер: '+navigator.userAgent,'Экран: '+screen.width+'×'+screen.height+' @'+(window.devicePixelRatio||1)+', окно '+innerWidth+'×'+innerHeight);
+  L.push('Каталоги: '+MAKERS.map(k=>k+' '+(CATS[k].rev||CATS[k].date)+' ('+CATS[k].items.length+')').join(', '));
+  try{ if(APP&&Android.storageInfo){ const s=JSON.parse(Android.storageInfo()); L.push('Память: занято '+fmtSize(s.total||0)+', документация '+fmtSize(s.catdocs||0)+' ('+(s.catCount||0)+' файлов, '+(s.loc==='sd'?'флешка':'телефон')+'), свободно в телефоне '+fmtSize(s.phoneFree||0)+(s.sd?', на флешке '+fmtSize(s.sdFree||0):', флешки нет')); } }catch(e){}
+  L.push('Скачано документов справочника: '+Object.keys(catDl).length);
+  L.push('Боты Telegram: '+Object.keys(TG_P).map(k=>{ const c=tgCfg(k); return TG_P[k].name+' — '+(c.token?(c.chat?'настроен':'нет чата'):'нет')+(c.base?' (свой адрес API)':''); }).join('; '));
+  L.push('Данные: задач '+state.tasks.length+', объектов '+state.objects.length+', заметок '+state.notes.length+', записей часов '+state.hours.length);
+  const E=ELOG.list();
+  L.push('','Журнал ошибок ('+E.length+'):');
+  if(!E.length) L.push('— пусто —');
+  E.forEach(e=>L.push(ts(e.t)+' ['+e.k+'] '+e.m+(e.x?'  '+e.x:'')));
+  return L.join('\n');
+}
+function elRender(){ const E=ELOG.list(); $('#elInfo').textContent=E.length?'В журнале '+E.length+' '+plural(E.length,'запись','записи','записей')+', последняя '+fmtDate(iso(new Date(E[E.length-1].t)))+' в '+hm(new Date(E[E.length-1].t)):'Журнал пуст — ошибок не было'; if(!$('#elView').hidden) $('#elView').textContent=bugReport(); }
+$('#elShow').onclick=()=>{ const v=$('#elView'); v.hidden=!v.hidden; $('#elShow').textContent=v.hidden?'Посмотреть журнал':'Скрыть журнал'; elRender(); };
+$('#elClear').onclick=()=>{ if(!confirm('Очистить журнал ошибок?')) return; ELOG.clear(); elRender(); };
+$('#elSend').onclick=async()=>{
+  const txt=bugReport(), d=new Date(), nm='organizer-report-'+d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')+'-'+String(d.getHours()).padStart(2,'0')+String(d.getMinutes()).padStart(2,'0');
+  if(APP&&Android.writeText){ const id='r_'+Date.now(); if(Android.writeText(id,txt)){ Android.docShare(id,nm); return; } }
+  const f=new File([txt],nm+'.txt',{type:'text/plain'});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){ try{ await navigator.share({files:[f],title:'Отчёт об ошибке'}); return; }catch(e){ if(e&&e.name==='AbortError') return; } }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(f); a.download=f.name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000);
+};
+{ const rs2=renderSettings; renderSettings=function(){ rs2(); try{ elRender(); }catch(e){} }; }
+
 /* ---------- просмотр PDF внутри приложения (pdf.js) ---------- */
 let pdfLib=null;
 function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=()=>rej(new Error('нет файла '+src)); document.head.appendChild(s); }); }
@@ -3153,7 +3209,7 @@ async function openPdf(o){
     }
     PV.doc=doc; pvMsg(''); await pvLayout();
     if(o.page>1&&PV.pages[o.page-1]){ const sc=$('#pvScroll'); sc.scrollTop+=PV.pages[o.page-1].getBoundingClientRect().top-sc.getBoundingClientRect().top-8; pvNum(); }
-  }catch(e){ if(my===PV.task) pvMsg(/password/i.test(e&&e.name||'')?'Документ защищён паролем — такие файлы пока не открываются.':'Не удалось открыть PDF: '+((e&&e.message)||e)); }
+  }catch(e){ logErr('pdf','открытие «'+(o.name||'')+'»: '+((e&&e.message)||e)); if(my===PV.task) pvMsg(/password/i.test(e&&e.name||'')?'Документ защищён паролем — такие файлы пока не открываются.':'Не удалось открыть PDF: '+((e&&e.message)||e)); }
 }
 /* точка документа под пальцем: номер страницы и доля внутри неё — чтобы после масштаба вернуть её на то же место экрана */
 function pvEls(){ return PV.img?[PV.img]:PV.pages; }
@@ -4192,7 +4248,7 @@ async function checkCatalogs(manual){
     refreshMakers(); if(!CATS[mk]) mk=MAKERS[0]||'';
     setCatStatus(upd.length?('Обновлено: '+upd.join(', ')):(manual?'Каталоги актуальны':''));
     if(view==='catalog') renderCatalog();
-  }catch(e){ setCatStatus(manual?('Не удалось обновить: '+e.message):''); }
+  }catch(e){ logErr('catalog','обновление каталогов: '+e.message); setCatStatus(manual?('Не удалось обновить: '+e.message):''); }
   finally{ catBusy=false; const b=$('#ctUpd'); if(b) b.disabled=false; }
 }
 $('#ctUpd').onclick=()=>checkCatalogs(true);
@@ -4417,7 +4473,7 @@ function updInstall(){ if(!upd) return; closeSheet(); updBusy='dl'; updShow('О�
 window.onUpdateInfo=function(raw){
   let d={}; try{d=JSON.parse(raw)}catch(e){}
   const was=manualCheck; manualCheck=false; updChecking=false;
-  if(d.error){ updCardRender(); if(was) alert('Не удалось проверить обновления. Проверьте интернет.'); return; }
+  if(d.error){ logErr('update','проверка обновлений: '+d.error); updCardRender(); if(was) alert('Не удалось проверить обновления. Проверьте интернет.'); return; }
   updLastCheck=Date.now();
   if(d.url && d.latest>d.current){
     const fresh=!upd||upd.latest!==d.latest; upd=d; if(fresh) updFetched=false;
@@ -4434,7 +4490,7 @@ window.onUpdateState=function(st,msg){
   else if(st==='installing'){ updShow('Устанавливаю','Нажмите «Обновить» в окне Android',''); }
   else if(st==='cancel'){ updBusy=false; updFetched=false; updReady(); }
   else if(st==='done'){ updBusy=false; updShow('Обновление установлено','',''); }
-  else if(st==='error'){ updBusy=false; updFetched=false; updShow('Не удалось обновить',esc(msg?(' ('+msg+')'):''), 'Ещё раз'); }
+  else if(st==='error'){ logErr('update','установка обновления: '+msg); updBusy=false; updFetched=false; updShow('Не удалось обновить',esc(msg?(' ('+msg+')'):''), 'Ещё раз'); }
 };
 window.onAppResume=function(){
   if(updBusy==='perm'&&upd){ updBusy='dl'; Android.installUpdate(upd.url); return; }
