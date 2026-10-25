@@ -148,6 +148,9 @@ h2{font:500 16px/1.2 "Unbounded",system-ui,sans-serif;margin:26px 0 10px;display
 .eqtag.prj{background:var(--accent);color:var(--accent-ink);margin-left:0;margin-right:4px}
 .dgrp{list-style:none;font:600 12px "Golos Text",sans-serif;color:var(--accent);text-transform:none;margin:10px 4px 0;letter-spacing:.01em}
 .dgrp:first-child{margin-top:4px}
+.sysg{list-style:none}
+.sysl>li{margin-top:6px}
+.sysl .log,.sysl .mat{background:var(--bg)}
 .prjitems{margin-top:14px}
 .prjih b{display:block;font-weight:600}.prjih small{color:var(--muted);font-size:12.5px}
 .prjall{display:flex;align-items:center;gap:6px;margin:8px 0 4px;font-size:12.5px;color:var(--muted)}
@@ -1486,13 +1489,13 @@ function renderObject(){
   if(!ts.length) tl.appendChild(emptyEl('Работ по объекту пока нет'));
   ts.forEach(t=>tl.appendChild(taskEl(t,{showObj:false})));
   const ml=$('#oMats'); ml.innerHTML='';
-  o.mats.forEach(m=>{
+  sysGroups(o,ml,o.mats,'mat',(m,grouped)=>{
     const li=document.createElement('li'); li.className='mat'+(m.done?' done':'');
-    const pt=m.src&&prjDocs(o).length>1?prjTag(o,m.src):'';
+    const pt=!grouped&&m.src&&prjDocs(o).length>1?prjTag(o,m.src):'';
     li.innerHTML='<button class="chk" aria-label="Есть в наличии">'+check+'</button><span class="ttl">'+(pt?'<span class="eqtag prj">'+esc(pt)+'</span> ':'')+esc(m.text)+'</span><button class="x" aria-label="Удалить">×</button>';
     li.querySelector('.chk').onclick=()=>{m.done=!m.done;save();renderObject();renderObjects();};
     li.querySelector('.x').onclick=()=>{o.mats=o.mats.filter(x=>x!==m);save();renderObject();renderObjects();};
-    ml.appendChild(li);
+    return li;
   });
   if(document.activeElement!==$('#oNote')) $('#oNote').value=o.note||'';
   renderPhotos(o); renderSvc(o); try{renderDocs(o)}catch(e){} objBadges(o);
@@ -2405,6 +2408,31 @@ window.onDocFetch=function(r,code,err){ const f=docCb[r]; delete docCb[r]; if(f)
 function fmtSize(n){ return n>=1048576?(Math.round(n/104857.6)/10).toString().replace('.',',')+' МБ':Math.max(1,Math.round(n/1024))+' КБ'; }
 function docSecs(o){ if(!Array.isArray(o.docSecs)||!o.docSecs.length) o.docSecs=DOC_SECS.slice(); return o.docSecs; }
 let docSecPick=null, docOpenSec={};
+/* оборудование и материалы разных систем — свёрнутыми группами по проектам */
+let grpOpen={}; try{ grpOpen=JSON.parse(localStorage.getItem('grp-open')||'{}')||{}; }catch(e){}
+function sysLabel(o,k){
+  if(!k) return 'Добавлено вручную';
+  const d=(o.docs||[]).find(x=>x.id===k); if(!d) return 'Удалённый проект';
+  const tag=prjTag(o,k), sys=d.sys||'';
+  return (tag&&sys?tag+' · '+sys:sys||d.code||d.name);
+}
+function sysGroups(o,ul,items,kind,one){
+  const key=x=>x.src&&(o.docs||[]).some(d=>d.id===x.src)?x.src:(x.src?'?':'');
+  const keys=[...new Set(items.map(key))];
+  if(keys.length<2){ items.forEach(x=>ul.appendChild(one(x,false))); return; }
+  keys.sort((a,b)=>(a===''?1:0)-(b===''?1:0));
+  keys.forEach(k=>{
+    const its=items.filter(x=>key(x)===k), fk=o.id+'|'+kind+'|'+k;
+    const li=document.createElement('li'); li.className='dsec sysg'+(grpOpen[fk]?' open':'');
+    const left=kind==='mat'?its.filter(x=>!x.done).length:0;
+    li.innerHTML='<div class="dsh"><button class="dst"><i class="chev"></i><span>'+esc(k==='?'?'Удалённый проект':sysLabel(o,k))+'</span><small>'+(kind==='mat'&&left!==its.length?left+' из '+its.length:its.length)+'</small></button></div>';
+    const sub=document.createElement('ul'); sub.className='dfiles sysl';
+    its.forEach(x=>sub.appendChild(one(x,true)));
+    li.appendChild(sub);
+    li.querySelector('.dst').onclick=()=>{ const op=!li.classList.contains('open'); li.classList.toggle('open',op); grpOpen[fk]=op; try{ localStorage.setItem('grp-open',JSON.stringify(grpOpen)); }catch(e){} };
+    ul.appendChild(li);
+  });
+}
 function prjDocs(o){ return (o.docs||[]).filter(d=>d.code); }
 function prjLabel(o,id){ const d=(o.docs||[]).find(x=>x.id===id); if(!d) return 'Удалённый проект'; return (d.code||d.name)+(d.code&&d.name&&!d.name.includes(d.code)?' · '+d.name:''); }
 function prjTag(o,id){ const d=(o.docs||[]).find(x=>x.id===id); if(!d||!d.code) return ''; return (d.code.match(/-([А-ЯA-Z]{2,6})$/)||[])[1]||d.code; }
@@ -3682,12 +3710,12 @@ function renderSvc(o){
   });
   const el=$('#oEquip'); el.innerHTML='';
   if(!o.equip.length) el.appendChild(emptyEl('Запишите приборы: модель, где стоят, серийники и IP, чтобы через год не вспоминать'));
-  o.equip.forEach(e=>{
+  sysGroups(o,el,o.equip,'eq',(e,grouped)=>{
     const li=document.createElement('li'), b=document.createElement('button'); b.className='log';
     const meta=[e.place,e.ip?'IP '+e.ip:'',e.serial?'S/N '+e.serial:''].filter(Boolean).join(', ');
-    const pt=e.src&&prjDocs(o).length>1?prjTag(o,e.src):'';
+    const pt=!grouped&&e.src&&prjDocs(o).length>1?prjTag(o,e.src):'';
     b.innerHTML='<span class="tbody"><span class="ttl">'+esc(e.name)+(pt?'<span class="eqtag prj">'+esc(pt)+'</span>':'')+(devByRef(e.dev||e.bolid)?'<span class="eqtag">'+esc(CATS[devByRef(e.dev||e.bolid)._mk].name)+'</span>':'')+'</span>'+(meta?'<span class="meta">'+esc(meta)+'</span>':'')+'</span>';
-    b.onclick=()=>openEq(e); li.appendChild(b); el.appendChild(li);
+    b.onclick=()=>openEq(e); li.appendChild(b); return li;
   });
 }
 
