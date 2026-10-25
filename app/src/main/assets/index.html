@@ -471,6 +471,45 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
 .eqtag{display:inline-block;font:500 11px "Golos Text",sans-serif;color:var(--accent);border:1.5px solid var(--accent);border-radius:6px;padding:0 5px;margin-left:6px;vertical-align:1px}
 .backup{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:30px}
 .sync{font-size:12px;color:var(--muted);text-align:center;margin-top:12px}
+
+/* ---------- ПК и планшет в альбомной ориентации: меню слева, шире контент, окна по центру ---------- */
+@media (min-width:900px){
+  body{padding-left:232px}
+  nav{top:0;bottom:0;right:auto;width:232px;border-top:0;border-right:1px solid var(--line);padding:22px 12px;overflow-y:auto}
+  nav::before{content:"Органайзер монтажника";display:block;font:700 15px/1.3 "Unbounded",sans-serif;color:var(--ink);padding:6px 12px 20px}
+  nav .in{display:flex!important;flex-direction:column;gap:2px;max-width:none}
+  nav .in>button{flex-direction:row;justify-content:flex-start;gap:12px;padding:10px 12px;border-radius:12px;font-size:14.5px!important;letter-spacing:0!important;width:100%;cursor:pointer;touch-action:auto}
+  nav .in>button[hidden]{display:none}
+  nav .nl{overflow:visible}
+  nav .in>button:hover{background:var(--bg);color:var(--ink)}
+  nav .in>button.on{background:var(--bg);color:var(--ink);font-weight:600}
+  .wrap{max-width:1000px;padding:34px 44px 90px}
+  .gear{top:30px;right:30px}
+  h1{font-size:32px}
+  .fab{right:max(32px,calc((100vw - 232px - 1000px)/2 + 32px));bottom:32px}
+  .upd{left:252px;right:20px;bottom:24px;max-width:620px}
+  .navhint{bottom:24px}
+  .sheet{top:50%;bottom:auto;left:calc(50% + 116px);right:auto;width:600px;max-width:calc(100vw - 280px);max-height:86vh;border-radius:22px;padding:22px 26px 24px;
+    transform:translate(-50%,-48%) scale(.98);opacity:0;pointer-events:none;transition:transform .18s ease,opacity .18s ease;box-shadow:0 24px 60px rgba(0,0,0,.25)}
+  .sheet.on{transform:translate(-50%,-50%);opacity:1;pointer-events:auto}
+  .grab{display:none}
+  .chips{flex-wrap:wrap;overflow:visible}
+  .sheet .actions{position:sticky;bottom:-24px;background:var(--surface);padding-bottom:4px;margin-bottom:-4px;z-index:1}
+  #objList{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  #objList>li{min-width:0}
+  .notes{columns:3}
+  .stats{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+  #hrStats{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .photos{grid-template-columns:repeat(5,1fr)}
+  .docs{grid-template-columns:repeat(6,minmax(0,1fr))}
+  button,.chip,.seg,.mk,label.setrow,a{cursor:pointer}
+  .obj:hover,.log:hover,.dfile:hover,.cdoc:hover,.note:hover,.task:hover{filter:brightness(.985)}
+  @media (prefers-color-scheme: dark){ .obj:hover,.log:hover,.dfile:hover,.cdoc:hover{filter:brightness(1.12)} }
+  .pvbar,.pvfoot{padding-left:max(8px,calc(50% - 480px));padding-right:max(8px,calc(50% - 480px))}
+  .viewer img{object-fit:contain}
+  ::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:var(--line);border-radius:5px}
+}
+@media (min-width:1400px){ .wrap{max-width:1120px} .fab{right:max(32px,calc((100vw - 232px - 1120px)/2 + 32px))} #objList{grid-template-columns:repeat(3,minmax(0,1fr))} .notes{columns:4} }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -3297,6 +3336,7 @@ $$('nav button').forEach(b=>{ b.onclick=()=>go(b.dataset.v); const tn=[...b.chil
   function hideHint(){ if(hint) hint.hidden=true; }
   box.addEventListener('contextmenu',e=>e.preventDefault());
   box.addEventListener('pointerdown',e=>{
+    if(matchMedia('(min-width:900px)').matches&&e.pointerType==='mouse') return;   // на ПК меню слева, перестановка — на телефоне
     const b=e.target.closest('button'); if(!b||drag) return;
     sx=e.clientX; sy=e.clientY; const id=e.pointerId;
     clearTimeout(timer);
