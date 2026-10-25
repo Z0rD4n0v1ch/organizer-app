@@ -105,9 +105,9 @@ public class MainActivity extends Activity {
             public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
                 if (fileCallback != null) fileCallback.onReceiveValue(null);
                 fileCallback = callback;
-                boolean image = false;
+                boolean image = false, pdf = false;
                 String[] types = params.getAcceptTypes();
-                if (types != null) for (String t : types) if (t != null && t.startsWith("image")) image = true;
+                if (types != null) for (String t : types) { if (t != null && t.startsWith("image")) image = true; if (t != null && t.contains("pdf")) pdf = true; }
                 boolean multiple = params.getMode() == FileChooserParams.MODE_OPEN_MULTIPLE;
                 try {
                     if (image && params.isCaptureEnabled() && Build.VERSION.SDK_INT >= 29) {
@@ -123,7 +123,7 @@ public class MainActivity extends Activity {
                     } else {
                         Intent i = new Intent(image ? Intent.ACTION_GET_CONTENT : Intent.ACTION_OPEN_DOCUMENT);
                         i.addCategory(Intent.CATEGORY_OPENABLE);
-                        i.setType(image ? "image/*" : "*/*");
+                        i.setType(image ? "image/*" : pdf ? "application/pdf" : "*/*");
                         if (multiple) i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
                         startActivityForResult(i, REQ_OPEN);
                     }
@@ -291,6 +291,111 @@ public class MainActivity extends Activity {
                     Toast.makeText(MainActivity.this, "Нет приложения для отправки", Toast.LENGTH_SHORT).show();
                 }
             });
+        }
+
+        /* ---- PDF-документы объектов: файлы во внутренней памяти, c_* — временные (скачанные из справочника) ---- */
+        private File docFile(String id) {
+            File dir = new File(id.startsWith("c_") ? getCacheDir() : getFilesDir(), "docs");
+            if (!dir.exists()) dir.mkdirs();
+            return new File(dir, id.replaceAll("[^A-Za-z0-9_-]", "") + ".pdf");
+        }
+
+        @JavascriptInterface
+        public boolean docWrite(String id, String base64, boolean append) {
+            try (FileOutputStream out = new FileOutputStream(docFile(id), append)) {
+                out.write(Base64.decode(base64, Base64.DEFAULT));
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+
+        @JavascriptInterface
+        public double docSize(String id) {
+            File f = docFile(id);
+            return f.exists() ? f.length() : -1;
+        }
+
+        @JavascriptInterface
+        public String docRead(String id, double off, int len) {
+            try (java.io.RandomAccessFile r = new java.io.RandomAccessFile(docFile(id), "r")) {
+                long o = (long) off;
+                int n = (int) Math.max(0, Math.min(len, r.length() - o));
+                byte[] b = new byte[n];
+                r.seek(o);
+                r.readFully(b);
+                return Base64.encodeToString(b, Base64.NO_WRAP);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        @JavascriptInterface
+        public void docDelete(String id) {
+            //noinspection ResultOfMethodCallIgnored
+            docFile(id).delete();
+        }
+
+        @JavascriptInterface
+        public void docShare(final String id, final String name) {
+            runOnUiThread(() -> {
+                Uri u = PhotoProvider.docUri(id, name);
+                Intent i = new Intent(Intent.ACTION_SEND);
+                i.setType("application/pdf");
+                i.putExtra(Intent.EXTRA_STREAM, u);
+                i.setClipData(android.content.ClipData.newRawUri("", u));
+                i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                try {
+                    Intent ch = Intent.createChooser(i, "Отправить");
+                    ch.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    startActivity(ch);
+                } catch (Exception e) {
+                    Toast.makeText(MainActivity.this, "Нет приложения для отправки", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+
+        /** Скачивает PDF по ссылке (документация из справочника), результат — window.onDocFetch(req, код, текст ошибки). */
+        @JavascriptInterface
+        public void docFetch(final String req, final String url, final String id) {
+            new Thread(() -> {
+                int code;
+                String err = "";
+                File f = docFile(id), tmp = new File(f.getPath() + ".part");
+                try {
+                    String u = url;
+                    HttpURLConnection c = null;
+                    for (int hop = 0; hop < 6; hop++) {
+                        c = (HttpURLConnection) new URL(u).openConnection();
+                        c.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android) organizer-app");
+                        c.setInstanceFollowRedirects(false);
+                        c.setConnectTimeout(15000);
+                        c.setReadTimeout(60000);
+                        int rc = c.getResponseCode();
+                        if (rc >= 300 && rc < 400 && c.getHeaderField("Location") != null) {
+                            u = new URL(new URL(u), c.getHeaderField("Location")).toString();
+                            c.disconnect();
+                            continue;
+                        }
+                        break;
+                    }
+                    code = c.getResponseCode();
+                    if (code == 200) {
+                        try (InputStream in = c.getInputStream(); OutputStream out = new FileOutputStream(tmp)) {
+                            byte[] buf = new byte[65536];
+                            int n;
+                            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                        }
+                        if (!tmp.renameTo(f)) { code = -1; err = "не удалось сохранить файл"; }
+                    }
+                } catch (Exception e) {
+                    code = -1;
+                    err = String.valueOf(e.getMessage());
+                    //noinspection ResultOfMethodCallIgnored
+                    tmp.delete();
+                }
+                callJs("window.onDocFetch && window.onDocFetch(" + JSONObject.quote(req) + "," + code + "," + JSONObject.quote(err) + ")");
+            }).start();
         }
 
         /* ---- отправка в Telegram от имени бота (Bot API) ---- */

@@ -19,7 +19,28 @@ public class PhotoProvider extends ContentProvider {
         return Uri.parse("content://" + AUTH + "/" + id.replaceAll("[^A-Za-z0-9_-]", "") + ".jpg");
     }
 
+    /** PDF: content://…/doc/<id>/<имя файла>.pdf — имя нужно, чтобы получатель видел понятное название. */
+    public static Uri docUri(String id, String name) {
+        String n = (name == null ? "" : name).replaceAll("[\\\\/:*?\"<>|]", "_").trim();
+        if (n.isEmpty()) n = "document";
+        if (!n.toLowerCase().endsWith(".pdf")) n += ".pdf";
+        return new Uri.Builder().scheme("content").authority(AUTH).appendPath("doc")
+                .appendPath(id.replaceAll("[^A-Za-z0-9_-]", "")).appendPath(n).build();
+    }
+
+    private static boolean isDoc(Uri uri) {
+        java.util.List<String> s = uri.getPathSegments();
+        return s.size() == 3 && "doc".equals(s.get(0));
+    }
+
     private File fileFor(Uri uri) throws FileNotFoundException {
+        if (isDoc(uri)) {
+            String id = uri.getPathSegments().get(1);
+            if (!id.matches("[A-Za-z0-9_-]+")) throw new FileNotFoundException();
+            File f = new File(new File(id.startsWith("c_") ? getContext().getCacheDir() : getContext().getFilesDir(), "docs"), id + ".pdf");
+            if (!f.exists()) throw new FileNotFoundException();
+            return f;
+        }
         String name = uri.getLastPathSegment();
         if (name == null || !name.matches("[A-Za-z0-9_-]+\\.jpg")) throw new FileNotFoundException();
         File f = new File(new File(getContext().getFilesDir(), "photos"), name);
@@ -29,7 +50,7 @@ public class PhotoProvider extends ContentProvider {
 
     @Override public boolean onCreate() { return true; }
 
-    @Override public String getType(Uri uri) { return "image/jpeg"; }
+    @Override public String getType(Uri uri) { return isDoc(uri) ? "application/pdf" : "image/jpeg"; }
 
     @Override
     public ParcelFileDescriptor openFile(Uri uri, String mode) throws FileNotFoundException {
@@ -44,7 +65,7 @@ public class PhotoProvider extends ContentProvider {
         MatrixCursor c = new MatrixCursor(cols);
         Object[] row = new Object[cols.length];
         for (int i = 0; i < cols.length; i++) {
-            if (OpenableColumns.DISPLAY_NAME.equals(cols[i])) row[i] = "probeg.jpg";
+            if (OpenableColumns.DISPLAY_NAME.equals(cols[i])) row[i] = isDoc(uri) ? uri.getLastPathSegment() : "probeg.jpg";
             else if (OpenableColumns.SIZE.equals(cols[i])) row[i] = f.length();
         }
         c.addRow(row);
