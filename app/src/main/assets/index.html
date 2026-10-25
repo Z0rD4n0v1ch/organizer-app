@@ -2473,6 +2473,14 @@ async function openPdf(o){
     if(PV.doc){ try{PV.doc.destroy()}catch(e){} PV.doc=null; }
     const doc=await L.getDocument({data:bytes.slice(),isEvalSupported:false,useSystemFonts:true}).promise;
     if(my!==PV.task){ doc.destroy(); return; }
+    // точные размеры всех страниц заранее: в проектах листы A4 и A3, книжные и альбомные вперемешку —
+    // без этого высоты менялись бы при отрисовке и экран «уезжал» на другую страницу
+    pvMsg('Открываю… '+doc.numPages+' стр.');
+    PV.sizes=[];
+    for(let i=1;i<=doc.numPages;i+=8){
+      const part=await Promise.all(Array.from({length:Math.min(8,doc.numPages-i+1)},(_,k)=>doc.getPage(i+k).then(pg=>{ const v=pg.getViewport({scale:1}); return {w:v.width,h:v.height}; })));
+      PV.sizes.push(...part); if(my!==PV.task){ doc.destroy(); return; }
+    }
     PV.doc=doc; pvMsg(''); await pvLayout();
   }catch(e){ if(my===PV.task) pvMsg(/password/i.test(e&&e.name||'')?'Документ защищён паролем — такие файлы пока не открываются.':'Не удалось открыть PDF: '+((e&&e.message)||e)); }
 }
@@ -2503,14 +2511,13 @@ async function pvLayout(keep){
   }
   if(PV.io) PV.io.disconnect();
   box.innerHTML=''; PV.pages=[];
-  if(!PV.base){ const p1=await doc.getPage(1); const v=p1.getViewport({scale:1}); PV.base={w:v.width,h:v.height}; }
   for(let i=1;i<=doc.numPages;i++){
     const d=document.createElement('div'); d.className='pvp'; d.dataset.n=i;
-    const w=Math.round(W*PV.z); d.style.width=w+'px'; d.style.height=Math.round(w*PV.base.h/PV.base.w)+'px';
+    const s=(PV.sizes&&PV.sizes[i-1])||PV.sizes[0], w=Math.round(W*PV.z); d.style.width=w+'px'; d.style.height=Math.round(w*s.h/s.w)+'px';
     box.appendChild(d); PV.pages.push(d);
   }
   box.style.width=Math.round(W*PV.z+16)+'px';
-  PV.io=new IntersectionObserver(es=>es.forEach(en=>{ const d=en.target; if(en.isIntersecting) pvRender(d); else if(d.firstChild){ d.innerHTML=''; d.dataset.r=''; } }),{root:sc,rootMargin:'150% 50%'});
+  PV.io=new IntersectionObserver(es=>es.forEach(en=>{ const d=en.target; if(en.isIntersecting) pvRender(d); else if(d.firstChild){ d.innerHTML=''; d.dataset.r=''; } }),{root:sc,rootMargin:PV.z>2?'60% 30%':'150% 50%'});
   PV.pages.forEach(d=>PV.io.observe(d));
   if(keep) pvApplyAnchor(keep); else { sc.scrollTop=0; sc.scrollLeft=0; }
   pvNum();
@@ -2521,7 +2528,6 @@ async function pvRender(d){
   try{
     const pg=await doc.getPage(n); if(doc!==PV.doc||d.dataset.r!=='1') return;
     const v1=pg.getViewport({scale:1}), w=parseFloat(d.style.width);
-    if(Math.abs(v1.height/v1.width-PV.base.h/PV.base.w)>.01) d.style.height=Math.round(w*v1.height/v1.width)+'px';
     const dpr=Math.min(window.devicePixelRatio||1,2.5); let sc=w/v1.width*dpr;
     const maxPx=16e6; if(v1.width*v1.height*sc*sc>maxPx) sc=Math.sqrt(maxPx/(v1.width*v1.height));
     const vp=pg.getViewport({scale:sc}), c=document.createElement('canvas');
