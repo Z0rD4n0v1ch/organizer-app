@@ -3036,11 +3036,13 @@ function catDlMark(id,ext,size){ if(ext&&size){ catDl[id]={ext,size}; } else del
 /* ссылки на файлы у производителей меняются: при 404 ищем новую на странице прибора и запоминаем */
 let docFix={}; try{ docFix=JSON.parse(localStorage.getItem('docfix')||'{}')||{}; }catch(e){}
 const fixUrl=u=>docFix[u]||u;
+let docGone={}; try{ docGone=JSON.parse(localStorage.getItem('docgone')||'{}')||{}; }catch(e){}
+function setGone(u,why){ if(why) docGone[u]=why; else delete docGone[u]; try{ localStorage.setItem('docgone',JSON.stringify(docGone)); }catch(e){} }
 let docMetaMap=null;
 function docMeta(u){ if(!docMetaMap){ docMetaMap={}; MAKERS.forEach(k=>CATS[k].items.forEach(d=>(d.d||[]).forEach(x=>{ if(!docMetaMap[x[1]]) docMetaMap[x[1]]={page:d.url,title:x[0],m:d.m,mk:k}; }))); } return docMetaMap[u]||null; }
 async function docRepair(orig){
   const meta=docMeta(orig); if(!meta||!meta.page||!APP) return null;
-  const r=await httpGet(meta.page); if(r.code!==200||!r.body) { logErr('download','страница прибора не открылась: '+r.code,{page:meta.page}); return null; }
+  const r=await httpGet(meta.page); if(r.code!==200||!r.body) { logErr('download','страница прибора не открылась: '+r.code,{page:meta.page}); if(r.code===404||r.code===410) setGone(orig,'прибора больше нет на сайте производителя — вероятно, снят с производства'); return null; }
   let doc; try{ doc=new DOMParser().parseFromString(r.body,'text/html'); }catch(e){ return null; }
   const cur=fixUrl(orig), norm=s=>String(s||'').toLowerCase().replace(/ё/g,'е').replace(/\(.*?\)/g,' ').replace(/[^a-zа-я0-9]+/g,' ').trim();
   const want=norm(meta.title), dirOf=u=>{ try{ const x=new URL(u); return x.host+x.pathname.replace(/[^/]*$/,''); }catch(e){ return ''; } }, oldDir=dirOf(orig);
@@ -3054,34 +3056,35 @@ async function docRepair(orig){
     try{ if(new URL(href).host===new URL(orig).host) sc+=1; }catch(e){}
     if(sc>=3&&(!best||sc>best.sc)) best={href,sc};
   });
-  if(!best){ logErr('download','на странице прибора не нашлась новая ссылка на «'+meta.title+'»',{page:meta.page}); return null; }
-  docFix[orig]=best.href; try{ localStorage.setItem('docfix',JSON.stringify(docFix)); }catch(e){}
+  if(!best){ logErr('download','на странице прибора не нашлась новая ссылка на «'+meta.title+'»',{page:meta.page}); setGone(orig,'производитель убрал этот документ со страницы прибора'); return null; }
+  setGone(orig); docFix[orig]=best.href; try{ localStorage.setItem('docfix',JSON.stringify(docFix)); }catch(e){}
   logErr('download','ссылка обновлена: '+meta.m+' — '+meta.title,{old:orig,new:best.href});
   return best.href;
 }
 /* скачать документ справочника по исходной ссылке; если файл переехал — найти и скачать по новой */
 async function catFetch(orig,id,noFirst){
   let r=noFirst?'нет файла':await DOC.fetch(fixUrl(orig),id);
-  if(r===true) return true;
+  if(r===true){ if(docGone[orig]) setGone(orig); return true; }
   const code=noFirst?404:DOC.lastCode;
   if(code===404||code===410||code===-2||code===403){ const nu=await docRepair(orig); if(nu){ const r2=await DOC.fetch(nu,id); if(r2===true) return true; r=r2; } }
+  if(docGone[orig]) r=docGone[orig];
   return r;
 }
 function catDocsAll(keys){ const m=new Map(); (keys||MAKERS).forEach(k=>CATS[k]&&CATS[k].items.forEach(d=>(d.d||[]).forEach(x=>{ if(isFileUrl(x[1])&&!m.has(x[1])) m.set(x[1],{url:fixUrl(x[1]),orig:x[1],id:urlId(x[1]),mk:k,name:d.m+' — '+x[0]}); }))); return [...m.values()]; }
 const EXT_NAME={pdf:'PDF',zip:'архив ZIP',rar:'архив RAR',doc:'Word',docx:'Word',xls:'Excel',xlsx:'Excel',jpg:'картинка',png:'картинка'};
-function catDocStatus(id){ const r=catDl[id]; return r?'скачан · '+(EXT_NAME[r.ext]||r.ext)+' · '+fmtSize(r.size):''; }
+function catDocStatus(id,orig){ const r=catDl[id]; if(!r&&orig&&docGone[orig]) return 'нет на сайте: '+docGone[orig]; return r?'скачан · '+(EXT_NAME[r.ext]||r.ext)+' · '+fmtSize(r.size):''; }
 function catDocsHtml(d){
   return (d.d||[]).map((x,i)=>{
     if(!isFileUrl(x[1])) return '<a class="cdlink" href="'+esc(x[1])+'" target="_blank" rel="noopener">'+esc(x[0])+'</a>';
-    const id=urlId(x[1]), st=catDocStatus(id);
+    const id=urlId(x[1]), st=catDocStatus(id,x[1]), got=!!catDl[id];
     return '<div class="cdoc" data-i="'+i+'"><button class="cdo"><b>'+esc(x[0])+'</b><small>'+esc(st||(APP?'нажмите, чтобы открыть':'откроется на сайте производителя'))+'</small></button>'+
-      (APP?'<button class="cdl'+(st?' got':'')+'" aria-label="'+(st?'Сохранить в Загрузки':'Скачать')+'">'+(st?'В Загрузки':'Скачать')+'</button>':'<a class="cdl" href="'+esc(x[1])+'" target="_blank" rel="noopener" download>Скачать</a>')+'</div>';
+      (APP?'<button class="cdl'+(got?' got':'')+'" aria-label="'+(got?'Сохранить в Загрузки':'Скачать')+'">'+(got?'В Загрузки':docGone[x[1]]?'Ещё раз':'Скачать')+'</button>':'<a class="cdl" href="'+esc(x[1])+'" target="_blank" rel="noopener" download>Скачать</a>')+'</div>';
   }).join('');
 }
 function catDocsBind(d,box){
   box.querySelectorAll('.cdoc').forEach(row=>{
     const x=d.d[+row.dataset.i], id=urlId(x[1]), name=d.m+' — '+x[0];
-    const refresh=()=>{ const st=catDocStatus(id); row.querySelector('small').textContent=st||'нажмите, чтобы открыть'; const b=row.querySelector('.cdl'); if(b&&APP){ b.textContent=st?'В Загрузки':'Скачать'; b.classList.toggle('got',!!st); } };
+    const refresh=()=>{ const st=catDocStatus(id,x[1]), got=!!catDl[id]; row.querySelector('small').textContent=st||'нажмите, чтобы открыть'; const b=row.querySelector('.cdl'); if(b&&APP){ b.textContent=got?'В Загрузки':docGone[x[1]]?'Ещё раз':'Скачать'; b.classList.toggle('got',got); } };
     row.querySelector('.cdo').onclick=()=>{ if(!APP){ window.open(fixUrl(x[1]),'_blank','noopener'); return; } openRemotePdf(x[1],name,null,refresh); };
     const dl=row.querySelector('.cdl');
     if(APP) dl.onclick=async()=>{
@@ -3097,16 +3100,16 @@ function catDocsBind(d,box){
 let cbRun=null;
 function catDlOpen(){
   const box=$('#cbMakers'); box.innerHTML='';
-  MAKERS.forEach(k=>{ const docs=catDocsAll([k]); if(!docs.length) return; const have=docs.filter(x=>catDl[x.id]).length;
+  MAKERS.forEach(k=>{ const docs=catDocsAll([k]); if(!docs.length) return; const have=docs.filter(x=>catDl[x.id]).length, gone=docs.filter(x=>!catDl[x.id]&&docGone[x.orig]).length;
     const l=document.createElement('label'); l.className='prjrow';
-    l.innerHTML='<input type="checkbox" data-mk="'+k+'"'+(have<docs.length?' checked':'')+'><span><b>'+esc(CATS[k].name)+'</b><small>'+docs.length+' '+plural(docs.length,'документ','документа','документов')+(have?' · скачано '+have:'')+'</small></span>';
+    l.innerHTML='<input type="checkbox" data-mk="'+k+'"'+(have+gone<docs.length?' checked':'')+'><span><b>'+esc(CATS[k].name)+'</b><small>'+docs.length+' '+plural(docs.length,'документ','документа','документов')+(have?' · скачано '+have:'')+(gone?' · нет на сайте '+gone:'')+'</small></span>';
     box.appendChild(l); });
   const none=!box.children.length; if(none) box.innerHTML='<p class="meta">В каталогах нет ссылок на файлы документации.</p>';
   box.querySelectorAll('input').forEach(c=>c.onchange=cbCount);
   cbStorageLine(); cbCount(); cbUi(); openSheet('fCatDl');
 }
 function cbSel(){ return [...$$('#cbMakers input[data-mk]')].filter(c=>c.checked).map(c=>c.dataset.mk); }
-function cbCount(){ const docs=catDocsAll(cbSel()), need=docs.filter(x=>!catDl[x.id]).length;
+function cbCount(){ const docs=catDocsAll(cbSel()), need=docs.filter(x=>!catDl[x.id]&&!docGone[x.orig]).length;
   $('#cbGo').textContent=need?'Скачать '+need+' '+plural(need,'файл','файла','файлов'):'Всё уже скачано'; $('#cbGo').disabled=!need||!!cbRun;
   $('#cbEst').textContent=need?'Примерно '+fmtSize(need*0.6*1048576)+' – '+fmtSize(need*2.5*1048576)+' (точный размер станет известен при скачивании).':''; }
 function cbStorageLine(){ try{ const s=JSON.parse(Android.storageInfo()); $('#cbWhere').textContent=(s.loc==='sd'?'На флешку':'В память телефона')+' · свободно '+fmtSize(s.loc==='sd'?s.sdFree:s.phoneFree); }catch(e){ $('#cbWhere').textContent=''; } }
@@ -3121,7 +3124,7 @@ function cbUi(){
 $('#ctDocs').onclick=catDlOpen;
 $('#cbChange').onclick=()=>{ closeSheet(); renderSettings(); openSheet('fSet'); setTimeout(()=>{ const el=$('#stBlock'); if(el) el.scrollIntoView({block:'start'}); },300); };
 $('#cbGo').onclick=()=>{
-  const list=catDocsAll(cbSel()).filter(x=>!catDl[x.id]); if(!list.length||!APP) return;
+  const list=catDocsAll(cbSel()).filter(x=>!catDl[x.id]&&!docGone[x.orig]); if(!list.length||!APP) return;
   cbRun={done:0,total:list.length,bytes:0,fail:0,fin:false,fails:[]}; cbUi(); cbCount();
   Android.catBatch(JSON.stringify(list.map(x=>({id:x.id,url:x.url}))));
 };
