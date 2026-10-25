@@ -2424,7 +2424,9 @@ function renderDocs(o){
       if(d.kind==='ref'){ b.onclick=()=>{ if(!par){ if(confirm('Проект, на который ссылается «'+d.name+'», удалён. Убрать ссылку?')) drop(); return; } openPdf({id:par.id,name:d.name,page:d.page,onDel:drop,delLabel:'Убрать'}); }; li.appendChild(b); ul.appendChild(li); return; }
       if(d.kind==='link'){ b.onclick=()=>openRemotePdf(d.url,d.name,drop); li.appendChild(b); ul.appendChild(li); return; }
       const isPrj=d.kind!=='img'&&!d.gen&&/проект/i.test(sec);
-      b.onclick=()=>openPdf({onParse:isPrj?(bytes=>{ closePdf(); prjStart(o,d,bytes); }):null,id:d.id,name:d.name,img:d.kind==='img',onRename:nm=>{ d.name=nm; save(); renderObject(); },onDel:()=>{ if(d.kind==='img'){try{PH.del(d.id)}catch(e){}} else DOC.del(d.id); o.docs.filter(x=>x.from===d.id&&x.gen).forEach(x=>DOC.del(x.id)); o.docs=o.docs.filter(x=>x!==d&&x.from!==d.id&&!(x.kind==='ref'&&x.of===d.id)); save(); renderObject(); }});
+      const delMsg=()=>{ const ne=o.equip.filter(x=>x.src===d.id).length, nm=o.mats.filter(x=>x.src===d.id).length, nd=o.docs.filter(x=>x.from===d.id).length;
+        return 'Удалить «'+d.name+'»?'+(ne||nm||nd?'\n\nВместе с ним удалится всё, что из него разобрано:'+(nd?'\n• записей в документации: '+nd:'')+(ne?'\n• оборудование: '+ne:'')+(nm?'\n• материалы: '+nm:''):''); };
+      b.onclick=()=>openPdf({delMsg,onParse:isPrj?(bytes=>{ closePdf(); prjStart(o,d,bytes); }):null,id:d.id,name:d.name,img:d.kind==='img',onRename:nm=>{ d.name=nm; save(); renderObject(); },onDel:()=>{ if(d.kind==='img'){try{PH.del(d.id)}catch(e){}} else DOC.del(d.id); o.docs.filter(x=>x.from===d.id&&x.gen).forEach(x=>DOC.del(x.id)); o.docs=o.docs.filter(x=>x!==d&&x.from!==d.id&&!(x.kind==='ref'&&x.of===d.id)); o.equip=o.equip.filter(x=>x.src!==d.id); o.mats=o.mats.filter(x=>x.src!==d.id); save(); renderObject(); }});
       li.appendChild(b); ul.appendChild(li);
     });
     w.appendChild(ul); box.appendChild(w);
@@ -2743,9 +2745,9 @@ function prjSummary(){
   h+=li('sheets',R.sheets.some(s=>PRJ_SEC[s.kind]),'Разложить листы по разделам ('+R.sheets.filter(s=>PRJ_SEC[s.kind]).length+')',sheetSub||'листы не распознаны');
   h+=li('pass',pass.length,'Паспорта и сертификаты ('+pass.length+' из '+R.equip.length+')',R.equip.length?esc(pass.map(e=>e.model).join(', ')||'')+(R.equip.length>pass.length?'<br>Нет в справочнике: '+esc(R.equip.filter(e=>!(e.match&&e.match.d&&e.match.d.length)).map(e=>e.model||e.name).join(', ')):''):'спецификация не найдена');
   h+=li('acts',true,'Бланки актов и протоколов ('+acts.length+')',esc(acts.map(a=>a.name).join(', ')));
-  const newEq=R.equip.filter(e=>!o.equip.some(x=>x.src===prjCur.doc.id&&bnorm(x.name)===bnorm(e.model||e.name)));
+  const newEq=R.equip.filter(e=>!o.equip.some(x=>(x.src===prjCur.doc.id||(!x.src&&/по спецификации/.test(x.note||'')))&&bnorm(x.name)===bnorm(e.model||e.name)));
   h+=li('equip',newEq.length,'Оборудование объекта ('+newEq.length+')',R.equip.length?esc(R.equip.map(e=>(e.model||e.name)+' — '+e.qty+' '+e.unit).join('; ')):'спецификация не найдена');
-  const matTxt=m=>[m.name,m.model].filter(Boolean).join(' '); const newMat=R.mats.filter(m=>!o.mats.some(x=>x.src===prjCur.doc.id&&x.text.startsWith(matTxt(m))));
+  const matTxt=m=>[m.name,m.model].filter(Boolean).join(' '); const newMat=R.mats.filter(m=>!o.mats.some(x=>(x.src===prjCur.doc.id||!x.src)&&x.text.startsWith(matTxt(m))));
   h+=li('mats',newMat.length,'Материалы объекта ('+newMat.length+')',esc(R.mats.map(m=>m.name+' '+m.model+' — '+m.qty+' '+m.unit).join('; ')));
   if(R.address&&!o.addr) h+=li('addr',true,'Адрес объекта',esc(R.address));
   const older=R.code?o.docs.filter(d=>d!==prjCur.doc&&d.code===R.code):[];
@@ -2760,6 +2762,9 @@ $('#prjGo').onclick=async()=>{
   const b=$('#prjGo'); b.disabled=true; b.textContent='Заполняю…';
   try{
     pd.code=R.code||pd.code||''; pd.sys=R.system||'';
+    // записи из разбора версии 1.41 не знали свой проект — привязываем совпадающие к этому
+    R.equip.forEach(e=>{ const nm=bnorm(e.model||e.name); o.equip.forEach(x=>{ if(!x.src&&/по спецификации/.test(x.note||'')&&bnorm(x.name)===nm) x.src=pd.id; }); });
+    R.mats.forEach(m=>{ const tx=[m.name,m.model].filter(Boolean).join(' '); o.mats.forEach(x=>{ if(!x.src&&x.text.startsWith(tx)) x.src=pd.id; }); });
     if(on('replace')){
       const olds=o.docs.filter(d=>d!==pd&&d.code&&d.code===R.code).map(d=>d.id);
       o.docs.filter(d=>olds.includes(d.from)).forEach(d=>{ if(d.gen) DOC.del(d.id); });
@@ -2959,7 +2964,7 @@ $('#pvShare').onclick=async()=>{ const c=PV.cur; if(!c) return;
   const bl=PH.blob?await PH.blob(c.id):null; if(!bl) return; const f=new File([bl],(c.name||'image')+'.jpg',{type:'image/jpeg'});
   if(navigator.canShare&&navigator.canShare({files:[f]})){ try{ await navigator.share({files:[f],title:c.name}); return; }catch(e){ if(e&&e.name==='AbortError') return; } }
   const a=document.createElement('a'); a.href=URL.createObjectURL(f); a.download=f.name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000); };
-$('#pvDel').onclick=()=>{ const c=PV.cur; if(!c||!c.onDel||!confirm('Удалить «'+c.name+'»?')) return; const f=c.onDel; closePdf(); f(); };
+$('#pvDel').onclick=()=>{ const c=PV.cur; if(!c||!c.onDel||!confirm((typeof c.delMsg==='function'?c.delMsg():c.delMsg)||'Удалить «'+c.name+'»?')) return; const f=c.onDel; closePdf(); f(); };
 /* документация из справочника: скачиваем и открываем здесь же */
 async function openRemotePdf(url,name,onDel){
   const id='c_'+(function(s){let h=5381;for(let i=0;i<s.length;i++)h=((h*33)^s.charCodeAt(i))>>>0;return h.toString(36)})(url);
