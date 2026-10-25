@@ -1013,6 +1013,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
 <script src="rubezh.js"></script>
 <script src="trassir.js"></script>
 <script src="hikvision.js"></script>
+<script src="smartec.js"></script>
 <script>
 (function(){
 const KEY='organizer-v1';
@@ -2811,7 +2812,7 @@ $('#tplBack').onclick=()=>{ if(tplFrom==='check'&&ck){showView('check');renderCh
 
 /* ---------- Equipment catalogs (Болид, Аргус-Спектр, ...) ---------- */
 const CATS=window.CATALOGS=window.CATALOGS||{};
-const MAKER_ORDER=['bolid','argus','rubezh','trassir','hikvision'];
+const MAKER_ORDER=['bolid','argus','rubezh','trassir','hikvision','smartec'];
 let MAKERS=[];
 const LAT2CYR={a:'а',b:'б',c:'с',d:'д',e:'е',f:'ф',g:'г',h:'х',i:'и',j:'й',k:'к',l:'л',m:'м',n:'н',o:'о',p:'п',q:'к',r:'р',s:'с',t:'т',u:'у',v:'в',w:'в',x:'х',y:'ы',z:'з'};
 function bnorm(s){return String(s||'').toLowerCase().replace(/ё/g,'е').replace(/[a-z]/g,ch=>LAT2CYR[ch]).replace(/[\-–—.,()«»"\/:]/g,'').replace(/\s+/g,' ').trim()}
