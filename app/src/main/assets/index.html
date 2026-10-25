@@ -1078,7 +1078,12 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <div class="setlist" id="setTabs"></div>
     <p class="hint" style="margin:6px 0 18px">Порядок вкладок меняется так: зажмите вкладку внизу и перетащите.</p>
     <p class="lbl">Telegram</p>
-    <div class="setlist"><button class="setrow" id="setTg"><span>Telegram-бот для пробега</span><i id="setTgState"></i></button></div>
+    <div class="setlist">
+      <button class="setrow" data-tg="car"><span>Бот для пробега</span><i></i></button>
+      <button class="setrow" data-tg="money"><span>Бот для расходов</span><i></i></button>
+      <button class="setrow" data-tg="hours"><span>Бот для рабочих часов</span><i></i></button>
+    </div>
+    <p class="hint" style="margin:6px 0 18px">Для каждого раздела можно указать своего бота или отдельный чат. Без бота отправка идёт через «Поделиться».</p>
     <p class="lbl" style="margin-top:18px">Автосохранение копии данных</p>
     <div class="setlist">
       <label class="setrow"><span>Сохранять копию автоматически</span><input type="checkbox" class="tgl" id="abOn"></label>
@@ -1102,8 +1107,9 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
   </div>
 
   <div class="form" id="fTg" hidden>
-    <h3>Telegram-бот</h3>
-    <p class="hint" style="margin:0 0 12px">Без настройки записи пробега отправляются через «Поделиться»: выберите Telegram и чат бота. Чтобы отправлять в один тап, укажите бота: создайте его у @BotFather и вставьте токен. Затем напишите боту /start (или добавьте его в группу и отправьте любое сообщение) и нажмите «Найти чат».</p>
+    <h3 id="tgTitle">Telegram-бот</h3>
+    <button class="seg" type="button" id="tgCopy" hidden style="margin:0 0 10px;width:100%">Взять бота из другого раздела</button>
+    <p class="hint" style="margin:0 0 12px"><span id="tgWhat">Без настройки записи пробега</span> отправляются через «Поделиться»: выберите Telegram и чат бота. Чтобы отправлять в один тап, укажите бота: создайте его у @BotFather и вставьте токен. Затем напишите боту /start (или добавьте его в группу и отправьте любое сообщение) и нажмите «Найти чат».</p>
     <input class="field" id="tgToken" placeholder="Токен бота, например 123456:ABC…" autocomplete="off" autocapitalize="off" spellcheck="false">
     <div style="display:flex;gap:8px"><input class="field" id="tgChat" placeholder="ID чата" autocomplete="off" style="min-width:0"><button class="seg" type="button" id="tgFind" style="margin-bottom:12px;flex:none">Найти чат</button></div>
     <details class="tgadv"><summary>Если Telegram заблокирован у провайдера</summary>
@@ -1738,7 +1744,11 @@ $('#kmDel').onclick=()=>{
 
 /* ---------- запись пробега → Telegram ---------- */
 function tgMsg(txt,kind){ const el=$('#tgInfo'); el.textContent=txt||''; el.className='hint stmsg'+(kind?' '+kind:''); }
-function tgCfg(){ try{ return JSON.parse(localStorage.getItem('tg-bot')||'null')||{}; }catch(e){ return {}; } }
+/* отдельный бот (или чат) для каждого раздела: пробег, расходы, рабочие часы */
+const TG_P={car:{key:'tg-bot',name:'Пробег',what:'записи пробега'},money:{key:'tg-bot-money',name:'Расходы',what:'покупки, командировки и отчёты о расходах'},hours:{key:'tg-bot-hours',name:'Рабочие часы',what:'отчёты о рабочих часах'}};
+function tgCfg(p){ try{ return JSON.parse(localStorage.getItem(TG_P[p||'car'].key)||'null')||{}; }catch(e){ return {}; } }
+// раньше один бот был на всё: переносим его настройки в расходы и часы, чтобы отправка работала как прежде
+try{ if(!localStorage.getItem('tg-split')){ const c=localStorage.getItem('tg-bot'); if(c&&JSON.parse(c).token){ ['money','hours'].forEach(p=>{ if(!localStorage.getItem(TG_P[p].key)) localStorage.setItem(TG_P[p].key,c); }); } localStorage.setItem('tg-split','1'); } }catch(e){}
 function tgBase(b){ b=String(b||'').trim().replace(/\/+$/,''); return /^https?:\/\//.test(b)?b:'https://api.telegram.org'; }
 function tgErr(code,body){ if(code===-1){ const m=String(body||''); return 'нет связи с сервером Telegram'+(/UnknownHost|resolve/i.test(m)?' (адрес не найден — возможна блокировка)':/timed? ?out|Timeout/i.test(m)?' (истекло время ожидания — возможна блокировка)':/SSL|Handshake|reset|refused/i.test(m)?' (соединение сброшено — возможна блокировка)':m?' ('+m.slice(0,80)+')':''); } return 'ошибка '+code; }
 function odoCaption(r){
@@ -1796,8 +1806,11 @@ async function odoSend(r){
   }
   odoShare(r,caption);
 }
-function openTg(){
-  const c=tgCfg(); $('#tgToken').value=c.token||''; $('#tgChat').value=c.chat||''; $('#tgBase').value=c.base||''; $('.tgadv').open=!!c.base;
+let tgP='car', tgFromSet=false;
+function openTg(p,fromSet){
+  tgP=p||'car'; tgFromSet=!!fromSet; $('#tgTitle').textContent='Telegram-бот: '+TG_P[tgP].name; $('#tgWhat').textContent='Без настройки '+TG_P[tgP].what;
+  const src=Object.keys(TG_P).filter(k=>k!==tgP&&tgCfg(k).token); $('#tgCopy').hidden=!src.length; $('#tgCopy').textContent='Взять бота из раздела «'+(src.length?TG_P[src[0]].name:'')+'»'; $('#tgCopy').dataset.src=src[0]||'';
+  const c=tgCfg(tgP); $('#tgToken').value=c.token||''; $('#tgChat').value=c.chat||''; $('#tgBase').value=c.base||''; $('.tgadv').open=!!c.base;
   tgMsg(c.title?'Чат: '+c.title:''); $('#tgOff').hidden=!c.token; openSheet('fTg');
 }
 $('#tgFind').onclick=async()=>{
@@ -1819,12 +1832,14 @@ $('#tgTest').onclick=async()=>{
 $('#tgSave').onclick=()=>{
   const token=$('#tgToken').value.trim(), chat=$('#tgChat').value.trim();
   if(token&&!chat){ $('#tgChat').focus(); return; }
-  const old=tgCfg(), title=$('#tgChat').dataset.title||(old.chat===chat?old.title:'')||'';
+  const old=tgCfg(tgP), title=$('#tgChat').dataset.title||(old.chat===chat?old.title:'')||'';
   const base=$('#tgBase').value.trim();
-  try{ localStorage.setItem('tg-bot',JSON.stringify(token?{token,chat,title,base}:{})); }catch(e){}
-  $('#tgChat').dataset.title=''; closeSheet();
+  try{ localStorage.setItem(TG_P[tgP].key,JSON.stringify(token?{token,chat,title,base}:{})); }catch(e){}
+  $('#tgChat').dataset.title=''; tgBack();
 };
-$('#tgOff').onclick=()=>{ if(!confirm('Отключить бота? Записи будут отправляться через «Поделиться».')) return; try{ localStorage.removeItem('tg-bot'); }catch(e){} closeSheet(); };
+$('#tgOff').onclick=()=>{ if(!confirm('Отключить бота? Записи будут отправляться через «Поделиться».')) return; try{ localStorage.removeItem(TG_P[tgP].key); }catch(e){} tgBack(); };
+function tgBack(){ if(tgFromSet){ renderSettings(); openSheet('fSet'); } else closeSheet(); }
+$('#tgCopy').onclick=()=>{ const c=tgCfg($('#tgCopy').dataset.src); if(!c.token) return; $('#tgToken').value=c.token; $('#tgBase').value=c.base||''; $('.tgadv').open=!!c.base; $('#tgChat').value=c.chat||''; $('#tgChat').dataset.title=c.title||''; tgMsg('Бот взят. Можно оставить тот же чат или нажать «Найти» и выбрать другой — например, отдельную группу для '+TG_P[tgP].name.toLowerCase()+'.','ok'); };
 
 /* ---------- пробег по дням: начало и конец дня ---------- */
 function odoDays(){
@@ -2063,8 +2078,8 @@ function buyStore(){
   save(); renderMoney(); return rec;
 }
 $('#bySave').onclick=()=>{ if(buyStore()) closeSheet(); };
-$('#bySend').onclick=async()=>{ const r=buyStore(); if(!r) return; closeSheet(); if(await tgOut(r.photo,buyCaption(r),'Покупка')){ r.sent=Date.now(); save(); renderMoney(); } };
-$$('.tgset').forEach(b=>b.onclick=()=>openTg());
+$('#bySend').onclick=async()=>{ const r=buyStore(); if(!r) return; closeSheet(); if(await tgOut(r.photo,buyCaption(r),'Покупка','money')){ r.sent=Date.now(); save(); renderMoney(); } };
+$$('.tgset').forEach(b=>b.onclick=()=>openTg('money'));
 $('#byDel').onclick=()=>{ if(!buyEdit||!confirm('Удалить покупку'+(buyEdit.photo?' вместе с фото чека':'')+'?')) return;
   if(buyEdit.photo) PH.del(buyEdit.photo); byPick.discard(); const m=mon(); m.buys=m.buys.filter(x=>x!==buyEdit); save(); renderMoney(); closeSheet(); };
 
@@ -2091,7 +2106,7 @@ function ktStore(){
   save(); renderMoney(); closeSheet(); return {t,wasActive};
 }
 $('#ktSave').onclick=()=>{ const r=ktStore(); if(r&&r.wasActive){ const t=r.t, T=moneyTotals(); alert('Командировка завершена.\n'+t.city+': '+tripDays(t)+' '+plural(tripDays(t),'сутки','суток','суток')+' × '+rub(t.rate)+' = '+rub(tripSumDiem(t))+'\nОстаток общей суммы: '+rub(T.left)); } };
-$('#ktSend').onclick=async()=>{ const r=ktStore(); if(!r) return; if(await tgOut('',tripCaption(r.t),'Командировка')){ r.t.sent=Date.now(); save(); renderMoney(); } };
+$('#ktSend').onclick=async()=>{ const r=ktStore(); if(!r) return; if(await tgOut('',tripCaption(r.t),'Командировка','money')){ r.t.sent=Date.now(); save(); renderMoney(); } };
 $('#ktDel').onclick=()=>{ if(!trpEdit||!confirm('Удалить командировку «'+(trpEdit.city||'')+'»?')) return; const m=mon(); m.trips=m.trips.filter(x=>x!==trpEdit); save(); renderMoney(); closeSheet(); };
 
 /* отчёт */
@@ -2106,7 +2121,7 @@ function moneyReport(){
   L.push('','Остаток: '+rub(T.left));
   return L.join('\n');
 }
-$('#mnReport').onclick=()=>tgOut('',moneyReport(),'Отчёт о расходах');
+$('#mnReport').onclick=()=>tgOut('',moneyReport(),'Отчёт о расходах','money');
 /* подписи и отправка в Telegram — так же, как пробег в «Авто» */
 function buyCaption(b){
   const L=['Покупка '+dateRu(b.date)], items=b.items||[];
@@ -2125,15 +2140,15 @@ function tripCaption(t){
   return L.join('\n');
 }
 /* отправить фото с подписью или текст: ботом, если он настроен, иначе через «Поделиться» */
-async function tgOut(photo,text,title){
-  const cfg=tgCfg();
+async function tgOut(photo,text,title,p){
+  const cfg=tgCfg(p), auth={token:cfg.token,base:cfg.base||''};
   if(cfg.token&&cfg.chat){
     let res;
-    if(photo) res=await tgApi('sendPhoto',{chat_id:cfg.chat,caption:text},photo);
+    if(photo) res=await tgApi('sendPhoto',Object.assign({chat_id:cfg.chat,caption:text},auth),photo);
     else{ // длинный текст делим на части по 4000 символов
       const parts=[]; let cur='';
       text.split('\n').forEach(l=>{ if((cur+'\n'+l).length>4000){ parts.push(cur); cur=l; } else cur=cur?cur+'\n'+l:l; }); if(cur) parts.push(cur);
-      for(const pt of parts){ res=await tgApi('sendMessage',{chat_id:cfg.chat,text:pt}); if(!(res&&res.ok)) break; }
+      for(const pt of parts){ res=await tgApi('sendMessage',Object.assign({chat_id:cfg.chat,text:pt},auth)); if(!(res&&res.ok)) break; }
     }
     if(res&&res.ok){ alert('Отправлено в Telegram'+(cfg.title?': '+cfg.title:'')); return true; }
     if(!confirm('Не удалось отправить боту: '+((res&&res.description)||'ошибка')+'.\nОтправить через «Поделиться»?')) return false;
@@ -2370,8 +2385,8 @@ function hoursText(p,objSel){
 }
 function hsPreview(){ hsObj=$('#hsObj').value; $('#hsText').textContent=hoursText(hsPeriod,hsObj); }
 $('#hsObj').onchange=hsPreview;
-$('#hrSend').onclick=()=>{ hrObjOptions($('#hsObj'),'*',true); syncHsP(); hsPreview(); const c=tgCfg(); $('#hsGo').textContent=c.token&&c.chat?'Отправить боту':'Отправить в Telegram'; openSheet('fHrSend'); };
-$('#hsGo').onclick=async()=>{ const b=$('#hsGo'); b.disabled=true; try{ await tgOut(null,hoursText(hsPeriod,hsObj),'Рабочие часы'); closeSheet(); }finally{ b.disabled=false; } };
+$('#hrSend').onclick=()=>{ hrObjOptions($('#hsObj'),'*',true); syncHsP(); hsPreview(); const c=tgCfg('hours'); $('#hsGo').textContent=c.token&&c.chat?'Отправить боту':'Отправить в Telegram'; openSheet('fHrSend'); };
+$('#hsGo').onclick=async()=>{ const b=$('#hsGo'); b.disabled=true; try{ await tgOut(null,hoursText(hsPeriod,hsObj),'Рабочие часы','hours'); closeSheet(); }finally{ b.disabled=false; } };
 
 /* ---------- документация объекта (PDF) ---------- */
 const DOC_SECS=['Проект','Исполнительная документация','Паспорта и сертификаты','Акты и протоколы','Схемы','Прочее'];
@@ -3519,10 +3534,10 @@ function renderSettings(){
     };
     box.appendChild(row);
   });
-  const c=tgCfg(); $('#setTgState').textContent=c.token?(c.title||'настроен'):'не настроен';
+  $$('#fSet [data-tg]').forEach(b=>{ const c=tgCfg(b.dataset.tg); b.querySelector('i').textContent=c.token?(c.title||'настроен'):'не настроен'; });
 }
 $('#gearBtn').onclick=()=>{ renderSettings(); openSheet('fSet'); };
-$('#setTg').onclick=()=>openTg();
+$$('#fSet [data-tg]').forEach(b=>b.onclick=()=>openTg(b.dataset.tg,true));
 /* ---------- умный подбор слов при наборе заметки ---------- */
 const Sugg=(function(){
   const BASE=('адрес адресный адресная адресные аккумулятор аккумуляторы антенна аварийный автоматика акт акты '+
