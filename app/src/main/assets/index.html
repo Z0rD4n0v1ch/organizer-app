@@ -145,6 +145,9 @@ h2{font:500 16px/1.2 "Unbounded",system-ui,sans-serif;margin:26px 0 10px;display
 .dsec.open .dfiles{display:block}
 .dfile{width:100%;border:0;background:var(--bg);border-radius:12px;display:flex;align-items:center;gap:10px;padding:10px 12px;margin-top:6px;text-align:left;color:var(--ink)}
 .dfile .tbody{min-width:0;flex:1}.dfile .ttl{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.eqtag.prj{background:var(--accent);color:var(--accent-ink);margin-left:0;margin-right:4px}
+.dgrp{list-style:none;font:600 12px "Golos Text",sans-serif;color:var(--accent);text-transform:none;margin:10px 4px 0;letter-spacing:.01em}
+.dgrp:first-child{margin-top:4px}
 .prjinfo{background:var(--bg);border-radius:14px;padding:10px 14px;margin:0 0 12px;font-size:13px;line-height:1.45;color:var(--muted)}.prjinfo b{color:var(--ink)}
 .prjrow{display:flex;gap:12px;align-items:flex-start;padding:10px 2px;border-bottom:1px solid var(--line)}
 .prjrow input{width:22px;height:22px;flex:none;margin-top:1px;accent-color:var(--accent)}
@@ -1474,7 +1477,8 @@ function renderObject(){
   const ml=$('#oMats'); ml.innerHTML='';
   o.mats.forEach(m=>{
     const li=document.createElement('li'); li.className='mat'+(m.done?' done':'');
-    li.innerHTML='<button class="chk" aria-label="Есть в наличии">'+check+'</button><span class="ttl">'+esc(m.text)+'</span><button class="x" aria-label="Удалить">×</button>';
+    const pt=m.src&&prjDocs(o).length>1?prjTag(o,m.src):'';
+    li.innerHTML='<button class="chk" aria-label="Есть в наличии">'+check+'</button><span class="ttl">'+(pt?'<span class="eqtag prj">'+esc(pt)+'</span> ':'')+esc(m.text)+'</span><button class="x" aria-label="Удалить">×</button>';
     li.querySelector('.chk').onclick=()=>{m.done=!m.done;save();renderObject();renderObjects();};
     li.querySelector('.x').onclick=()=>{o.mats=o.mats.filter(x=>x!==m);save();renderObject();renderObjects();};
     ml.appendChild(li);
@@ -2390,6 +2394,9 @@ window.onDocFetch=function(r,code,err){ const f=docCb[r]; delete docCb[r]; if(f)
 function fmtSize(n){ return n>=1048576?(Math.round(n/104857.6)/10).toString().replace('.',',')+' МБ':Math.max(1,Math.round(n/1024))+' КБ'; }
 function docSecs(o){ if(!Array.isArray(o.docSecs)||!o.docSecs.length) o.docSecs=DOC_SECS.slice(); return o.docSecs; }
 let docSecPick=null, docOpenSec={};
+function prjDocs(o){ return (o.docs||[]).filter(d=>d.code); }
+function prjLabel(o,id){ const d=(o.docs||[]).find(x=>x.id===id); if(!d) return 'Удалённый проект'; return (d.code||d.name)+(d.code&&d.name&&!d.name.includes(d.code)?' · '+d.name:''); }
+function prjTag(o,id){ const d=(o.docs||[]).find(x=>x.id===id); if(!d||!d.code) return ''; return (d.code.match(/-([А-ЯA-Z]{2,6})$/)||[])[1]||d.code; }
 function renderDocs(o){
   const box=$('#oDocs'); box.innerHTML='';
   if(!DOC.ok){ box.appendChild(emptyEl('PDF-файлы можно хранить в приложении на Android и в веб-версии, открытой с сайта')); return; }
@@ -2403,7 +2410,12 @@ function renderDocs(o){
     h.querySelector('.dsadd').onclick=()=>{ docSecPick=sec; $('#daSec').textContent=sec; openSheet('fDocAdd'); };
     w.appendChild(h);
     const ul=document.createElement('ul'); ul.className='dfiles';
-    files.forEach(d=>{
+    // несколько разобранных проектов: внутри раздела файлы идут по проектам, ручные — отдельно
+    const multi=prjDocs(o).length>1, key=d=>d.from||(d.code?d.id:''), order=[];
+    files.forEach(d=>{ const k=key(d); if(!order.includes(k)) order.push(k); });
+    const seq=multi?order.sort((a,b)=>(a===''?1:0)-(b===''?1:0)).flatMap(k=>files.filter(d=>key(d)===k).map((d,i)=>({d,hd:i===0?k:null}))):files.map(d=>({d,hd:null}));
+    seq.forEach(({d,hd})=>{
+      if(hd!==null){ const hl=document.createElement('li'); hl.className='dgrp'; hl.textContent=hd?prjLabel(o,hd):'Добавлено вручную'; ul.appendChild(hl); }
       const li=document.createElement('li'), b=document.createElement('button'); b.className='dfile';
       const par=d.kind==='ref'?o.docs.find(x=>x.id===d.of):null;
       const meta=d.kind==='ref'?(d.to>d.page?'стр. '+d.page+'–'+d.to:'стр. '+d.page)+(par?' · '+par.name:' · проект удалён'):d.kind==='link'?'документация с сайта'+(d.maker?' · '+d.maker:''):fmtDate(iso(new Date(d.ts)))+(d.size?', '+fmtSize(d.size):'');
@@ -2412,7 +2424,7 @@ function renderDocs(o){
       if(d.kind==='ref'){ b.onclick=()=>{ if(!par){ if(confirm('Проект, на который ссылается «'+d.name+'», удалён. Убрать ссылку?')) drop(); return; } openPdf({id:par.id,name:d.name,page:d.page,onDel:drop,delLabel:'Убрать'}); }; li.appendChild(b); ul.appendChild(li); return; }
       if(d.kind==='link'){ b.onclick=()=>openRemotePdf(d.url,d.name,drop); li.appendChild(b); ul.appendChild(li); return; }
       const isPrj=d.kind!=='img'&&!d.gen&&/проект/i.test(sec);
-      b.onclick=()=>openPdf({onParse:isPrj?(bytes=>{ closePdf(); prjStart(o,d,bytes); }):null,id:d.id,name:d.name,img:d.kind==='img',onRename:nm=>{ d.name=nm; save(); renderObject(); },onDel:()=>{ if(d.kind==='img'){try{PH.del(d.id)}catch(e){}} else DOC.del(d.id); o.docs=o.docs.filter(x=>x!==d&&!(x.kind==='ref'&&x.of===d.id)); save(); renderObject(); }});
+      b.onclick=()=>openPdf({onParse:isPrj?(bytes=>{ closePdf(); prjStart(o,d,bytes); }):null,id:d.id,name:d.name,img:d.kind==='img',onRename:nm=>{ d.name=nm; save(); renderObject(); },onDel:()=>{ if(d.kind==='img'){try{PH.del(d.id)}catch(e){}} else DOC.del(d.id); o.docs.filter(x=>x.from===d.id&&x.gen).forEach(x=>DOC.del(x.id)); o.docs=o.docs.filter(x=>x!==d&&x.from!==d.id&&!(x.kind==='ref'&&x.of===d.id)); save(); renderObject(); }});
       li.appendChild(b); ul.appendChild(li);
     });
     w.appendChild(ul); box.appendChild(w);
@@ -2731,11 +2743,15 @@ function prjSummary(){
   h+=li('sheets',R.sheets.some(s=>PRJ_SEC[s.kind]),'Разложить листы по разделам ('+R.sheets.filter(s=>PRJ_SEC[s.kind]).length+')',sheetSub||'листы не распознаны');
   h+=li('pass',pass.length,'Паспорта и сертификаты ('+pass.length+' из '+R.equip.length+')',R.equip.length?esc(pass.map(e=>e.model).join(', ')||'')+(R.equip.length>pass.length?'<br>Нет в справочнике: '+esc(R.equip.filter(e=>!(e.match&&e.match.d&&e.match.d.length)).map(e=>e.model||e.name).join(', ')):''):'спецификация не найдена');
   h+=li('acts',true,'Бланки актов и протоколов ('+acts.length+')',esc(acts.map(a=>a.name).join(', ')));
-  const newEq=R.equip.filter(e=>!o.equip.some(x=>bnorm(x.name)===bnorm(e.model||e.name)));
+  const newEq=R.equip.filter(e=>!o.equip.some(x=>x.src===prjCur.doc.id&&bnorm(x.name)===bnorm(e.model||e.name)));
   h+=li('equip',newEq.length,'Оборудование объекта ('+newEq.length+')',R.equip.length?esc(R.equip.map(e=>(e.model||e.name)+' — '+e.qty+' '+e.unit).join('; ')):'спецификация не найдена');
-  const matTxt=m=>[m.name,m.model].filter(Boolean).join(' '); const newMat=R.mats.filter(m=>!o.mats.some(x=>x.text.startsWith(matTxt(m))));
+  const matTxt=m=>[m.name,m.model].filter(Boolean).join(' '); const newMat=R.mats.filter(m=>!o.mats.some(x=>x.src===prjCur.doc.id&&x.text.startsWith(matTxt(m))));
   h+=li('mats',newMat.length,'Материалы объекта ('+newMat.length+')',esc(R.mats.map(m=>m.name+' '+m.model+' — '+m.qty+' '+m.unit).join('; ')));
   if(R.address&&!o.addr) h+=li('addr',true,'Адрес объекта',esc(R.address));
+  const older=R.code?o.docs.filter(d=>d!==prjCur.doc&&d.code===R.code):[];
+  if(older.length) h=li('replace',true,'Это новая версия проекта '+esc(R.code),'Убрать разобранное из «'+esc(older.map(d=>d.name).join('», «'))+'»: ссылки на листы, паспорта, бланки и позиции оборудования и материалов, которые вы ещё не меняли. Сам старый PDF останется.')+h;
+  const others=prjDocs(o).filter(d=>d!==prjCur.doc&&d.code!==R.code);
+  if(others.length) h='<p class="hint" style="margin:0 0 10px">В объекте уже есть проект '+esc(others.map(d=>d.code).join(', '))+'. Разделы, оборудование и материалы будут подписаны шифром проекта, чтобы не смешивались.</p>'+h;
   $('#prjBody').innerHTML=h; $('#prjGo').hidden=false;
 }
 $('#prjGo').onclick=async()=>{
@@ -2743,6 +2759,15 @@ $('#prjGo').onclick=async()=>{
   const {o,doc:pd,res:R}=prjCur, on=k=>{ const c=$('#prjBody [data-k="'+k+'"]'); return c&&c.checked; };
   const b=$('#prjGo'); b.disabled=true; b.textContent='Заполняю…';
   try{
+    pd.code=R.code||pd.code||''; pd.sys=R.system||'';
+    if(on('replace')){
+      const olds=o.docs.filter(d=>d!==pd&&d.code&&d.code===R.code).map(d=>d.id);
+      o.docs.filter(d=>olds.includes(d.from)).forEach(d=>{ if(d.gen) DOC.del(d.id); });
+      o.docs=o.docs.filter(d=>!olds.includes(d.from));
+      o.equip=o.equip.filter(e=>!(olds.includes(e.src)&&!e.serial&&!e.ip&&!e.place&&!e.login&&!e.pass));
+      o.mats=o.mats.filter(m=>!(olds.includes(m.src)&&!m.done));
+      o.docs.filter(d=>olds.includes(d.id)).forEach(d=>{ d.code=''; if(!/старая версия/i.test(d.name)) d.name+=' (старая версия)'; });
+    }
     docSecs(o); const ensure=s=>{ if(!o.docSecs.includes(s)) o.docSecs.push(s); return s; };
     let ts=(pd.ts||Date.now())-1; const push=d=>{ d.ts=ts--; d.from=pd.id; o.docs.push(d); };
     // повторный разбор: старые ссылки и бланки этого проекта заменяем
@@ -2764,9 +2789,9 @@ $('#prjGo').onclick=async()=>{
         if(await DOC.save(id,bytes)) push({id,sec,name:a.name,size:bytes.length,gen:1}); }
       docOpenSec[o.id+'|'+sec]=true;
     }
-    if(on('equip')) R.equip.forEach(e=>{ const nm=e.model||e.name; if(o.equip.some(x=>bnorm(x.name)===bnorm(nm))) return;
-      o.equip.push({id:uid(),name:nm,place:'',serial:'',ip:'',login:'',pass:'',note:[e.name,(e.qty?e.qty+' '+e.unit:''),e.vendor].filter(Boolean).join(' · ')+' (по спецификации)',dev:e.match?devRef(e.match):'',bolid:''}); });
-    if(on('mats')) R.mats.forEach(m=>{ const tx=[m.name,m.model].filter(Boolean).join(' '); if(o.mats.some(x=>x.text.startsWith(tx))) return; o.mats.push({id:uid(),text:tx+(m.qty?', '+m.qty+' '+m.unit:''),done:false}); });
+    if(on('equip')) R.equip.forEach(e=>{ const nm=e.model||e.name; if(o.equip.some(x=>x.src===pd.id&&bnorm(x.name)===bnorm(nm))) return;
+      o.equip.push({id:uid(),name:nm,place:'',serial:'',ip:'',login:'',pass:'',note:[e.name,(e.qty?e.qty+' '+e.unit:''),e.vendor].filter(Boolean).join(' · ')+' (по спецификации'+(R.code?' '+R.code:'')+')',dev:e.match?devRef(e.match):'',bolid:'',src:pd.id}); });
+    if(on('mats')) R.mats.forEach(m=>{ const tx=[m.name,m.model].filter(Boolean).join(' '); if(o.mats.some(x=>x.src===pd.id&&x.text.startsWith(tx))) return; o.mats.push({id:uid(),text:tx+(m.qty?', '+m.qty+' '+m.unit:''),done:false,src:pd.id}); });
     if(on('addr')&&R.address&&!o.addr) o.addr=R.address;
     save(); render(); closeSheet();
   }catch(e){ alert('Не удалось заполнить: '+(e.message||e)); }
@@ -3621,7 +3646,8 @@ function renderSvc(o){
   o.equip.forEach(e=>{
     const li=document.createElement('li'), b=document.createElement('button'); b.className='log';
     const meta=[e.place,e.ip?'IP '+e.ip:'',e.serial?'S/N '+e.serial:''].filter(Boolean).join(', ');
-    b.innerHTML='<span class="tbody"><span class="ttl">'+esc(e.name)+(devByRef(e.dev||e.bolid)?'<span class="eqtag">'+esc(CATS[devByRef(e.dev||e.bolid)._mk].name)+'</span>':'')+'</span>'+(meta?'<span class="meta">'+esc(meta)+'</span>':'')+'</span>';
+    const pt=e.src&&prjDocs(o).length>1?prjTag(o,e.src):'';
+    b.innerHTML='<span class="tbody"><span class="ttl">'+esc(e.name)+(pt?'<span class="eqtag prj">'+esc(pt)+'</span>':'')+(devByRef(e.dev||e.bolid)?'<span class="eqtag">'+esc(CATS[devByRef(e.dev||e.bolid)._mk].name)+'</span>':'')+'</span>'+(meta?'<span class="meta">'+esc(meta)+'</span>':'')+'</span>';
     b.onclick=()=>openEq(e); li.appendChild(b); el.appendChild(li);
   });
 }
