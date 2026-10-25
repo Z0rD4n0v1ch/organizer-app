@@ -151,6 +151,8 @@ h2{font:500 16px/1.2 "Unbounded",system-ui,sans-serif;margin:26px 0 10px;display
 .sysg{list-style:none}
 .sysl>li{margin-top:6px}
 .sysl .log,.sysl .mat{background:var(--bg)}
+.tgchats{display:flex;flex-direction:column;gap:6px;margin:-4px 0 12px}.tgchats:empty{display:none}
+.tgchat{border:0;border-radius:12px;background:var(--bg);padding:10px 12px;text-align:left;color:var(--ink)}.tgchat b{display:block;font-weight:600}.tgchat small{color:var(--muted);font-size:12px}
 .prjitems{margin-top:14px}
 .prjih b{display:block;font-weight:600}.prjih small{color:var(--muted);font-size:12.5px}
 .prjall{display:flex;align-items:center;gap:6px;margin:8px 0 4px;font-size:12.5px;color:var(--muted)}
@@ -1117,6 +1119,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
       <input class="field" id="tgBase" placeholder="https://api.telegram.org" autocomplete="off" autocapitalize="off" spellcheck="false">
     </details>
     <p class="hint stmsg" id="tgInfo" style="margin:-4px 0 12px"></p>
+    <div class="tgchats" id="tgChats"></div>
     <div class="actions"><button class="btn ghost plain" id="tgTest">Проверить</button><button class="btn" id="tgSave">Сохранить</button></div>
     <p class="hint" style="text-align:center;margin:10px 0 0"><button class="link" type="button" id="tgOff">Отключить бота</button></p>
   </div>
@@ -1760,6 +1763,55 @@ function odoCaption(r){
   const car=[c.name,(c.plate||'').toUpperCase()].filter(Boolean).join(', '); if(car) L.push('Авто: '+car);
   return L.join('\n');
 }
+
+/* понятные причины ошибок Telegram */
+function tgHuman(d){
+  d=String(d||'');
+  if(/^Unauthorized|Not Found$|^Not Found|неверный токен/i.test(d)) return 'неверный токен бота — скопируйте его заново из @BotFather';
+  if(/chat not found/i.test(d)) return 'чат не найден — проверьте ID чата и что бот добавлен в эту группу';
+  if(/kicked|not a member|bot was removed|CHAT_.*FORBIDDEN|user is deactivated/i.test(d)) return 'бота нет в этом чате — добавьте его в группу снова';
+  if(/blocked by the user/i.test(d)) return 'бот заблокирован в личном чате — откройте бота в Telegram и нажмите «Разблокировать»';
+  if(/not enough rights|have no rights|need administrator|CHAT_WRITE_FORBIDDEN|CHAT_SEND/i.test(d)) return 'у бота нет права писать в этот чат — разрешите участникам писать сообщения или сделайте бота администратором';
+  if(/Too Many Requests/i.test(d)) return 'Telegram просит подождать — попробуйте через минуту';
+  if(/caption is too long|message is too long/i.test(d)) return 'слишком длинный текст';
+  if(/Conflict.*webhook/i.test(d)) return 'у бота включён webhook — отключите его (команда deleteWebhook) или создайте отдельного бота для органайзера';
+  if(/Conflict/i.test(d)) return 'этого бота сейчас опрашивает другая программа — используйте отдельного бота';
+  return d||'ошибка';
+}
+function tgSplit(text,max){
+  const out=[]; let cur='';
+  String(text||'').split('\n').forEach(l=>{
+    while(l.length>max){ if(cur){ out.push(cur); cur=''; } out.push(l.slice(0,max)); l=l.slice(max); }
+    if(cur&&(cur+'\n'+l).length>max){ out.push(cur); cur=l; } else cur=cur?cur+'\n'+l:l;
+  });
+  if(cur.trim()) out.push(cur);
+  return out.length?out:[''];
+}
+function tgMigrate(oldId,newId){ Object.keys(TG_P).forEach(k=>{ const c=tgCfg(k); if(c.chat&&String(c.chat)===String(oldId)){ c.chat=String(newId); try{ localStorage.setItem(TG_P[k].key,JSON.stringify(c)); }catch(e){} } }); }
+/* отправка в раздел p: фото с подписью и/или текст; длинное делится, переезд группы и «подождите» обрабатываются сами */
+async function tgSend(p,photo,text){
+  const cfg=tgCfg(p); if(!(cfg.token&&cfg.chat)) return {ok:false,none:true};
+  const call=async(method,params,ph)=>{
+    let r=null;
+    for(let i=0;i<3;i++){
+      r=await tgApi(method,Object.assign({chat_id:cfg.chat,token:cfg.token,base:cfg.base||''},params),ph);
+      if(r&&r.ok) return r;
+      const pr=(r&&r.parameters)||{};
+      if(pr.migrate_to_chat_id){ tgMigrate(cfg.chat,pr.migrate_to_chat_id); cfg.chat=String(pr.migrate_to_chat_id); continue; }   // группа стала супергруппой
+      if(r&&r.error_code===429&&pr.retry_after&&pr.retry_after<=20){ await new Promise(s=>setTimeout(s,pr.retry_after*1000+300)); continue; }
+      break;
+    }
+    return r||{ok:false,description:'ошибка'};
+  };
+  let r={ok:true}, rest=[];
+  if(photo){
+    let cap=String(text||'');
+    if(cap.length>1024){ const sp=tgSplit(cap,1000); cap=sp[0]; rest=tgSplit(sp.slice(1).join('\n'),4000); }   // у фото подпись до 1024 знаков
+    r=await call('sendPhoto',{caption:cap},photo);
+  } else rest=tgSplit(text,4000);
+  for(const pt of rest){ if(!(r&&r.ok)) break; if(!pt.trim()) continue; r=await call('sendMessage',{text:pt}); }
+  return r&&r.ok?{ok:true,title:cfg.title||''}:{ok:false,description:tgHuman(r&&r.description)};
+}
 let tgSeq=0; const tgCb={};
 window.onTg=function(id,code,body){ const f=tgCb[id]; delete tgCb[id]; if(f) f(code,body); };
 function tgApi(method,params,photoId){
@@ -1774,7 +1826,7 @@ function tgApi(method,params,photoId){
     }
     if(APP&&method==='getUpdates'){
       const r=await httpGet(tgBase(params.base!=null?params.base:cfg.base)+'/bot'+params.token+'/getUpdates');
-      let j=null; try{j=JSON.parse(r.body)}catch(e){} res(j||{ok:false,description:r.code===401||r.code===404?'неверный токен':tgErr(r.code,r.body)}); return;
+      let j=null; try{j=JSON.parse(r.body)}catch(e){} res(j||{ok:false,description:r.code===401||r.code===404?'Unauthorized':r.code===409?'Conflict: webhook is active':tgErr(r.code,r.body)}); return;
     }
     try{
       const fd=new FormData(); Object.keys(params).forEach(k=>{ if(k!=='token'&&k!=='base') fd.append(k,params[k]); });
@@ -1798,36 +1850,46 @@ async function odoShare(r,caption){
   shareText('Пробег',caption);
 }
 async function odoSend(r){
-  const caption=odoCaption(r), cfg=tgCfg();
-  if(cfg.token&&cfg.chat){
-    const res=await tgApi(r.photo?'sendPhoto':'sendMessage',r.photo?{chat_id:cfg.chat,caption}:{chat_id:cfg.chat,text:caption},r.photo);
-    if(res&&res.ok){ r.sent=Date.now(); save(); renderCar(); alert('Отправлено в Telegram'+(cfg.title?': '+cfg.title:'')); return; }
-    if(!confirm('Не удалось отправить боту: '+((res&&res.description)||'ошибка')+'.\nОтправить через «Поделиться»?')) return;
-  }
+  const caption=odoCaption(r), res=await tgSend('car',r.photo,caption);
+  if(res.ok){ r.sent=Date.now(); save(); renderCar(); alert('Отправлено в Telegram'+(res.title?': '+res.title:'')); return; }
+  if(!res.none&&!confirm('Не удалось отправить боту: '+res.description+'.\nОтправить через «Поделиться»?')) return;
   odoShare(r,caption);
 }
 let tgP='car', tgFromSet=false;
 function openTg(p,fromSet){
-  tgP=p||'car'; tgFromSet=!!fromSet; $('#tgTitle').textContent='Telegram-бот: '+TG_P[tgP].name; $('#tgWhat').textContent='Без настройки '+TG_P[tgP].what;
+  tgP=p||'car'; tgFromSet=!!fromSet; $('#tgChats').innerHTML=''; $('#tgTitle').textContent='Telegram-бот: '+TG_P[tgP].name; $('#tgWhat').textContent='Без настройки '+TG_P[tgP].what;
   const src=Object.keys(TG_P).filter(k=>k!==tgP&&tgCfg(k).token); $('#tgCopy').hidden=!src.length; $('#tgCopy').textContent='Взять бота из раздела «'+(src.length?TG_P[src[0]].name:'')+'»'; $('#tgCopy').dataset.src=src[0]||'';
   const c=tgCfg(tgP); $('#tgToken').value=c.token||''; $('#tgChat').value=c.chat||''; $('#tgBase').value=c.base||''; $('.tgadv').open=!!c.base;
   tgMsg(c.title?'Чат: '+c.title:''); $('#tgOff').hidden=!c.token; openSheet('fTg');
 }
 $('#tgFind').onclick=async()=>{
   const token=$('#tgToken').value.trim(); if(!token){ $('#tgToken').focus(); return; }
-  tgMsg('Ищу чат…','busy');
+  tgMsg('Ищу чаты…','busy'); $('#tgChats').innerHTML='';
   const r=await tgApi('getUpdates',{token,base:$('#tgBase').value});
-  if(!r||!r.ok){ tgMsg('Не получилось: '+((r&&r.description)||'ошибка'),'err'); return; }
-  const ups=(r.result||[]).map(u=>u.message||u.channel_post||u.my_chat_member||u.edited_message).filter(m=>m&&m.chat);
-  if(!ups.length){ tgMsg('Сообщений нет. Напишите боту /start или добавьте его в группу и отправьте сообщение, затем нажмите ещё раз.','err'); return; }
-  const ch=ups[ups.length-1].chat, title=ch.title||[ch.first_name,ch.last_name].filter(Boolean).join(' ')||ch.username||String(ch.id);
-  $('#tgChat').value=ch.id; $('#tgChat').dataset.title=title; tgMsg('Найден чат: '+title,'ok');
+  if(!r||!r.ok){ tgMsg('Не получилось: '+tgHuman(r&&r.description),'err'); return; }
+  // все чаты, где бот что-то видел: личка, группы (в т.ч. «бота добавили»), каналы; переехавшие группы — под новым ID
+  const seen=new Map(), moved={};
+  (r.result||[]).forEach(u=>{ const m=u.message||u.edited_message||u.channel_post||u.my_chat_member||u.chat_member||u.chat_join_request; if(!m||!m.chat) return;
+    if(m.migrate_to_chat_id) moved[m.chat.id]=m.migrate_to_chat_id;
+    const ch=m.chat; seen.set(String(ch.id),{id:String(ch.id),type:ch.type,title:ch.title||[ch.first_name,ch.last_name].filter(Boolean).join(' ')||ch.username||String(ch.id)}); });
+  Object.keys(moved).forEach(k=>seen.delete(String(k)));
+  const list=[...seen.values()].reverse();
+  if(!list.length){ tgMsg('Бот пока ничего не видел. Добавьте его в нужную группу (или напишите ему /start в личке) и отправьте туда любое сообщение, затем нажмите «Найти» ещё раз.','err'); return; }
+  const used={}; Object.keys(TG_P).forEach(k=>{ if(k!==tgP){ const c=tgCfg(k); if(c.chat) used[String(c.chat)]=TG_P[k].name; } });
+  const pick=ch=>{ $('#tgChat').value=ch.id; $('#tgChat').dataset.title=ch.title; $('#tgChats').innerHTML=''; tgMsg('Выбран чат: '+ch.title+(used[ch.id]?' (он же — для раздела «'+used[ch.id]+'»)':''),'ok'); };
+  if(list.length===1){ pick(list[0]); return; }
+  tgMsg('Найдено чатов: '+list.length+'. Выберите, куда отправлять '+TG_P[tgP].what+':','ok');
+  const TY={private:'личный чат',group:'группа',supergroup:'группа',channel:'канал'};
+  list.forEach(ch=>{ const b=document.createElement('button'); b.type='button'; b.className='tgchat'; b.innerHTML='<b>'+esc(ch.title)+'</b><small>'+esc((TY[ch.type]||ch.type||'')+(used[ch.id]?' · сейчас для «'+used[ch.id]+'»':''))+'</small>'; b.onclick=()=>pick(ch); $('#tgChats').appendChild(b); });
 };
 $('#tgTest').onclick=async()=>{
   const token=$('#tgToken').value.trim(), chat=$('#tgChat').value.trim(); if(!token||!chat){ (token?$('#tgChat'):$('#tgToken')).focus(); return; }
   tgMsg('Отправляю проверочное сообщение…','busy');
-  const r=await tgApi('sendMessage',{token,base:$('#tgBase').value,chat_id:chat,text:'Органайзер монтажника: проверка связи ✓'});
-  if(r&&r.ok) tgMsg('Работает: сообщение отправлено','ok'); else tgMsg('Не получилось: '+((r&&r.description)||'ошибка'),'err');
+  const send=id=>tgApi('sendMessage',{token,base:$('#tgBase').value,chat_id:id,text:'Органайзер монтажника: проверка связи ✓ ('+TG_P[tgP].name+')'});
+  let r=await send(chat); const mig=r&&r.parameters&&r.parameters.migrate_to_chat_id;
+  if(mig){ $('#tgChat').value=mig; r=await send(String(mig)); }
+  if(r&&r.ok&&r.result&&r.result.chat){ const c=r.result.chat; $('#tgChat').dataset.title=c.title||[c.first_name,c.last_name].filter(Boolean).join(' ')||$('#tgChat').dataset.title||''; }
+  if(r&&r.ok) tgMsg('Работает: сообщение отправлено'+(mig?'. Группа стала супергруппой — ID чата обновлён, нажмите «Сохранить»':''),'ok'); else tgMsg('Не получилось: '+tgHuman(r&&r.description),'err');
 };
 $('#tgSave').onclick=()=>{
   const token=$('#tgToken').value.trim(), chat=$('#tgChat').value.trim();
@@ -1932,15 +1994,15 @@ async function daySend(date){
   const g=odoDays().find(x=>x.date===date); if(!g) return;
   const msgs=[]; if(g.start) msgs.push({r:g.start,cap:odoCap(g.start,null)}); if(g.end&&g.end!==g.start) msgs.push({r:g.end,cap:odoCap(g.end,g.start)});
   if(!msgs.length) return;
-  const cfg=tgCfg();
+  const cfg=tgCfg('car');
   if(cfg.token&&cfg.chat){
-    let sent=0, err='';
+    let sent=0, err='', title='';
     for(const m of msgs){
-      const res=await tgApi(m.r.photo?'sendPhoto':'sendMessage',m.r.photo?{chat_id:cfg.chat,caption:m.cap}:{chat_id:cfg.chat,text:m.cap},m.r.photo);
-      if(res&&res.ok){ m.r.sent=Date.now(); sent++; } else { err=(res&&res.description)||'ошибка'; break; }
+      const res=await tgSend('car',m.r.photo,m.cap);
+      if(res.ok){ m.r.sent=Date.now(); sent++; title=res.title; } else { err=res.description; break; }
     }
     save(); renderCar();
-    if(sent===msgs.length){ alert('День отправлен в Telegram'+(cfg.title?': '+cfg.title:'')); return; }
+    if(sent===msgs.length){ alert('День отправлен в Telegram'+(title?': '+title:'')); return; }
     if(!confirm('Не удалось отправить боту: '+err+'.\nОтправить через «Поделиться»?')) return;
     msgs.splice(0,sent);
   }
@@ -2141,18 +2203,9 @@ function tripCaption(t){
 }
 /* отправить фото с подписью или текст: ботом, если он настроен, иначе через «Поделиться» */
 async function tgOut(photo,text,title,p){
-  const cfg=tgCfg(p), auth={token:cfg.token,base:cfg.base||''};
-  if(cfg.token&&cfg.chat){
-    let res;
-    if(photo) res=await tgApi('sendPhoto',Object.assign({chat_id:cfg.chat,caption:text},auth),photo);
-    else{ // длинный текст делим на части по 4000 символов
-      const parts=[]; let cur='';
-      text.split('\n').forEach(l=>{ if((cur+'\n'+l).length>4000){ parts.push(cur); cur=l; } else cur=cur?cur+'\n'+l:l; }); if(cur) parts.push(cur);
-      for(const pt of parts){ res=await tgApi('sendMessage',Object.assign({chat_id:cfg.chat,text:pt},auth)); if(!(res&&res.ok)) break; }
-    }
-    if(res&&res.ok){ alert('Отправлено в Telegram'+(cfg.title?': '+cfg.title:'')); return true; }
-    if(!confirm('Не удалось отправить боту: '+((res&&res.description)||'ошибка')+'.\nОтправить через «Поделиться»?')) return false;
-  }
+  const res=await tgSend(p,photo,text);
+  if(res.ok){ alert('Отправлено в Telegram'+(res.title?': '+res.title:'')); return true; }
+  if(!res.none&&!confirm('Не удалось отправить боту: '+res.description+'.\nОтправить через «Поделиться»?')) return false;
   if(photo) odoShare({photo},text); else shareText(title||'Органайзер',text);
   return false;
 }
