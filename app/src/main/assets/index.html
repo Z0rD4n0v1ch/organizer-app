@@ -146,6 +146,10 @@ h2{font:500 16px/1.2 "Unbounded",system-ui,sans-serif;margin:26px 0 10px;display
 .dfile{width:100%;border:0;background:var(--bg);border-radius:12px;display:flex;align-items:center;gap:10px;padding:10px 12px;margin-top:6px;text-align:left;color:var(--ink)}
 .dfile .tbody{min-width:0;flex:1}.dfile .ttl{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pdfic{flex:none;font:700 10px "Unbounded",sans-serif;color:#fff;background:#E5484D;border-radius:6px;padding:7px 5px}
+.rtlist{display:flex;flex-direction:column;gap:8px}
+.rtlist button{display:flex;align-items:center;gap:14px;border:0;border-radius:16px;background:var(--bg);padding:12px 14px;text-align:left;color:var(--ink)}
+.rtlist b{display:block;font-weight:600}.rtlist small{color:var(--muted);font-size:13px}
+.rtic{flex:none;width:40px;height:40px;border-radius:12px;color:#fff;display:flex;align-items:center;justify-content:center;font:700 18px "Unbounded",sans-serif}
 .hsText{white-space:pre-wrap;font:13px/1.45 "Golos Text",system-ui,sans-serif;background:var(--bg);border-radius:14px;padding:12px 14px;margin:0 0 14px;max-height:40vh;overflow:auto}
 .objnote{width:100%;min-height:110px;border:0;background:var(--surface);border-radius:16px;padding:12px 14px;resize:vertical}
 
@@ -461,7 +465,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <span class="badge" id="oStatus"></span>
     <div class="quick">
       <a class="qbtn" id="oCall"><svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2"/></svg>Позвонить</a>
-      <a class="qbtn" id="oRoute" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>Маршрут</a>
+      <a class="qbtn" id="oRoute" href="#"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>Маршрут</a>
       <button class="qbtn" id="oEdit"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>Изменить</button>
     </div>
     <dl class="info" id="oInfo"></dl>
@@ -830,6 +834,16 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <input class="field" type="text" inputmode="decimal" id="hDur" placeholder="Например: 7,5">
     <input class="field" id="hNote" placeholder="Что делали (необязательно)" maxlength="160">
     <div class="actions"><button class="btn ghost" id="hDel" hidden>Удалить</button><button class="btn" id="hSave">Сохранить</button></div>
+  </div>
+
+  <div class="form" id="fRoute" hidden>
+    <h3>Построить маршрут</h3>
+    <p class="meta" id="rtAddr" style="margin:-6px 0 14px"></p>
+    <div class="rtlist">
+      <button data-app="navi"><span class="rtic" style="background:#FFCC00;color:#000">Н</span><span><b>Яндекс Навигатор</b><small>Маршрут на машине с голосом</small></span></button>
+      <button data-app="ymaps"><span class="rtic" style="background:#FC3F1D">Я</span><span><b>Яндекс Карты</b><small>Авто, транспорт, пешком</small></span></button>
+      <button data-app="2gis"><span class="rtic" style="background:#2FAD37">2</span><span><b>2ГИС</b><small>Маршрут, входы и организации</small></span></button>
+    </div>
   </div>
 
   <div class="form" id="fHrSend" hidden>
@@ -1362,7 +1376,7 @@ function renderObject(){
   $('#oName').textContent=o.name;
   const st=$('#oStatus'); st.className='badge '+o.status; st.textContent=STATUS[o.status];
   const call=$('#oCall'); if(o.phone){call.href='tel:'+o.phone.replace(/[^\d+]/g,'');call.removeAttribute('aria-disabled')}else{call.removeAttribute('href');call.setAttribute('aria-disabled','true')}
-  const route=$('#oRoute'); if(o.addr){route.href='https://yandex.ru/maps/?text='+encodeURIComponent(o.addr);route.removeAttribute('aria-disabled')}else{route.removeAttribute('href');route.setAttribute('aria-disabled','true')}
+  const route=$('#oRoute'); if(o.addr){route.href='#';route.removeAttribute('aria-disabled')}else{route.removeAttribute('href');route.setAttribute('aria-disabled','true')}
   const rows=[];
   if(o.addr) rows.push(['Адрес',o.addr]);
   if(o.contact||o.phone) rows.push(['Контакт',[o.contact,o.phone].filter(Boolean).join(', ')]);
@@ -2077,6 +2091,26 @@ function objBadges(o){
   ofb('photos',(o.photos||[]).length?String(o.photos.length):'');
   ofb('note',(o.note||'').trim()?'есть запись':'');
 }
+
+/* ---------- маршрут: выбор приложения ---------- */
+function routeUrls(app,addr){
+  const q=encodeURIComponent(addr);
+  if(app==='navi') return {app:'yandexnavi://map_search?text='+q, web:'https://yandex.ru/maps/?mode=routes&rtt=auto&rtext=~'+q};
+  if(app==='ymaps') return {app:'yandexmaps://maps.yandex.ru/?mode=routes&rtt=auto&rtext=~'+q, web:'https://yandex.ru/maps/?mode=routes&rtt=auto&rtext=~'+q};
+  return {app:'dgis://2gis.ru/search/'+q, web:'https://2gis.ru/search/'+q};
+}
+$('#oRoute').onclick=e=>{
+  e.preventDefault(); const o=objById(openObjId); if(!o||!o.addr) return;
+  $('#rtAddr').textContent=o.addr; openSheet('fRoute');
+};
+$$('#fRoute [data-app]').forEach(b=>b.onclick=()=>{
+  const o=objById(openObjId); if(!o||!o.addr) return; const u=routeUrls(b.dataset.app,o.addr); closeSheet();
+  if(APP){ location.href=u.app; return; }   // нет приложения — Android откроет страницу в Google Play
+  // веб-версия (iPhone): пробуем приложение, если не открылось — сайт
+  let left=false; const vis=()=>{ if(document.hidden) left=true; }; document.addEventListener('visibilitychange',vis);
+  location.href=u.app;
+  setTimeout(()=>{ document.removeEventListener('visibilitychange',vis); if(!left&&!document.hidden) location.href=u.web; },1600);
+});
 
 /* ---------- рабочее время: отправка в Telegram ---------- */
 let hsPeriod='month';

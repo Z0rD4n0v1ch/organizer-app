@@ -164,7 +164,17 @@ public class MainActivity extends Activity {
             Intent i = "tel".equals(scheme) ? new Intent(Intent.ACTION_DIAL, uri) : new Intent(Intent.ACTION_VIEW, uri);
             startActivity(i);
         } catch (ActivityNotFoundException e) {
-            Toast.makeText(this, "Нет приложения, чтобы открыть ссылку", Toast.LENGTH_SHORT).show();
+            String pkg = "yandexnavi".equals(scheme) ? "ru.yandex.yandexnavi"
+                    : "yandexmaps".equals(scheme) ? "ru.yandex.yandexmaps"
+                    : "dgis".equals(scheme) ? "ru.dublgis.dgismobile" : null;
+            if (pkg != null) {
+                Toast.makeText(this, "Приложение не установлено — открываю Google Play", Toast.LENGTH_SHORT).show();
+                try {
+                    startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=" + pkg)));
+                } catch (ActivityNotFoundException e2) {
+                    try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=" + pkg))); } catch (Exception ignored) { }
+                }
+            } else Toast.makeText(this, "Нет приложения, чтобы открыть ссылку", Toast.LENGTH_SHORT).show();
         }
         return true;
     }
