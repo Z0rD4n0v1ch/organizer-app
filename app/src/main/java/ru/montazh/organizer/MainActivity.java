@@ -58,6 +58,8 @@ public class MainActivity extends Activity {
     private String pendingBackup;
     private ValueCallback<Uri[]> fileCallback;
     private volatile boolean downloading = false;
+    private volatile boolean prefetching = false;
+    private volatile String lastInstallUrl;
     private Uri cameraUri;
     private boolean notifAsked = false;
 
@@ -75,6 +77,8 @@ public class MainActivity extends Activity {
                 jsState("done", "");
             } else {
                 String msg = intent.getStringExtra(PackageInstaller.EXTRA_STATUS_MESSAGE);
+                if (status != PackageInstaller.STATUS_FAILURE_ABORTED && lastInstallUrl != null) //noinspection ResultOfMethodCallIgnored
+                    updFile(lastInstallUrl).delete();
                 jsState(status == PackageInstaller.STATUS_FAILURE_ABORTED ? "cancel" : "error", msg == null ? "" : msg);
             }
         }
@@ -157,6 +161,13 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         if (web != null) web.evaluateJavascript("window.onAppResume && window.onAppResume()", null);
+    }
+
+    private File updFile(String url) {
+        File dir = new File(getCacheDir(), "update");
+        if (!dir.exists()) //noinspection ResultOfMethodCallIgnored
+            dir.mkdirs();
+        return new File(dir, Integer.toHexString(url.hashCode()) + ".apk");
     }
 
     private boolean openExternal(Uri uri) {
@@ -612,6 +623,7 @@ public class MainActivity extends Activity {
                     if (m.find()) latest = Integer.parseInt(m.group(1));
                     out.put("latest", latest);
                     out.put("date", rel.optString("published_at", ""));
+                    out.put("notes", rel.optString("body", ""));
                     JSONArray assets = rel.optJSONArray("assets");
                     if (assets != null) {
                         for (int i = 0; i < assets.length(); i++) {
@@ -630,7 +642,45 @@ public class MainActivity extends Activity {
             }).start();
         }
 
-        /** Скачивает APK и передаёт его системному установщику. */
+        /** Заранее и тихо скачивает APK новой версии, чтобы «Обновить» сразу открывал установку. */
+        @JavascriptInterface
+        public void prefetchUpdate(final String url) {
+            if (downloading || prefetching) return;
+            final File f = updFile(url);
+            if (f.exists() && f.length() > 0) { callJs("window.onUpdateFetched && window.onUpdateFetched(true)"); return; }
+            prefetching = true;
+            new Thread(() -> {
+                boolean ok = false;
+                File dir = f.getParentFile(), tmp = new File(f.getPath() + ".part");
+                try {
+                    File[] old = dir.listFiles();
+                    if (old != null) for (File x : old) if (!x.getName().equals(f.getName())) //noinspection ResultOfMethodCallIgnored
+                        x.delete();
+                    HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+                    c.setRequestProperty("User-Agent", "organizer-app");
+                    c.setInstanceFollowRedirects(true);
+                    c.setConnectTimeout(15000);
+                    c.setReadTimeout(30000);
+                    if (c.getResponseCode() != 200) throw new Exception("HTTP " + c.getResponseCode());
+                    long total = c.getContentLengthLong(), done = 0;
+                    try (InputStream in = c.getInputStream(); OutputStream out = new FileOutputStream(tmp)) {
+                        byte[] buf = new byte[64 * 1024];
+                        int n;
+                        while ((n = in.read(buf)) > 0) { out.write(buf, 0, n); done += n; }
+                    }
+                    if (total > 0 && done != total) throw new Exception("обрыв загрузки");
+                    ok = tmp.renameTo(f);
+                } catch (Exception e) {
+                    //noinspection ResultOfMethodCallIgnored
+                    tmp.delete();
+                } finally {
+                    prefetching = false;
+                }
+                callJs("window.onUpdateFetched && window.onUpdateFetched(" + ok + ")");
+            }).start();
+        }
+
+        /** Скачивает APK (или берёт заранее скачанный) и передаёт его системному установщику. */
         @JavascriptInterface
         public void installUpdate(final String url) {
             if (downloading) return;
@@ -647,13 +697,23 @@ public class MainActivity extends Activity {
             new Thread(() -> {
                 PackageInstaller.Session session = null;
                 try {
-                    HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
-                    c.setRequestProperty("User-Agent", "organizer-app");
-                    c.setInstanceFollowRedirects(true);
-                    c.setConnectTimeout(15000);
-                    c.setReadTimeout(30000);
-                    if (c.getResponseCode() != 200) throw new Exception("HTTP " + c.getResponseCode());
-                    long total = c.getContentLengthLong();
+                    lastInstallUrl = url;
+                    File cached = updFile(url);
+                    InputStream src;
+                    long total;
+                    if (cached.exists() && cached.length() > 0) {
+                        src = new java.io.FileInputStream(cached);
+                        total = cached.length();
+                    } else {
+                        HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+                        c.setRequestProperty("User-Agent", "organizer-app");
+                        c.setInstanceFollowRedirects(true);
+                        c.setConnectTimeout(15000);
+                        c.setReadTimeout(30000);
+                        if (c.getResponseCode() != 200) throw new Exception("HTTP " + c.getResponseCode());
+                        total = c.getContentLengthLong();
+                        src = c.getInputStream();
+                    }
 
                     PackageInstaller pi = getPackageManager().getPackageInstaller();
                     PackageInstaller.SessionParams params = new PackageInstaller.SessionParams(PackageInstaller.SessionParams.MODE_FULL_INSTALL);
@@ -661,7 +721,7 @@ public class MainActivity extends Activity {
                     int id = pi.createSession(params);
                     session = pi.openSession(id);
 
-                    try (InputStream in = c.getInputStream();
+                    try (InputStream in = src;
                          OutputStream out = session.openWrite("organizer.apk", 0, total > 0 ? total : -1)) {
                         byte[] buf = new byte[64 * 1024];
                         long done = 0;
@@ -689,6 +749,8 @@ public class MainActivity extends Activity {
                     session = null;
                 } catch (Exception e) {
                     if (session != null) session.abandon();
+                    //noinspection ResultOfMethodCallIgnored
+                    updFile(url).delete();
                     jsState("error", String.valueOf(e.getMessage()));
                 } finally {
                     downloading = false;

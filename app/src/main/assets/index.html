@@ -242,7 +242,16 @@ textarea.field{min-height:120px;resize:vertical}
 .stmsg{font-weight:500}.stmsg.ok{color:#2E9E5B}.stmsg.err{color:var(--red)}.stmsg.busy{color:var(--muted)}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .stmsg.ok{color:#5FD08A}}
 :root[data-theme="dark"] .stmsg.ok{color:#5FD08A}
-.upd{display:flex;align-items:center;gap:12px;background:var(--accent);color:var(--accent-ink);border-radius:18px;padding:12px 14px;margin:8px 0 6px}
+.upd{position:fixed;left:10px;right:10px;max-width:540px;margin:0 auto;bottom:calc(72px + env(safe-area-inset-bottom,0px));z-index:22;display:flex;align-items:center;gap:10px;background:var(--accent);color:var(--accent-ink);border-radius:18px;padding:10px 8px 10px 14px;box-shadow:0 6px 24px rgba(0,0,0,.25)}
+.upd .lnk{text-decoration:underline;cursor:pointer;opacity:.9}
+.upd .updx{background:transparent;color:var(--accent-ink);font-size:22px;padding:6px 8px;font-weight:400}
+body.has-upd .fab{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+body.has-upd .wrap{padding-bottom:200px}
+.gear.dot::after{content:"";position:absolute;top:8px;right:8px;width:9px;height:9px;border-radius:50%;background:var(--red);border:2px solid var(--bg)}
+.updcard{background:var(--bg);border-radius:16px;padding:12px 14px;margin:0 0 18px;display:flex;align-items:center;gap:10px}
+.updcard span{flex:1;min-width:0;font-size:14px;line-height:1.35}.updcard b{display:block}
+.updcard .btn{flex:none;padding:10px 14px;min-height:0;width:auto}
+.updnotes{margin:0 0 14px;padding-left:20px;line-height:1.5}.updnotes li{margin-bottom:6px}
 .upd[hidden]{display:none}
 .upd span{flex:1;min-width:0;font-size:14px;line-height:1.35}
 .upd b{display:block;font-size:15px}
@@ -424,7 +433,6 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
   <section class="view on" id="v-today">
     <h1 id="dayTitle">Сегодня</h1>
     <p class="sub" id="dayDate"></p>
-    <div class="upd" id="upd" hidden><span id="updText"></span><button id="updBtn">Обновить</button></div>
     <div class="install" id="iosHint" hidden><span><b>Установите на экран «Домой»</b>Нажмите «Поделиться» <svg viewBox="0 0 24 24"><path d="M12 15V3M8 7l4-4 4 4M5 11v9h14v-9"/></svg> внизу Safari и выберите «На экран „Домой“». Так органайзер работает без интернета, а данные хранятся надёжно.</span><button id="iosHintX" aria-label="Скрыть">×</button></div>
     <button class="runbar" id="runbar" hidden><span><b id="runObj"></b>Идёт работа, нажмите, чтобы открыть объект</span><i id="runTime"></i></button>
     <div class="week" id="week"></div>
@@ -655,6 +663,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
   <div class="pvscroll" id="pvScroll"><p class="pvmsg" id="pvMsg" hidden></p><div class="pvpages" id="pvPages"></div></div>
   <div class="pvfoot"><button class="del" id="pvDel">Удалить</button><button id="pvShare">Поделиться</button></div>
 </div>
+<div class="upd" id="upd" hidden><span id="updText"></span><button id="updBtn">Обновить</button><button class="updx" id="updX" aria-label="Позже">×</button></div>
 <div class="scrim" id="scrim"></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true">
   <div class="grab"></div>
@@ -853,6 +862,12 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     </div>
   </div>
 
+  <div class="form" id="fUpdNotes" hidden>
+    <h3 id="unTitle">Что нового</h3>
+    <ul class="updnotes" id="unList"></ul>
+    <div class="actions"><button class="btn ghost" id="unLater">Закрыть</button><button class="btn" id="unGo">Обновить</button></div>
+  </div>
+
   <div class="form" id="fRoute" hidden>
     <h3>Построить маршрут</h3>
     <p class="meta" id="rtAddr" style="margin:-6px 0 14px"></p>
@@ -991,6 +1006,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
 
   <div class="form" id="fSet" hidden>
     <h3>Настройки</h3>
+    <div class="updcard" id="updCard" hidden><span id="updCardText"></span><button class="btn" id="updCardBtn">Проверить</button></div>
     <p class="lbl">Вкладки внизу экрана</p>
     <div class="setlist" id="setTabs"></div>
     <p class="hint" style="margin:6px 0 18px">Порядок вкладок меняется так: зажмите вкладку внизу и перетащите.</p>
@@ -1012,7 +1028,6 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <div class="backup">
       <button class="seg" id="bkExport">Сохранить копию данных</button>
       <button class="seg" id="bkImport">Восстановить из копии</button>
-      <button class="seg" id="updCheck" hidden>Проверить обновления</button>
       <input type="file" id="bkFile" accept=".json,application/json,text/plain" hidden>
     </div>
     <p class="sync" id="sync">Данные хранятся в телефоне</p>
@@ -3503,40 +3518,91 @@ save=function(){ _saveOrig(); clearTimeout(abTimer); abTimer=setTimeout(()=>auto
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') autoBackupRun(false); });
 setInterval(()=>autoBackupRun(false),10*60e3);
 setTimeout(()=>autoBackupRun(false),6000);
-/* in-app updates */
+/* in-app updates: проверка при запуске, при возврате в приложение и раз в час; APK скачивается заранее */
 const isApp=!!(window.Android&&Android.checkUpdate);
-let upd=null, manualCheck=false, updBusy=false;
-function updShow(title,text,btn,disabled){
-  $('#upd').hidden=false;
-  $('#updText').innerHTML='<b>'+esc(title)+'</b>'+esc(text||'');
-  $('#updBtn').textContent=btn; $('#updBtn').disabled=!!disabled; $('#updBtn').hidden=!btn;
+let upd=null, manualCheck=false, updBusy=false, updChecking=false, updFetched=false, updLastCheck=0;
+const curBuild=(()=>{ try{ return isApp?Android.versionCode():0; }catch(e){ return 0; } })();
+const verName=b=>'1.'+b;
+function updNotes(md){
+  const m=String(md||'').split(/^##\s*Что нового\s*$/m)[1]; if(!m) return [];
+  return m.split(/^##\s/m)[0].split('\n').map(l=>l.replace(/^\s*[-*]\s+/,'').replace(/\*\*|__|`/g,'').trim()).filter(l=>l&&!/^#/.test(l));
 }
-function updReady(){ if(upd) updShow('Доступна новая версия','Сборка '+upd.latest+', '+(upd.size?Math.round(upd.size/1048576*10)/10+' МБ':''),'Обновить'); }
+function updSnoozed(){ try{ const s=JSON.parse(localStorage.getItem('upd-snooze')||'null'); return s&&upd&&s.v===upd.latest&&Date.now()<s.until; }catch(e){ return false; } }
+function updShow(title,text,btn,disabled){
+  $('#upd').hidden=false; document.body.classList.add('has-upd');
+  $('#updText').innerHTML='<b>'+esc(title)+'</b>'+(text||'');
+  $('#updBtn').textContent=btn; $('#updBtn').disabled=!!disabled; $('#updBtn').hidden=!btn;
+  $('#updX').hidden=!!updBusy;
+}
+function updHide(){ $('#upd').hidden=true; document.body.classList.remove('has-upd'); }
+function updReady(){
+  if(!upd) return;
+  $('#gearBtn').classList.add('dot'); updCardRender();
+  if(updSnoozed()){ updHide(); return; }
+  const notes=updNotes(upd.notes);
+  updShow('Версия '+verName(upd.latest)+(updFetched?' готова к установке':' доступна'), notes.length?'<span class="lnk" id="updWhat">Что нового ('+notes.length+')</span>':'', 'Обновить');
+  const w=$('#updWhat'); if(w) w.onclick=openUpdNotes;
+}
+function openUpdNotes(){
+  if(!upd) return; const n=updNotes(upd.notes);
+  $('#unTitle').textContent='Что нового в '+verName(upd.latest); $('#unList').innerHTML=n.map(x=>'<li>'+esc(x)+'</li>').join('')||'<li>Исправления и улучшения</li>';
+  $('#unGo').hidden=false; openSheet('fUpdNotes');
+}
+function updCardRender(){
+  if(!isApp) return; $('#updCard').hidden=false;
+  if(upd){ $('#updCardText').innerHTML='<b>Доступна версия '+esc(verName(upd.latest))+'</b>У вас '+esc(verName(curBuild)); $('#updCardBtn').textContent='Обновить'; }
+  else { $('#updCardText').innerHTML='<b>Органайзер '+esc(verName(curBuild))+'</b>'+(updChecking?'Проверяю обновления…':updLastCheck?'Последняя версия, проверено в '+hm(new Date(updLastCheck)):'Обновления проверяются сами'); $('#updCardBtn').textContent='Проверить'; }
+  $('#updCardBtn').disabled=updChecking;
+}
+function updCheck(manual){
+  if(!isApp||updChecking||updBusy) return; updChecking=true; manualCheck=!!manual; updCardRender();
+  try{ Android.checkUpdate(); }catch(e){ updChecking=false; }
+}
+function updInstall(){ if(!upd) return; closeSheet(); updBusy='dl'; updShow('Обновляю до '+verName(upd.latest),updFetched?'Открываю установку…':'Скачиваю…','',true); Android.installUpdate(upd.url); }
 window.onUpdateInfo=function(raw){
   let d={}; try{d=JSON.parse(raw)}catch(e){}
-  const was=manualCheck; manualCheck=false; $('#updCheck').disabled=false; $('#updCheck').textContent='Проверить обновления';
-  if(d.error){ if(was) alert('Не удалось проверить обновления. Проверьте интернет.'); return; }
-  if(d.url && d.latest>d.current){ upd=d; updReady(); try{localStorage.setItem('upd-checked',String(Date.now()))}catch(e){} }
-  else { $('#upd').hidden=true; if(was) alert('У вас последняя версия (сборка '+d.current+')'); }
+  const was=manualCheck; manualCheck=false; updChecking=false;
+  if(d.error){ updCardRender(); if(was) alert('Не удалось проверить обновления. Проверьте интернет.'); return; }
+  updLastCheck=Date.now();
+  if(d.url && d.latest>d.current){
+    const fresh=!upd||upd.latest!==d.latest; upd=d; if(fresh) updFetched=false;
+    try{ localStorage.setItem('upd-notes',JSON.stringify({v:d.latest,notes:d.notes||''})); }catch(e){}
+    if(was){ try{localStorage.removeItem('upd-snooze')}catch(e){} }
+    if(!updBusy) updReady();
+    if(!updFetched&&Android.prefetchUpdate) Android.prefetchUpdate(d.url);
+  } else { upd=null; $('#gearBtn').classList.remove('dot'); if(!updBusy) updHide(); updCardRender(); if(was) alert('У вас последняя версия '+verName(d.current)); }
 };
-window.onUpdateProgress=function(p){ updShow('Скачиваю обновление',p+'%','Загрузка…',true); };
+window.onUpdateFetched=function(ok){ updFetched=!!ok; if(upd&&!updBusy&&!$('#upd').hidden) updReady(); };
+window.onUpdateProgress=function(p){ updShow('Обновляю до '+(upd?verName(upd.latest):''),'Скачиваю… '+p+'%','',true); };
 window.onUpdateState=function(st,msg){
-  if(st==='permission'){ updBusy='perm'; updShow('Нужно разрешение','Включите «Разрешить установку» для Органайзера и вернитесь сюда','Обновить'); }
-  else if(st==='installing'){ updShow('Устанавливаю','Подтвердите установку в окне Android',''); }
-  else if(st==='cancel'){ updBusy=false; updReady(); }
-  else if(st==='done'){ updShow('Обновление установлено','',''); }
-  else if(st==='error'){ updBusy=false; updShow('Не удалось обновить',msg?(' ('+msg+')'):'', 'Ещё раз'); }
+  if(st==='permission'){ updBusy='perm'; updShow('Нужно разрешение','Включите «Разрешить установку из этого источника» и вернитесь — установка продолжится сама','Обновить'); }
+  else if(st==='installing'){ updShow('Устанавливаю','Нажмите «Обновить» в окне Android',''); }
+  else if(st==='cancel'){ updBusy=false; updFetched=false; updReady(); }
+  else if(st==='done'){ updBusy=false; updShow('Обновление установлено','',''); }
+  else if(st==='error'){ updBusy=false; updFetched=false; updShow('Не удалось обновить',esc(msg?(' ('+msg+')'):''), 'Ещё раз'); }
 };
 window.onAppResume=function(){
-  if(updBusy==='perm'&&upd){ updBusy=false; Android.installUpdate(upd.url); }
+  if(updBusy==='perm'&&upd){ updBusy='dl'; Android.installUpdate(upd.url); return; }
+  if(Date.now()-updLastCheck>20*60e3) updCheck(false);
 };
-$('#updBtn').onclick=()=>{ if(!upd) return; updShow('Скачиваю обновление','0%','Загрузка…',true); Android.installUpdate(upd.url); };
+$('#updBtn').onclick=()=>{ if(updBusy==='perm'){ updBusy=false; } updInstall(); };
+$('#updX').onclick=()=>{ if(upd){ try{ localStorage.setItem('upd-snooze',JSON.stringify({v:upd.latest,until:Date.now()+6*3600e3})); }catch(e){} } updHide(); };
+$('#unGo').onclick=updInstall; $('#unLater').onclick=closeSheet;
+$('#updCardBtn').onclick=()=>{ if(upd) updInstall(); else updCheck(true); };
 if(isApp){
-  $('#updCheck').hidden=false;
-  $('#updCheck').onclick=()=>{ manualCheck=true; $('#updCheck').disabled=true; $('#updCheck').textContent='Проверяю…'; Android.checkUpdate(); };
-  let v=0; try{v=Android.versionCode()}catch(e){}
-  $('#sync').textContent='Данные хранятся в телефоне'+(v?', сборка '+v:'');
-  setTimeout(()=>{ try{Android.checkUpdate()}catch(e){} }, 1500);
+  $('#sync').textContent='Данные хранятся в телефоне'+(curBuild?', версия '+verName(curBuild):'');
+  setTimeout(()=>updCheck(false),1500);
+  setInterval(()=>{ if(document.visibilityState==='visible') updCheck(false); },60*60e3);
+  // после обновления один раз показываем, что нового
+  try{
+    const seen=+localStorage.getItem('upd-seen')||0, saved=JSON.parse(localStorage.getItem('upd-notes')||'null');
+    if(seen&&curBuild>seen&&saved&&saved.v===curBuild){
+      const n=updNotes(saved.notes);
+      if(n.length) setTimeout(()=>{ $('#unTitle').textContent='Обновлено до '+verName(curBuild); $('#unList').innerHTML=n.map(x=>'<li>'+esc(x)+'</li>').join(''); $('#unGo').hidden=true; openSheet('fUpdNotes'); },700);
+    }
+    if(curBuild) localStorage.setItem('upd-seen',String(curBuild));
+  }catch(e){}
+  updCardRender();
 }
 if(WEB){
   if('serviceWorker' in navigator){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
