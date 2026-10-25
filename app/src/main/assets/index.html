@@ -145,6 +145,8 @@ h2{font:500 16px/1.2 "Unbounded",system-ui,sans-serif;margin:26px 0 10px;display
 .dsec.open .dfiles{display:block}
 .dfile{width:100%;border:0;background:var(--bg);border-radius:12px;display:flex;align-items:center;gap:10px;padding:10px 12px;margin-top:6px;text-align:left;color:var(--ink)}
 .dfile .tbody{min-width:0;flex:1}.dfile .ttl{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dthumb{flex:none;width:34px;height:34px;object-fit:cover;border-radius:6px;background:var(--surface)}
+.pvimg{display:block;margin:0 auto;max-width:none;height:auto;background:#fff}
 .pdfic{flex:none;font:700 10px "Unbounded",sans-serif;color:#fff;background:#E5484D;border-radius:6px;padding:7px 5px}
 .geob{display:flex;gap:8px;margin:-4px 0 8px}.geob .seg{flex:1;margin:0}
 .geomsg{font-size:13px;color:var(--muted);margin:0 2px 12px;line-height:1.4}.geomsg.ok{color:#2E9E5B}.geomsg.err{color:var(--red)}
@@ -495,7 +497,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <div class="pbtns" style="margin-top:8px"><button id="oHoursSend"><svg viewBox="0 0 24 24"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/><path d="M9 13l12-9"/></svg>Отправить в Telegram</button></div>
     </div>
     <h2 class="fold" data-sec="docs"><span class="ft"><i class="chev"></i><span>Документация</span><small class="fb" id="ofb_docs"></small></span><button class="link" id="oDocSec">Раздел</button></h2>
-    <div class="secb"><div id="oDocs"></div><input type="file" id="docPdfInput" accept="application/pdf,.pdf" multiple hidden></div>
+    <div class="secb"><div id="oDocs"></div><input type="file" id="docPdfInput" accept="application/pdf,.pdf" multiple hidden><input type="file" id="docImgInput" accept="image/*" multiple hidden><input type="file" id="docCamInput" accept="image/*" capture="environment" hidden></div>
     <div id="oPhotoBlock">
       <h2 class="fold" data-sec="photos"><span class="ft"><i class="chev"></i><span>Фото</span><small class="fb" id="ofb_photos"></small></span></h2>
       <div class="secb">
@@ -839,6 +841,16 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <input class="field" type="text" inputmode="decimal" id="hDur" placeholder="Например: 7,5">
     <input class="field" id="hNote" placeholder="Что делали (необязательно)" maxlength="160">
     <div class="actions"><button class="btn ghost" id="hDel" hidden>Удалить</button><button class="btn" id="hSave">Сохранить</button></div>
+  </div>
+
+  <div class="form" id="fDocAdd" hidden>
+    <h3>Добавить в раздел</h3>
+    <p class="meta" id="daSec" style="margin:-6px 0 14px"></p>
+    <div class="rtlist">
+      <button data-k="pdf"><span class="rtic" style="background:#E5484D;font-size:11px">PDF</span><span><b>PDF-файл</b><small>Проект, паспорт, акт</small></span></button>
+      <button data-k="img"><span class="rtic" style="background:#3E63DD">🖼</span><span><b>Фото или скриншот</b><small>Из галереи, можно несколько</small></span></button>
+      <button data-k="cam"><span class="rtic" style="background:#2E9E5B">📷</span><span><b>Сфотографировать</b><small>Схема на щите, чертёж на месте</small></span></button>
+    </div>
   </div>
 
   <div class="form" id="fRoute" hidden>
@@ -1496,14 +1508,14 @@ function renderPhotos(o){
     b.appendChild(img); b.onclick=()=>openViewer(o,p); g.appendChild(b);
   });
 }
-function shrink(file){
+function shrink(file,max,q){
   return new Promise((res,rej)=>{
     const url=URL.createObjectURL(file), img=new Image();
     img.onload=()=>{
-      const max=1600, k=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
+      max=max||1600; const k=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
       const c=document.createElement('canvas'); c.width=Math.round(img.naturalWidth*k); c.height=Math.round(img.naturalHeight*k);
       c.getContext('2d').drawImage(img,0,0,c.width,c.height); URL.revokeObjectURL(url);
-      res(c.toDataURL('image/jpeg',0.82).split(',')[1]);
+      res(c.toDataURL('image/jpeg',q||0.82).split(',')[1]);
     };
     img.onerror=()=>{URL.revokeObjectURL(url);rej()};
     img.src=url;
@@ -2245,15 +2257,15 @@ function renderDocs(o){
     const files=o.docs.filter(d=>d.sec===sec).sort((a,b)=>b.ts-a.ts);
     const w=document.createElement('div'); w.className='dsec'+(files.length&&docOpenSec[o.id+'|'+sec]!==false?' open':'');
     const h=document.createElement('div'); h.className='dsh';
-    h.innerHTML='<button class="dst"><i class="chev"></i><span>'+esc(sec)+'</span>'+(files.length?'<small>'+files.length+'</small>':'')+'</button><button class="dsadd" aria-label="Добавить PDF">+ PDF</button>';
+    h.innerHTML='<button class="dst"><i class="chev"></i><span>'+esc(sec)+'</span>'+(files.length?'<small>'+files.length+'</small>':'')+'</button><button class="dsadd" aria-label="Добавить">+ Добавить</button>';
     h.querySelector('.dst').onclick=()=>{ if(!files.length){ if(!DOC_SECS.includes(sec)&&confirm('Удалить пустой раздел «'+sec+'»?')){ o.docSecs=o.docSecs.filter(x=>x!==sec); save(); renderObject(); } return; } const op=!w.classList.contains('open'); docOpenSec[o.id+'|'+sec]=op; w.classList.toggle('open',op); };
-    h.querySelector('.dsadd').onclick=()=>{ docSecPick=sec; $('#docPdfInput').click(); };
+    h.querySelector('.dsadd').onclick=()=>{ docSecPick=sec; $('#daSec').textContent=sec; openSheet('fDocAdd'); };
     w.appendChild(h);
     const ul=document.createElement('ul'); ul.className='dfiles';
     files.forEach(d=>{
       const li=document.createElement('li'), b=document.createElement('button'); b.className='dfile';
-      b.innerHTML='<span class="pdfic">PDF</span><span class="tbody"><span class="ttl">'+esc(d.name)+'</span><span class="meta">'+esc(fmtDate(iso(new Date(d.ts)))+(d.size?', '+fmtSize(d.size):''))+'</span></span>';
-      b.onclick=()=>openPdf({id:d.id,name:d.name,onDel:()=>{ DOC.del(d.id); o.docs=o.docs.filter(x=>x!==d); save(); renderObject(); }});
+      b.innerHTML=(d.kind==='img'?'<img class="dthumb" loading="lazy" alt="" src="'+esc(PH.url(d.id))+'">':'<span class="pdfic">PDF</span>')+'<span class="tbody"><span class="ttl">'+esc(d.name)+'</span><span class="meta">'+esc(fmtDate(iso(new Date(d.ts)))+(d.size?', '+fmtSize(d.size):''))+'</span></span>';
+      b.onclick=()=>openPdf({id:d.id,name:d.name,img:d.kind==='img',onRename:nm=>{ d.name=nm; save(); renderObject(); },onDel:()=>{ if(d.kind==='img'){try{PH.del(d.id)}catch(e){}} else DOC.del(d.id); o.docs=o.docs.filter(x=>x!==d); save(); renderObject(); }});
       li.appendChild(b); ul.appendChild(li);
     });
     w.appendChild(ul); box.appendChild(w);
@@ -2283,6 +2295,27 @@ $('#docPdfInput').onchange=async e=>{
   if(bad) alert(bad===1?'Файл не похож на PDF и не добавлен':'Не добавлено файлов, не похожих на PDF: '+bad);
 };
 
+$$('#fDocAdd [data-k]').forEach(b=>b.onclick=()=>{ closeSheet(); $({pdf:'#docPdfInput',img:'#docImgInput',cam:'#docCamInput'}[b.dataset.k]).click(); });
+async function addDocImages(files){
+  const o=objById(openObjId); if(!o||!files.length) return;
+  if(!PHOTO){ alert('Фото здесь не сохраняются'); return; }
+  if(!Array.isArray(o.docs)) o.docs=[]; docSecs(o);
+  const sec=docSecPick||'Прочее'; let fail=0, n=o.docs.filter(d=>d.sec===sec&&d.kind==='img').length;
+  for(const f of files){
+    try{
+      const b64=await shrink(f,3200,0.9), id=uid();
+      if(!PH.save(id,b64)){ fail++; continue; }
+      const nm=(f.name||'').replace(/\.(jpe?g|png|heic|webp|gif)$/i,'');
+      o.docs.push({id,sec,kind:'img',name:(/^(IMG|Screenshot|image|photo|PXL|DSC)[_\-\s]?\d|^\d{6,}|^$/i.test(nm)?sec+' '+(++n):nm),size:Math.round(b64.length*0.75),ts:Date.now()});
+      docOpenSec[o.id+'|'+sec]=true;
+    }catch(e){ fail++; }
+  }
+  save(); renderObject();
+  if(fail) alert('Не удалось добавить изображений: '+fail);
+}
+$('#docImgInput').onchange=e=>{ const f=[...e.target.files]; e.target.value=''; addDocImages(f); };
+$('#docCamInput').onchange=e=>{ const f=[...e.target.files]; e.target.value=''; addDocImages(f); };
+
 /* ---------- просмотр PDF внутри приложения (pdf.js) ---------- */
 let pdfLib=null;
 function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=()=>rej(new Error('нет файла '+src)); document.head.appendChild(s); }); }
@@ -2294,9 +2327,15 @@ async function getPdfLib(){
 const PV={doc:null,cur:null,z:1,pages:[],io:null,task:0};
 function pvMsg(t){ const m=$('#pvMsg'); m.textContent=t||''; m.hidden=!t; }
 async function openPdf(o){
-  PV.cur=o; PV.z=1; PV.base=null; $('#pvTitle').textContent=o.name||'Документ'; $('#pvDel').hidden=!o.onDel; $('#pvPages').innerHTML=''; $('#pvNum').textContent='';
+  PV.cur=o; PV.z=1; PV.base=null; PV.img=null; $('#pvTitle').textContent=o.name||'Документ'; $('#pvTitle').title=o.onRename?'Нажмите, чтобы переименовать':''; $('#pvDel').hidden=!o.onDel; $('#pvPages').innerHTML=''; $('#pvNum').textContent='';
   $('#pdfv').hidden=false; pvMsg('Открываю…');
   const my=++PV.task;
+  if(o.img){
+    if(PV.doc){ try{PV.doc.destroy()}catch(e){} PV.doc=null; }
+    const im=new Image(); im.onload=()=>{ if(my!==PV.task) return; PV.img=im; PV.base={w:im.naturalWidth,h:im.naturalHeight}; pvMsg(''); pvLayout(); };
+    im.onerror=()=>{ if(my===PV.task) pvMsg('Изображение не найдено. Возможно, оно было удалено или приложение переустановлено.'); };
+    im.src=PH.url(o.id); return;
+  }
   try{
     const L=await getPdfLib();
     let bytes=o.bytes||await DOC.load(o.id);
@@ -2309,8 +2348,15 @@ async function openPdf(o){
   }catch(e){ if(my===PV.task) pvMsg(/password/i.test(e&&e.name||'')?'Документ защищён паролем — такие файлы пока не открываются.':'Не удалось открыть PDF: '+((e&&e.message)||e)); }
 }
 async function pvLayout(keep){
-  const doc=PV.doc; if(!doc) return;
+  const doc=PV.doc; if(!doc&&!PV.img) return;
   const box=$('#pvPages'), sc=$('#pvScroll'), W=sc.clientWidth-16;
+  if(PV.img){
+    const rel=keep?(sc.scrollTop+sc.clientHeight/2)/Math.max(1,sc.scrollHeight):0, relx=keep?(sc.scrollLeft+sc.clientWidth/2)/Math.max(1,sc.scrollWidth):0;
+    const fit=Math.min(W,(sc.clientHeight-16)*PV.base.w/PV.base.h), w=Math.round(Math.max(fit,Math.min(W,PV.base.w))*PV.z);
+    box.innerHTML=''; PV.img.className='pvimg'; PV.img.style.width=w+'px'; box.appendChild(PV.img); box.style.width=Math.max(w+16,sc.clientWidth)+'px';
+    if(keep){ sc.scrollTop=rel*sc.scrollHeight-sc.clientHeight/2; sc.scrollLeft=relx*sc.scrollWidth-sc.clientWidth/2; } else { sc.scrollTop=0; sc.scrollLeft=0; }
+    $('#pvNum').textContent=Math.round(PV.z*100)+'%'; return;
+  }
   const rel=keep?(sc.scrollTop+sc.clientHeight/2)/Math.max(1,sc.scrollHeight):0, relx=keep?(sc.scrollLeft+sc.clientWidth/2)/Math.max(1,sc.scrollWidth):0;
   if(PV.io) PV.io.disconnect();
   box.innerHTML=''; PV.pages=[];
@@ -2342,7 +2388,7 @@ async function pvRender(d){
   }catch(e){ d.dataset.r=''; }
 }
 function pvNum(){
-  const sc=$('#pvScroll'); if(!PV.doc) return;
+  const sc=$('#pvScroll'); if(!PV.doc){ if(PV.img) $('#pvNum').textContent=Math.round(PV.z*100)+'%'; return; }
   const mid=sc.scrollTop+sc.clientHeight/3; let n=1;
   for(const d of PV.pages){ if(d.offsetTop<=mid) n=+d.dataset.n; else break; }
   $('#pvNum').textContent=n+' / '+PV.doc.numPages;
@@ -2359,11 +2405,17 @@ $('#pvOut').onclick=()=>pvZoom(PV.z/1.5);
   sc.addEventListener('touchmove',e=>{ if(e.touches.length===2&&d0){ e.preventDefault(); const k=Math.max(1/z0,Math.min(5/z0,dist(e.touches)/d0)); box.style.transform='scale('+k+')'; } },{passive:false});
   sc.addEventListener('touchend',e=>{ if(d0&&e.touches.length<2){ const m=(box.style.transform.match(/scale\(([\d.]+)\)/)||[])[1]; box.style.transform=''; d0=0; if(m) pvZoom(z0*parseFloat(m)); } });
 })();
-window.addEventListener('resize',()=>{ if(!$('#pdfv').hidden&&PV.doc) pvLayout(true); });
-function closePdf(){ $('#pdfv').hidden=true; PV.task++; if(PV.io) PV.io.disconnect(); $('#pvPages').innerHTML=''; if(PV.doc){ try{PV.doc.destroy()}catch(e){} } PV.doc=null; PV.base=null; PV.cur=null; }
+window.addEventListener('resize',()=>{ if(!$('#pdfv').hidden&&(PV.doc||PV.img)) pvLayout(true); });
+function closePdf(){ $('#pdfv').hidden=true; PV.task++; if(PV.io) PV.io.disconnect(); $('#pvPages').innerHTML=''; if(PV.doc){ try{PV.doc.destroy()}catch(e){} } PV.doc=null; PV.img=null; PV.base=null; PV.cur=null; }
 $('#pvClose').onclick=closePdf;
-$('#pvShare').onclick=()=>{ const c=PV.cur; if(c) DOC.share(c.id,c.name||'document',c.bytes); };
-$('#pvDel').onclick=()=>{ const c=PV.cur; if(!c||!c.onDel||!confirm('Удалить документ «'+c.name+'»?')) return; const f=c.onDel; closePdf(); f(); };
+$('#pvTitle').onclick=()=>{ const c=PV.cur; if(!c||!c.onRename) return; const n=(prompt('Название',c.name||'')||'').trim().slice(0,120); if(!n||n===c.name) return; c.name=n; $('#pvTitle').textContent=n; c.onRename(n); };
+$('#pvShare').onclick=async()=>{ const c=PV.cur; if(!c) return;
+  if(!c.img){ DOC.share(c.id,c.name||'document',c.bytes); return; }
+  if(APP&&Android.sharePhoto){ Android.sharePhoto(c.id,c.name||''); return; }
+  const bl=PH.blob?await PH.blob(c.id):null; if(!bl) return; const f=new File([bl],(c.name||'image')+'.jpg',{type:'image/jpeg'});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){ try{ await navigator.share({files:[f],title:c.name}); return; }catch(e){ if(e&&e.name==='AbortError') return; } }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(f); a.download=f.name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000); };
+$('#pvDel').onclick=()=>{ const c=PV.cur; if(!c||!c.onDel||!confirm('Удалить «'+c.name+'»?')) return; const f=c.onDel; closePdf(); f(); };
 /* документация из справочника: скачиваем и открываем здесь же */
 async function openRemotePdf(url,name){
   const id='c_'+(function(s){let h=5381;for(let i=0;i<s.length;i++)h=((h*33)^s.charCodeAt(i))>>>0;return h.toString(36)})(url);
@@ -2538,7 +2590,7 @@ $('#obDel').onclick=()=>{
   const id=editing.id; state.objects=state.objects.filter(x=>x!==editing);
   state.tasks.forEach(t=>{if(t.objId===id)t.objId=''});
   (editing.photos||[]).forEach(p=>{try{PH.del(p.id)}catch(e){}});
-  (editing.docs||[]).forEach(d=>{try{DOC.del(d.id)}catch(e){}});
+  (editing.docs||[]).forEach(d=>{try{ if(d.kind==='img') PH.del(d.id); else DOC.del(d.id); }catch(e){}});
   state.hours=state.hours.filter(h=>h.objId!==id);
   if(state.timer&&state.timer.objId===id) state.timer=null;
   save(); closeSheet(); go('objects'); render();
