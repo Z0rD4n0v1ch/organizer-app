@@ -148,6 +148,17 @@ h2{font:500 16px/1.2 "Unbounded",system-ui,sans-serif;margin:26px 0 10px;display
 .eqtag.prj{background:var(--accent);color:var(--accent-ink);margin-left:0;margin-right:4px}
 .dgrp{list-style:none;font:600 12px "Golos Text",sans-serif;color:var(--accent);text-transform:none;margin:10px 4px 0;letter-spacing:.01em}
 .dgrp:first-child{margin-top:4px}
+.prjitems{margin-top:14px}
+.prjih b{display:block;font-weight:600}.prjih small{color:var(--muted);font-size:12.5px}
+.prjall{display:flex;align-items:center;gap:6px;margin:8px 0 4px;font-size:12.5px;color:var(--muted)}
+.prjall button{border:0;border-radius:9px;background:var(--bg);padding:5px 9px;font-size:12px;font-weight:500;color:var(--ink)}
+.prjit{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+.prjit .nm{flex:1;min-width:0}.prjit .nm b{display:block;font-weight:500;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prjit .nm small{display:block;color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prjit.off .nm{opacity:.45}
+.prjit .sg{display:flex;flex:none;background:var(--bg);border-radius:10px;padding:2px}
+.prjit .sg button{border:0;background:transparent;border-radius:8px;padding:6px 7px;font-size:12px;font-weight:500;color:var(--muted);min-width:34px}
+.prjit .sg button.on{background:var(--accent);color:var(--accent-ink)}
 .prjinfo{background:var(--bg);border-radius:14px;padding:10px 14px;margin:0 0 12px;font-size:13px;line-height:1.45;color:var(--muted)}.prjinfo b{color:var(--ink)}
 .prjrow{display:flex;gap:12px;align-items:flex-start;padding:10px 2px;border-bottom:1px solid var(--line)}
 .prjrow input{width:22px;height:22px;flex:none;margin-top:1px;accent-color:var(--accent)}
@@ -2731,34 +2742,53 @@ async function prjStart(o,docEntry,bytes,auto){
     if(chars<20){ $('#prjBody').innerHTML='<p>В этом PDF нет текстового слоя (скан или чертёж, где надписи сохранены линиями). Разложить его по листам автоматически не получится — добавьте нужные файлы в разделы вручную.</p>'; return; }
     const R=prjAnalyze(pages); prjCur.res=R;
     if(auto&&!R.code&&!R.equip.length&&!R.cables.length&&!R.sheets.some(s=>s.kind==='scheme'||s.kind==='pz')){ prjCur=null; closeSheet(); return; }   // не похоже на проект
-    R.equip.forEach(e=>e.match=prjMatch(e));
+    R.items=R.equip.map(e=>Object.assign(e,{part:'eq'})).concat(R.mats.map(m=>Object.assign(m,{part:'mat'})));
+    R.items.forEach(e=>{ e.match=prjMatch(e); e.cls=prjClass(e); });
+    prjCur.opts={};
     prjSummary();
   }catch(e){ $('#prjBody').innerHTML='<p>Не удалось разобрать проект: '+esc(e.message||e)+'</p>'; }
 }
+/* что считать оборудованием, а что расходником: по словам в наименовании + ваш прошлый выбор */
+const PRJ_CONS=/кронштейн|цанг|уголок|адаптер|крепл|площадк|планк|коробк|короб|дюбел|хомут|стяжк|саморез|винт|болт|гайк|шуруп|клемм|изолент|маркер|бирк|труб|гофр|кабел|провод|витая|патч|разъ[её]м|коннектор|наконечник|держател|скоб|лоток|канал|герметик|пена|гильз|муфт|сальник|переходник|кожух|козыр[её]к|рамк|подставк|набор|монтажн|заглушк|перемычк|предохранител|шина|din|дин-рейк|втулк|вставк|накладк|пластин|перфолент|изоляц|кабельн/i;
+function prjLearned(){ try{ return JSON.parse(localStorage.getItem('prj-cls')||'{}')||{}; }catch(e){ return {}; } }
+function prjClass(e){ const L=prjLearned(), k=bnorm(e.name||e.model); if(L[k]) return L[k]; return e.part==='mat'||PRJ_CONS.test(e.name||'')?'mat':'eq'; }
+function prjSplit(R){ R.equip=R.items.filter(x=>x.cls==='eq'); R.mats=R.items.filter(x=>x.cls==='mat'); }
 function prjSummary(){
-  const {o,res:R}=prjCur, groups={};
+  const {o,res:R}=prjCur, groups={}, op=prjCur.opts; prjSplit(R);
+  const bodyScroll=$('#sheet').scrollTop;
   R.sheets.forEach(s=>{ const sec=PRJ_SEC[s.kind]; if(sec){ (groups[sec]=groups[sec]||[]).push(s); } });
   const pass=R.equip.filter(e=>e.match&&e.match.d&&e.match.d.length), acts=actsBuild(R);
-  const li=(k,on,title,sub)=>'<label class="prjrow"><input type="checkbox" data-k="'+k+'"'+(on?' checked':'')+'><span><b>'+title+'</b>'+(sub?'<small>'+sub+'</small>':'')+'</span></label>';
-  let h='<div class="prjinfo">'+[R.code&&'<b>'+esc(R.code)+'</b>',R.system&&esc(R.system),R.object&&esc(R.object),R.address&&esc(R.address)].filter(Boolean).join('<br>')+'</div>';
+  const li=(k,on,title,sub)=>{ if(k in op) on=op[k]; return '<label class="prjrow"><input type="checkbox" data-k="'+k+'"'+(on?' checked':'')+'><span><b>'+title+'</b>'+(sub?'<small>'+sub+'</small>':'')+'</span></label>'; };
+  let h='';
+  const others=prjDocs(o).filter(d=>d!==prjCur.doc&&d.code!==R.code);
+  if(others.length) h+='<p class="hint" style="margin:0 0 10px">В объекте уже есть проект '+esc(others.map(d=>d.code).join(', '))+'. Разделы, оборудование и материалы будут подписаны шифром проекта, чтобы не смешивались.</p>';
+  const older=R.code?o.docs.filter(d=>d!==prjCur.doc&&d.code===R.code):[];
+  if(older.length) h+=li('replace',true,'Это новая версия проекта '+esc(R.code),'Убрать разобранное из «'+esc(older.map(d=>d.name).join('», «'))+'»: ссылки на листы, паспорта, бланки и позиции оборудования и материалов, которые вы ещё не меняли. Сам старый PDF останется.');
+  h+='<div class="prjinfo">'+[R.code&&'<b>'+esc(R.code)+'</b>',R.system&&esc(R.system),R.object&&esc(R.object),R.address&&esc(R.address)].filter(Boolean).join('<br>')+'</div>';
   const sheetSub=Object.keys(groups).map(s=>'<b>'+esc(s)+':</b> '+esc(groups[s].map(x=>x.title).join(', '))).join('<br>');
   h+=li('sheets',R.sheets.some(s=>PRJ_SEC[s.kind]),'Разложить листы по разделам ('+R.sheets.filter(s=>PRJ_SEC[s.kind]).length+')',sheetSub||'листы не распознаны');
-  h+=li('pass',pass.length,'Паспорта и сертификаты ('+pass.length+' из '+R.equip.length+')',R.equip.length?esc(pass.map(e=>e.model).join(', ')||'')+(R.equip.length>pass.length?'<br>Нет в справочнике: '+esc(R.equip.filter(e=>!(e.match&&e.match.d&&e.match.d.length)).map(e=>e.model||e.name).join(', ')):''):'спецификация не найдена');
+  h+=li('pass',pass.length,'Паспорта и сертификаты ('+pass.length+' из '+R.equip.length+')',R.equip.length?esc(pass.map(e=>e.model).join(', ')||'')+(R.equip.length>pass.length?'<br>Нет в справочнике: '+esc(R.equip.filter(e=>!(e.match&&e.match.d&&e.match.d.length)).map(e=>e.model||e.name).join(', ')):''):'оборудование не выбрано');
   h+=li('acts',true,'Бланки актов и протоколов ('+acts.length+')',esc(acts.map(a=>a.name).join(', ')));
-  const newEq=R.equip.filter(e=>!o.equip.some(x=>(x.src===prjCur.doc.id||(!x.src&&/по спецификации/.test(x.note||'')))&&bnorm(x.name)===bnorm(e.model||e.name)));
-  h+=li('equip',newEq.length,'Оборудование объекта ('+newEq.length+')',R.equip.length?esc(R.equip.map(e=>(e.model||e.name)+' — '+e.qty+' '+e.unit).join('; ')):'спецификация не найдена');
-  const matTxt=m=>[m.name,m.model].filter(Boolean).join(' '); const newMat=R.mats.filter(m=>!o.mats.some(x=>(x.src===prjCur.doc.id||!x.src)&&x.text.startsWith(matTxt(m))));
-  h+=li('mats',newMat.length,'Материалы объекта ('+newMat.length+')',esc(R.mats.map(m=>m.name+' '+m.model+' — '+m.qty+' '+m.unit).join('; ')));
   if(R.address&&!o.addr) h+=li('addr',true,'Адрес объекта',esc(R.address));
-  const older=R.code?o.docs.filter(d=>d!==prjCur.doc&&d.code===R.code):[];
-  if(older.length) h=li('replace',true,'Это новая версия проекта '+esc(R.code),'Убрать разобранное из «'+esc(older.map(d=>d.name).join('», «'))+'»: ссылки на листы, паспорта, бланки и позиции оборудования и материалов, которые вы ещё не меняли. Сам старый PDF останется.')+h;
-  const others=prjDocs(o).filter(d=>d!==prjCur.doc&&d.code!==R.code);
-  if(others.length) h='<p class="hint" style="margin:0 0 10px">В объекте уже есть проект '+esc(others.map(d=>d.code).join(', '))+'. Разделы, оборудование и материалы будут подписаны шифром проекта, чтобы не смешивались.</p>'+h;
-  $('#prjBody').innerHTML=h; $('#prjGo').hidden=false;
+  // позиции спецификации: выбор, куда добавить каждую
+  if(R.items.length){
+    const n=c=>R.items.filter(x=>x.cls===c).length;
+    h+='<div class="prjitems"><div class="prjih"><b>Позиции спецификации ('+R.items.length+')</b><small>Оборудование: '+n('eq')+' · Материалы: '+n('mat')+' · Не добавлять: '+n('no')+'</small></div>';
+    h+='<div class="prjall"><span>Всем:</span><button data-all="eq">Обор.</button><button data-all="mat">Матер.</button><button data-all="no">—</button></div>';
+    R.items.forEach((e,i)=>{ h+='<div class="prjit'+(e.cls==='no'?' off':'')+'"><span class="nm">'+((e.part==='mat'||!e.model)?'<b>'+esc(e.name||e.model)+'</b><small>'+esc([e.model,(e.qty?e.qty+' '+e.unit:'')].filter(Boolean).join(' · ')):'<b>'+esc(e.model)+'</b><small>'+esc([e.name,(e.qty?e.qty+' '+e.unit:'')].filter(Boolean).join(' · ')))+'</small></span><span class="sg">'+
+      [['eq','Обор.'],['mat','Матер.'],['no','—']].map(([c,l])=>'<button data-i="'+i+'" data-c="'+c+'" class="'+(e.cls===c?'on':'')+'" title="'+({eq:'В оборудование объекта',mat:'В материалы объекта',no:'Не добавлять'})[c]+'">'+l+'</button>').join('')+'</span></div>'; });
+    h+='<p class="hint" style="margin:8px 2px 0">Выбор запоминается: в следующих проектах такие позиции распределятся так же.</p></div>';
+  }
+  $('#prjBody').innerHTML=h; $('#prjGo').hidden=false; $('#sheet').scrollTop=bodyScroll;
+  $$('#prjBody input[data-k]').forEach(c=>c.onchange=()=>{ op[c.dataset.k]=c.checked; });
+  $$('#prjBody .prjit [data-i]').forEach(b=>b.onclick=()=>{ const it=R.items[+b.dataset.i]; it.cls=b.dataset.c; prjRemember(it); prjSummary(); });
+  $$('#prjBody [data-all]').forEach(b=>b.onclick=()=>{ R.items.forEach(it=>{ it.cls=b.dataset.all; }); prjSummary(); });
 }
+function prjRemember(it){ const L=prjLearned(); L[bnorm(it.name||it.model)]=it.cls; try{ localStorage.setItem('prj-cls',JSON.stringify(L)); }catch(e){} }
 $('#prjGo').onclick=async()=>{
   if(!prjCur||!prjCur.res) return;
-  const {o,doc:pd,res:R}=prjCur, on=k=>{ const c=$('#prjBody [data-k="'+k+'"]'); return c&&c.checked; };
+  const {o,doc:pd,res:R}=prjCur, on=k=>{ if(k==='equip'||k==='mats') return true; const c=$('#prjBody [data-k="'+k+'"]'); return c&&c.checked; };
+  prjSplit(R);
   const b=$('#prjGo'); b.disabled=true; b.textContent='Заполняю…';
   try{
     pd.code=R.code||pd.code||''; pd.sys=R.system||'';
@@ -2794,6 +2824,10 @@ $('#prjGo').onclick=async()=>{
         if(await DOC.save(id,bytes)) push({id,sec,name:a.name,size:bytes.length,gen:1}); }
       docOpenSec[o.id+'|'+sec]=true;
     }
+    // повторный разбор: позиции, которые теперь «не добавлять» или перенесены, убираем (если вы их не меняли)
+    const eqKeep=new Set(R.equip.map(e=>bnorm(e.model||e.name))), matKeep=R.mats.map(m=>[m.name,m.model].filter(Boolean).join(' '));
+    o.equip=o.equip.filter(x=>!(x.src===pd.id&&!eqKeep.has(bnorm(x.name))&&!x.serial&&!x.ip&&!x.place&&!x.login&&!x.pass));
+    o.mats=o.mats.filter(x=>!(x.src===pd.id&&!x.done&&!matKeep.some(tx=>x.text.startsWith(tx))));
     if(on('equip')) R.equip.forEach(e=>{ const nm=e.model||e.name; if(o.equip.some(x=>x.src===pd.id&&bnorm(x.name)===bnorm(nm))) return;
       o.equip.push({id:uid(),name:nm,place:'',serial:'',ip:'',login:'',pass:'',note:[e.name,(e.qty?e.qty+' '+e.unit:''),e.vendor].filter(Boolean).join(' · ')+' (по спецификации'+(R.code?' '+R.code:'')+')',dev:e.match?devRef(e.match):'',bolid:'',src:pd.id}); });
     if(on('mats')) R.mats.forEach(m=>{ const tx=[m.name,m.model].filter(Boolean).join(' '); if(o.mats.some(x=>x.src===pd.id&&x.text.startsWith(tx))) return; o.mats.push({id:uid(),text:tx+(m.qty?', '+m.qty+' '+m.unit:''),done:false,src:pd.id}); });
