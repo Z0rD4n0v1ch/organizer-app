@@ -146,6 +146,8 @@ h2{font:500 16px/1.2 "Unbounded",system-ui,sans-serif;margin:26px 0 10px;display
 .dfile{width:100%;border:0;background:var(--bg);border-radius:12px;display:flex;align-items:center;gap:10px;padding:10px 12px;margin-top:6px;text-align:left;color:var(--ink)}
 .dfile .tbody{min-width:0;flex:1}.dfile .ttl{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pdfic{flex:none;font:700 10px "Unbounded",sans-serif;color:#fff;background:#E5484D;border-radius:6px;padding:7px 5px}
+.geob{display:flex;gap:8px;margin:-4px 0 8px}.geob .seg{flex:1;margin:0}
+.geomsg{font-size:13px;color:var(--muted);margin:0 2px 12px;line-height:1.4}.geomsg.ok{color:#2E9E5B}.geomsg.err{color:var(--red)}
 .rtlist{display:flex;flex-direction:column;gap:8px}
 .rtlist button{display:flex;align-items:center;gap:14px;border:0;border-radius:16px;background:var(--bg);padding:12px 14px;text-align:left;color:var(--ink)}
 .rtlist b{display:block;font-weight:600}.rtlist small{color:var(--muted);font-size:13px}
@@ -695,6 +697,9 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <h3 id="fObjTitle">Новый объект</h3>
     <input class="field" id="obName" placeholder="Название, например: Школа №12" maxlength="120">
     <input class="field" id="obAddr" placeholder="Адрес" maxlength="200">
+    <input class="field" id="obGeo" placeholder="Координаты: 52.6123, 38.5012 (необязательно)" maxlength="300" autocomplete="off">
+    <div class="geob"><button type="button" class="seg" id="obGeoHere">📍 Я на объекте</button><button type="button" class="seg" id="obGeoAddr">Найти по адресу</button></div>
+    <p class="geomsg" id="obGeoMsg" hidden></p>
     <div class="two">
       <input class="field" id="obContact" placeholder="Контакт (заказчик)" maxlength="80">
       <input class="field" id="obPhone" type="tel" placeholder="Телефон" maxlength="30">
@@ -1376,10 +1381,11 @@ function renderObject(){
   $('#oName').textContent=o.name;
   const st=$('#oStatus'); st.className='badge '+o.status; st.textContent=STATUS[o.status];
   const call=$('#oCall'); if(o.phone){call.href='tel:'+o.phone.replace(/[^\d+]/g,'');call.removeAttribute('aria-disabled')}else{call.removeAttribute('href');call.setAttribute('aria-disabled','true')}
-  const route=$('#oRoute'); if(o.addr){route.href='#';route.removeAttribute('aria-disabled')}else{route.removeAttribute('href');route.setAttribute('aria-disabled','true')}
+  const route=$('#oRoute'); if(o.addr||o.geo){route.href='#';route.removeAttribute('aria-disabled')}else{route.removeAttribute('href');route.setAttribute('aria-disabled','true')}
   const rows=[];
   if(o.addr) rows.push(['Адрес',o.addr]);
   if(o.contact||o.phone) rows.push(['Контакт',[o.contact,o.phone].filter(Boolean).join(', ')]);
+  if(o.geo) rows.push(['Координаты',geoStr(o.geo)]);
   if(o.deadline) rows.push(['Срок сдачи',fmtDate(o.deadline)]);
   $('#oInfo').innerHTML=rows.map(r=>'<div><dt>'+esc(r[0])+'</dt><dd>'+esc(r[1])+'</dd></div>').join('');
   $('#oInfo').hidden=!rows.length;
@@ -2092,19 +2098,74 @@ function objBadges(o){
   ofb('note',(o.note||'').trim()?'есть запись':'');
 }
 
+/* ---------- координаты объекта ---------- */
+const r6=x=>Math.round(x*1e6)/1e6;
+function geoStr(g){ return g.lat.toFixed(6).replace(/0+$/,'')+', '+g.lon.toFixed(6).replace(/0+$/,''); }
+function parseGeo(s){
+  s=String(s||'').trim(); if(!s) return null;
+  try{ s=decodeURIComponent(s); }catch(e){}
+  let swap=false, m;
+  // ссылки: Яндекс (ll=, pt=, whatshere[point]=) и 2ГИС (m=, /geo/) пишут долготу первой
+  if((m=s.match(/(?:[?&](?:ll|pt|whatshere\[point\])=|[?&]m=|\/geo\/)(-?\d+\.\d+)[,%2C]+(-?\d+\.\d+)/i))){ swap=true; }
+  else if((m=s.match(/rtext=[^&]*~(-?\d+\.\d+),(-?\d+\.\d+)/))){ }
+  else m=s.match(/(-?\d{1,3}(?:[.,]\d+)?)°?\s*[NnСс]?[\s,;]+(-?\d{1,3}(?:[.,]\d+)?)/);
+  if(!m) return null;
+  let a=parseFloat(m[1].replace(',','.')), b=parseFloat(m[2].replace(',','.'));
+  if(swap) [a,b]=[b,a];
+  if(!(Math.abs(a)<=90&&Math.abs(b)<=180)) return null;
+  if(a===0&&b===0) return null;
+  return {lat:r6(a),lon:r6(b)};
+}
+function geoMsg(t,cls){ const el=$('#obGeoMsg'); el.textContent=t||''; el.className='geomsg'+(cls?' '+cls:''); el.hidden=!t; }
+let geoSeq=0; const geoCb={};
+window.onGeo=function(id,lat,lon,acc,err){ const f=geoCb[id]; delete geoCb[id]; if(f) f(err?{err}:{lat,lon,acc}); };
+function getHere(){
+  return new Promise(res=>{
+    if(APP&&Android.getLocation){ const id='g'+(++geoSeq); geoCb[id]=res; Android.getLocation(id); return; }
+    if(!navigator.geolocation){ res({err:'Геолокация недоступна в этом браузере'}); return; }
+    navigator.geolocation.getCurrentPosition(p=>res({lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy}),
+      e=>res({err:e.code===1?'Нет разрешения на геолокацию. Разрешите её для сайта в настройках Safari.':'Не удалось определить место'}),{enableHighAccuracy:true,timeout:30000,maximumAge:60000});
+  });
+}
+$('#obGeoHere').onclick=async()=>{
+  const b=$('#obGeoHere'); b.disabled=true; geoMsg('Определяю место… на улице это быстрее');
+  const r=await getHere(); b.disabled=false;
+  if(r.err){ geoMsg(r.err,'err'); return; }
+  $('#obGeo').value=geoStr({lat:r6(r.lat),lon:r6(r.lon)}); geoMsg('Записал текущее место'+(r.acc?', точность ~'+Math.round(r.acc)+' м':'')+'. Не забудьте «Сохранить».','ok');
+};
+$('#obGeoAddr').onclick=async()=>{
+  const a=$('#obAddr').value.trim(); if(!a){ geoMsg('Сначала впишите адрес','err'); $('#obAddr').focus(); return; }
+  const b=$('#obGeoAddr'); b.disabled=true; geoMsg('Ищу адрес на карте…');
+  try{
+    const r=await httpGet('https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=ru,by,kz&accept-language=ru&q='+encodeURIComponent(a));
+    if(r.code!==200) throw new Error(r.code===-1?'нет интернета':'сервис ответил '+r.code);
+    const j=JSON.parse(r.body)[0];
+    if(!j){ geoMsg('Адрес не найден. Уточните его или нажмите «Я на объекте», когда будете на месте.','err'); return; }
+    $('#obGeo').value=geoStr({lat:r6(+j.lat),lon:r6(+j.lon)});
+    geoMsg('Найдено: '+j.display_name.split(', ').slice(0,4).join(', ')+'. Проверьте, что это нужное место.','ok');
+  }catch(e){ geoMsg('Не удалось найти: '+e.message,'err'); }
+  finally{ b.disabled=false; }
+};
+$('#obGeo').addEventListener('input',()=>{ const v=$('#obGeo').value.trim(); if(!v){geoMsg('');return} const g=parseGeo(v); geoMsg(g?'Координаты: '+geoStr(g):'Не понял координаты. Пример: 52.6123, 38.5012',g?'ok':'err'); });
+
 /* ---------- маршрут: выбор приложения ---------- */
-function routeUrls(app,addr){
+function routeUrls(app,addr,g){
+  if(g){ const la=g.lat, lo=g.lon;
+    if(app==='navi') return {app:'yandexnavi://build_route_on_map?lat_to='+la+'&lon_to='+lo, web:'https://yandex.ru/maps/?mode=routes&rtt=auto&rtext=~'+la+','+lo};
+    if(app==='ymaps') return {app:'yandexmaps://maps.yandex.ru/?mode=routes&rtt=auto&rtext=~'+la+','+lo, web:'https://yandex.ru/maps/?mode=routes&rtt=auto&rtext=~'+la+','+lo};
+    return {app:'dgis://2gis.ru/routeSearch/rsType/car/to/'+lo+','+la, web:'https://2gis.ru/routeSearch/rsType/car/to/'+lo+','+la};
+  }
   const q=encodeURIComponent(addr);
   if(app==='navi') return {app:'yandexnavi://map_search?text='+q, web:'https://yandex.ru/maps/?mode=routes&rtt=auto&rtext=~'+q};
   if(app==='ymaps') return {app:'yandexmaps://maps.yandex.ru/?mode=routes&rtt=auto&rtext=~'+q, web:'https://yandex.ru/maps/?mode=routes&rtt=auto&rtext=~'+q};
   return {app:'dgis://2gis.ru/search/'+q, web:'https://2gis.ru/search/'+q};
 }
 $('#oRoute').onclick=e=>{
-  e.preventDefault(); const o=objById(openObjId); if(!o||!o.addr) return;
-  $('#rtAddr').textContent=o.addr; openSheet('fRoute');
+  e.preventDefault(); const o=objById(openObjId); if(!o||!(o.addr||o.geo)) return;
+  $('#rtAddr').textContent=o.geo?((o.addr?o.addr+'. ':'')+'Маршрут сразу строится по координатам'):(o.addr+'. Укажите координаты объекта, чтобы Навигатор и 2ГИС сразу строили маршрут'); openSheet('fRoute');
 };
 $$('#fRoute [data-app]').forEach(b=>b.onclick=()=>{
-  const o=objById(openObjId); if(!o||!o.addr) return; const u=routeUrls(b.dataset.app,o.addr); closeSheet();
+  const o=objById(openObjId); if(!o||!(o.addr||o.geo)) return; const u=routeUrls(b.dataset.app,o.addr,o.geo); closeSheet();
   if(APP){ location.href=u.app; return; }   // нет приложения — Android откроет страницу в Google Play
   // веб-версия (iPhone): пробуем приложение, если не открылось — сайт
   let left=false; const vis=()=>{ if(document.hidden) left=true; }; document.addEventListener('visibilitychange',vis);
@@ -2455,7 +2516,7 @@ const syncStatus=segGroup('#obStatus','st',()=>fStatus,v=>fStatus=v);
 function openObj(o){
   editing=o||null;
   $('#fObjTitle').textContent=o?'Объект':'Новый объект';
-  $('#obName').value=o?o.name:''; $('#obAddr').value=o?o.addr||'':'';
+  $('#obName').value=o?o.name:''; $('#obAddr').value=o?o.addr||'':''; $('#obGeo').value=o&&o.geo?geoStr(o.geo):''; geoMsg('');
   $('#obContact').value=o?o.contact||'':''; $('#obPhone').value=o?o.phone||'':'';
   $('#obSysOther').value=o?o.sysOther||'':''; $('#obDeadline').value=o?o.deadline||'':'';
   fSys=o?o.systems.slice():[]; fStatus=o?o.status:'plan'; syncSys(); syncStatus();
@@ -2465,6 +2526,9 @@ $('#obSave').onclick=()=>{
   const name=$('#obName').value.trim(); if(!name){$('#obName').focus();return}
   const data={name,addr:$('#obAddr').value.trim(),contact:$('#obContact').value.trim(),phone:$('#obPhone').value.trim(),
     systems:fSys,sysOther:$('#obSysOther').value.trim(),status:fStatus,deadline:$('#obDeadline').value};
+  const gs=$('#obGeo').value.trim(), g=parseGeo(gs);
+  if(gs&&!g){ geoMsg('Не понял координаты. Пример: 52.6123, 38.5012','err'); $('#obGeo').focus(); return; }
+  data.geo=g||null;
   if(editing) Object.assign(editing,data);
   else{const o=Object.assign({id:uid(),mats:[],photos:[],equip:[],checks:[],note:''},data);state.objects.push(o);save();render();closeSheet();showObject(o.id);return}
   save();render();closeSheet();

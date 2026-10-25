@@ -51,6 +51,8 @@ public class MainActivity extends Activity {
     private static final int REQ_OPEN = 2;
     private static final int REQ_CAMERA = 3;
     private static final int REQ_NOTIF = 4;
+    private static final int REQ_GEO = 5;
+    private String geoPending;
 
     private WebView web;
     private String pendingBackup;
@@ -300,6 +302,18 @@ public class MainActivity extends Activity {
                 } catch (Exception e) {
                     Toast.makeText(MainActivity.this, "Нет приложения для отправки", Toast.LENGTH_SHORT).show();
                 }
+            });
+        }
+
+        /* ---- геолокация ---- */
+        @JavascriptInterface
+        public void getLocation(final String id) {
+            runOnUiThread(() -> {
+                if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                        && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                    geoPending = id;
+                    requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, REQ_GEO);
+                } else locate(id);
             });
         }
 
@@ -681,6 +695,70 @@ public class MainActivity extends Activity {
                 }
             }).start();
         }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQ_GEO && geoPending != null) {
+            String id = geoPending;
+            geoPending = null;
+            boolean ok = false;
+            for (int g : grantResults) if (g == PackageManager.PERMISSION_GRANTED) ok = true;
+            if (ok) locate(id);
+            else geoResult(id, 0, 0, 0, "Нет разрешения на геолокацию. Его можно включить в настройках приложения.");
+        }
+    }
+
+    /* ---------- текущее местоположение (координаты объекта) ---------- */
+    private void geoResult(String id, double lat, double lon, float acc, String err) {
+        callJs("window.onGeo && window.onGeo(" + JSONObject.quote(id) + "," + lat + "," + lon + "," + acc + "," + JSONObject.quote(err) + ")");
+    }
+
+    @SuppressWarnings("MissingPermission")
+    private void locate(final String id) {
+        final android.location.LocationManager lm = (android.location.LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        final java.util.List<String> provs = new java.util.ArrayList<>();
+        try {
+            if (lm.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)) provs.add(android.location.LocationManager.GPS_PROVIDER);
+            if (lm.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)) provs.add(android.location.LocationManager.NETWORK_PROVIDER);
+        } catch (Exception ignored) { }
+        if (provs.isEmpty()) { geoResult(id, 0, 0, 0, "Включите геолокацию (GPS) в настройках телефона"); return; }
+        final boolean[] done = {false};
+        final android.os.Handler h = new android.os.Handler(getMainLooper());
+        final android.location.LocationListener l = new android.location.LocationListener() {
+            @Override public void onLocationChanged(android.location.Location loc) {
+                if (done[0]) return;
+                if (loc.hasAccuracy() && loc.getAccuracy() > 100 && android.location.LocationManager.NETWORK_PROVIDER.equals(loc.getProvider())) return; // ждём точнее
+                done[0] = true;
+                try { lm.removeUpdates(this); } catch (Exception ignored) { }
+                geoResult(id, loc.getLatitude(), loc.getLongitude(), loc.hasAccuracy() ? loc.getAccuracy() : 0, "");
+            }
+            @Override public void onStatusChanged(String p, int s, Bundle b) { }
+            @Override public void onProviderEnabled(String p) { }
+            @Override public void onProviderDisabled(String p) { }
+        };
+        try {
+            for (String p : provs) lm.requestLocationUpdates(p, 0, 0, l, getMainLooper());
+        } catch (SecurityException e) {
+            geoResult(id, 0, 0, 0, "Нет разрешения на геолокацию");
+            return;
+        }
+        h.postDelayed(() -> {
+            if (done[0]) return;
+            done[0] = true;
+            try { lm.removeUpdates(l); } catch (Exception ignored) { }
+            android.location.Location best = null;
+            for (String p : provs) {
+                try {
+                    android.location.Location x = lm.getLastKnownLocation(p);
+                    if (x != null && (best == null || x.getTime() > best.getTime())) best = x;
+                } catch (Exception ignored) { }
+            }
+            if (best != null && System.currentTimeMillis() - best.getTime() < 10 * 60 * 1000)
+                geoResult(id, best.getLatitude(), best.getLongitude(), best.hasAccuracy() ? best.getAccuracy() : 0, "");
+            else geoResult(id, 0, 0, 0, "Не удалось определить место. Выйдите на открытое место и попробуйте ещё раз.");
+        }, 30000);
     }
 
     @Override
