@@ -2476,17 +2476,31 @@ async function openPdf(o){
     PV.doc=doc; pvMsg(''); await pvLayout();
   }catch(e){ if(my===PV.task) pvMsg(/password/i.test(e&&e.name||'')?'Документ защищён паролем — такие файлы пока не открываются.':'Не удалось открыть PDF: '+((e&&e.message)||e)); }
 }
+/* точка документа под пальцем: номер страницы и доля внутри неё — чтобы после масштаба вернуть её на то же место экрана */
+function pvEls(){ return PV.img?[PV.img]:PV.pages; }
+function pvAnchor(cx,cy){
+  const sc=$('#pvScroll'), r=sc.getBoundingClientRect(), els=pvEls(); if(!els.length) return null;
+  let best=0, bd=1e9;
+  els.forEach((el,i)=>{ const er=el.getBoundingClientRect(); const d=cy<er.top?er.top-cy:cy>er.bottom?cy-er.bottom:0; if(d<bd){bd=d;best=i;} });
+  const er=els[best].getBoundingClientRect();
+  return {i:best, fx:Math.max(0,Math.min(1,(cx-er.left)/er.width)), fy:Math.max(0,Math.min(1,(cy-er.top)/er.height)), x:cx-r.left, y:cy-r.top};
+}
+function pvApplyAnchor(a){
+  if(!a) return; const sc=$('#pvScroll'), r=sc.getBoundingClientRect(), el=pvEls()[a.i]; if(!el) return;
+  const er=el.getBoundingClientRect();
+  sc.scrollTop+=(er.top+a.fy*er.height)-(r.top+a.y);
+  sc.scrollLeft+=(er.left+a.fx*er.width)-(r.left+a.x);
+}
 async function pvLayout(keep){
   const doc=PV.doc; if(!doc&&!PV.img) return;
   const box=$('#pvPages'), sc=$('#pvScroll'), W=sc.clientWidth-16;
+  if(keep===true){ const r=sc.getBoundingClientRect(); keep=pvAnchor(r.left+r.width/2,r.top+r.height/2); }
   if(PV.img){
-    const rel=keep?(sc.scrollTop+sc.clientHeight/2)/Math.max(1,sc.scrollHeight):0, relx=keep?(sc.scrollLeft+sc.clientWidth/2)/Math.max(1,sc.scrollWidth):0;
     const fit=Math.min(W,(sc.clientHeight-16)*PV.base.w/PV.base.h), w=Math.round(Math.max(fit,Math.min(W,PV.base.w))*PV.z);
     box.innerHTML=''; PV.img.className='pvimg'; PV.img.style.width=w+'px'; box.appendChild(PV.img); box.style.width=Math.max(w+16,sc.clientWidth)+'px';
-    if(keep){ sc.scrollTop=rel*sc.scrollHeight-sc.clientHeight/2; sc.scrollLeft=relx*sc.scrollWidth-sc.clientWidth/2; } else { sc.scrollTop=0; sc.scrollLeft=0; }
+    if(keep) pvApplyAnchor(keep); else { sc.scrollTop=0; sc.scrollLeft=0; }
     $('#pvNum').textContent=Math.round(PV.z*100)+'%'; return;
   }
-  const rel=keep?(sc.scrollTop+sc.clientHeight/2)/Math.max(1,sc.scrollHeight):0, relx=keep?(sc.scrollLeft+sc.clientWidth/2)/Math.max(1,sc.scrollWidth):0;
   if(PV.io) PV.io.disconnect();
   box.innerHTML=''; PV.pages=[];
   if(!PV.base){ const p1=await doc.getPage(1); const v=p1.getViewport({scale:1}); PV.base={w:v.width,h:v.height}; }
@@ -2498,7 +2512,7 @@ async function pvLayout(keep){
   box.style.width=Math.round(W*PV.z+16)+'px';
   PV.io=new IntersectionObserver(es=>es.forEach(en=>{ const d=en.target; if(en.isIntersecting) pvRender(d); else if(d.firstChild){ d.innerHTML=''; d.dataset.r=''; } }),{root:sc,rootMargin:'150% 50%'});
   PV.pages.forEach(d=>PV.io.observe(d));
-  if(keep){ sc.scrollTop=rel*sc.scrollHeight-sc.clientHeight/2; sc.scrollLeft=relx*sc.scrollWidth-sc.clientWidth/2; } else { sc.scrollTop=0; sc.scrollLeft=0; }
+  if(keep) pvApplyAnchor(keep); else { sc.scrollTop=0; sc.scrollLeft=0; }
   pvNum();
 }
 async function pvRender(d){
@@ -2523,16 +2537,55 @@ function pvNum(){
   $('#pvNum').textContent=n+' / '+PV.doc.numPages;
 }
 $('#pvScroll').addEventListener('scroll',()=>pvNum(),{passive:true});
-function pvZoom(z){ z=Math.max(1,Math.min(5,z)); if(Math.abs(z-PV.z)<.01) return; PV.z=z; pvLayout(true); }
+function pvZoom(z,anchor){ z=Math.max(1,Math.min(6,z)); if(Math.abs(z-PV.z)<.01){ if(anchor&&anchor.moved) pvApplyAnchor(anchor); return; } PV.z=z; pvLayout(anchor||true); }
 $('#pvIn').onclick=()=>pvZoom(PV.z*1.5);
 $('#pvOut').onclick=()=>pvZoom(PV.z/1.5);
-(function(){ // щипок двумя пальцами и двойное касание
-  const sc=$('#pvScroll'), box=$('#pvPages'); let d0=0, z0=1, last=0;
-  const dist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
-  sc.addEventListener('touchstart',e=>{ if(e.touches.length===2){ d0=dist(e.touches); z0=PV.z; box.style.transformOrigin=((e.touches[0].clientX+e.touches[1].clientX)/2+sc.scrollLeft)+'px '+((e.touches[0].clientY+e.touches[1].clientY)/2-sc.getBoundingClientRect().top+sc.scrollTop)+'px'; }
-    else if(e.touches.length===1){ const t=Date.now(); if(t-last<300){ e.preventDefault(); pvZoom(PV.z>1.2?1:2.5); last=0; } else last=t; } },{passive:false});
-  sc.addEventListener('touchmove',e=>{ if(e.touches.length===2&&d0){ e.preventDefault(); const k=Math.max(1/z0,Math.min(5/z0,dist(e.touches)/d0)); box.style.transform='scale('+k+')'; } },{passive:false});
-  sc.addEventListener('touchend',e=>{ if(d0&&e.touches.length<2){ const m=(box.style.transform.match(/scale\(([\d.]+)\)/)||[])[1]; box.style.transform=''; d0=0; if(m) pvZoom(z0*parseFloat(m)); } });
+(function(){ // щипок двумя пальцами (точка между пальцами остаётся на месте) и двойное касание
+  const sc=$('#pvScroll'), box=$('#pvPages');
+  let pin=null, tap=null, lastTap=null, multi=false;
+  const mid=ts=>({x:(ts[0].clientX+ts[1].clientX)/2, y:(ts[0].clientY+ts[1].clientY)/2});
+  const dist=ts=>Math.hypot(ts[0].clientX-ts[1].clientX,ts[0].clientY-ts[1].clientY)||1;
+  sc.addEventListener('touchstart',e=>{
+    if(e.touches.length>=2){
+      multi=true; tap=null; lastTap=null; e.preventDefault();
+      const m=mid(e.touches), br=box.getBoundingClientRect();
+      pin={d0:dist(e.touches), m0:m, m:m, k:1, a:pvAnchor(m.x,m.y)};
+      box.style.transformOrigin=(m.x-br.left)+'px '+(m.y-br.top)+'px';
+    } else if(e.touches.length===1){ // новый жест одним пальцем: прошлый щипок точно закончился
+      if(pin) endPinch(); multi=false;
+      tap={x:e.touches[0].clientX, y:e.touches[0].clientY, t:Date.now(), moved:false};
+    }
+  },{passive:false});
+  sc.addEventListener('touchmove',e=>{
+    if(pin&&e.touches.length>=2){
+      e.preventDefault();
+      const m=mid(e.touches); pin.m=m;
+      pin.k=Math.max(1/PV.z,Math.min(6/PV.z,dist(e.touches)/pin.d0));
+      box.style.transform='translate('+(m.x-pin.m0.x)+'px,'+(m.y-pin.m0.y)+'px) scale('+pin.k+')';
+    } else if(tap&&e.touches.length===1){
+      if(Math.hypot(e.touches[0].clientX-tap.x,e.touches[0].clientY-tap.y)>12) tap.moved=true;
+    }
+  },{passive:false});
+  function endPinch(){
+    const p=pin; pin=null; box.style.transform=''; box.style.transformOrigin='';
+    if(!p||!p.a) return;
+    const r=sc.getBoundingClientRect(); p.a.x=p.m.x-r.left; p.a.y=p.m.y-r.top; p.a.moved=true;
+    pvZoom(PV.z*p.k,p.a);
+  }
+  sc.addEventListener('touchend',e=>{
+    if(pin&&e.touches.length<2) endPinch();
+    if(e.touches.length===0){
+      if(tap&&!tap.moved&&!multi&&Date.now()-tap.t<300){
+        const now=Date.now();
+        if(lastTap&&now-lastTap.t<350&&Math.hypot(tap.x-lastTap.x,tap.y-lastTap.y)<40){
+          e.preventDefault(); lastTap=null;
+          pvZoom(PV.z>1.2?1:2.5,pvAnchor(tap.x,tap.y));
+        } else lastTap={x:tap.x,y:tap.y,t:now};
+      } else lastTap=null;
+      tap=null; multi=false;
+    }
+  },{passive:false});
+  sc.addEventListener('touchcancel',()=>{ if(pin) endPinch(); tap=null; multi=false; lastTap=null; });
 })();
 window.addEventListener('resize',()=>{ if(!$('#pdfv').hidden&&(PV.doc||PV.img)) pvLayout(true); });
 function closePdf(){ $('#pdfv').hidden=true; PV.task++; if(PV.io) PV.io.disconnect(); $('#pvPages').innerHTML=''; if(PV.doc){ try{PV.doc.destroy()}catch(e){} } PV.doc=null; PV.img=null; PV.base=null; PV.cur=null; }
