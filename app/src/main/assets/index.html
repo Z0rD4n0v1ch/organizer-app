@@ -265,6 +265,19 @@ body.has-upd .wrap{padding-bottom:200px}
 .timer.run{background:var(--ink);color:var(--bg)}
 .timer.run span{color:var(--bg);opacity:.75}
 .timer.run button{background:var(--hot);color:#1E1C2A}
+.hrtrip{margin:14px 0 10px}
+.hrtrip .seg{width:100%;margin:0}
+.hrtrip.on{display:flex;align-items:center;gap:12px;background:var(--surface);border-left:4px solid var(--hot);border-radius:16px;padding:12px 12px 12px 14px}
+.hrtrip .ic{font-size:22px}.hrtrip .tx{flex:1;min-width:0;font-size:13px;color:var(--muted);cursor:pointer}.hrtrip .tx b{display:block;font-size:15px;color:var(--ink)}
+.hrtrip.on button{flex:none;border:0;border-radius:12px;padding:10px 12px;background:var(--bg);font-weight:600;color:var(--ink)}
+.hrobj{margin:8px 0 0}
+#hrStats{margin-top:10px}
+.hrday{display:flex;justify-content:space-between;gap:10px}
+.hrcity{font-style:normal;font:500 12px "Golos Text",sans-serif;color:var(--muted);margin-left:4px}
+nav .in.many button{font-size:9.5px;letter-spacing:-.3px}
+nav .in>button{min-width:0;padding-left:1px;padding-right:1px}
+nav .nl{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#hrStats{grid-template-columns:repeat(3,minmax(0,1fr))}
 .hstat{display:flex;gap:16px;font-size:14px;color:var(--muted);margin:10px 2px 8px}
 .hstat b{color:var(--ink);font-weight:600}
 .photos{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
@@ -434,7 +447,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <h1 id="dayTitle">Сегодня</h1>
     <p class="sub" id="dayDate"></p>
     <div class="install" id="iosHint" hidden><span><b>Установите на экран «Домой»</b>Нажмите «Поделиться» <svg viewBox="0 0 24 24"><path d="M12 15V3M8 7l4-4 4 4M5 11v9h14v-9"/></svg> внизу Safari и выберите «На экран „Домой“». Так органайзер работает без интернета, а данные хранятся надёжно.</span><button id="iosHintX" aria-label="Скрыть">×</button></div>
-    <button class="runbar" id="runbar" hidden><span><b id="runObj"></b>Идёт работа, нажмите, чтобы открыть объект</span><i id="runTime"></i></button>
+    <button class="runbar" id="runbar" hidden><span><b id="runObj"></b>Идёт работа, нажмите, чтобы открыть «Рабочие часы»</span><i id="runTime"></i></button>
     <div class="week" id="week"></div>
     <div class="progress"><i id="bar"></i></div>
     <div class="ptext" id="ptext"></div>
@@ -496,13 +509,6 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <div class="secb">
     <ul class="list" id="oMats"></ul>
     <form class="addrow" id="oMatForm"><input id="oMatInput" placeholder="Например: ИП 212-45, 12 шт" maxlength="160"><button>Добавить</button></form>
-    </div>
-    <h2 class="fold" data-sec="hours"><span class="ft"><i class="chev"></i><span>Рабочее время</span><small class="fb" id="ofb_hours"></small></span><button class="link" id="oAddHours">Добавить вручную</button></h2>
-    <div class="secb">
-    <div class="timer" id="oTimer"><div class="tm"><b id="oTimerVal">0:00</b><span id="oTimerSub">Таймер остановлен</span></div><button id="oTimerBtn">Начать работу</button></div>
-    <div class="hstat" id="oHStat"></div>
-    <ul class="list" id="oHours"></ul>
-    <div class="pbtns" style="margin-top:8px"><button id="oHoursSend"><svg viewBox="0 0 24 24"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/><path d="M9 13l12-9"/></svg>Отправить в Telegram</button></div>
     </div>
     <h2 class="fold" data-sec="docs"><span class="ft"><i class="chev"></i><span>Документация</span><small class="fb" id="ofb_docs"></small></span><button class="link" id="oDocSec">Раздел</button></h2>
     <div class="secb"><div id="oDocs"></div><input type="file" id="docPdfInput" accept="application/pdf,.pdf" multiple hidden><input type="file" id="docImgInput" accept="image/*" multiple hidden><input type="file" id="docCamInput" accept="image/*" capture="environment" hidden></div>
@@ -629,6 +635,21 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <div class="pbtns" style="margin-top:14px"><button id="mnReport"><svg viewBox="0 0 24 24"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/><path d="M9 13l12-9"/></svg>Отправить отчёт в Telegram</button></div>
   </section>
 
+  <section class="view" id="v-hours">
+    <h1>Рабочие часы</h1>
+    <p class="sub" id="hrSub"></p>
+    <div class="hrtrip" id="hrTrip"></div>
+    <div class="timer" id="hrTimer"><div class="tm"><b id="hrTimerVal">0:00</b><span id="hrTimerSub"></span></div><button id="hrTimerBtn">Начать работу</button></div>
+    <select class="field hrobj" id="hrObj" aria-label="Объект"></select>
+    <div class="stats" id="hrStats"></div>
+    <div class="pbtns" style="margin-top:10px"><button id="hrSend"><svg viewBox="0 0 24 24"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/><path d="M9 13l12-9"/></svg>Отправить в Telegram</button></div>
+    <h2>Журнал</h2>
+    <ul class="list" id="hrList"></ul>
+    <button class="link" id="hrMore" hidden style="margin-top:8px">Показать ещё</button>
+    <h2 id="hrTripsH" hidden>Командировки</h2>
+    <ul class="list" id="hrTrips"></ul>
+  </section>
+
   <section class="view" id="v-notes">
     <h1>Заметки</h1>
     <input class="search" id="noteSearch" type="search" placeholder="Поиск по заметкам">
@@ -643,6 +664,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
   <button data-v="today" class="on"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>Сегодня</button>
   <button data-v="tasks"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>Задачи</button>
   <button data-v="objects"><svg viewBox="0 0 24 24"><path d="M4 21V8l8-5 8 5v13"/><path d="M9 21v-6h6v6M3 21h18"/></svg>Объекты</button>
+  <button data-v="hours"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg>Часы</button>
   <button data-v="car"><svg viewBox="0 0 24 24"><path d="M3 16v-4l2-5h14l2 5v4z"/><path d="M3 12h18"/><circle cx="7.5" cy="16.5" r="1.8"/><circle cx="16.5" cy="16.5" r="1.8"/></svg>Авто</button>
   <button data-v="money"><svg viewBox="0 0 24 24"><path d="M4 7h14a2 2 0 012 2v9a2 2 0 01-2 2H6a2 2 0 01-2-2z"/><path d="M4 7l11-3v3M16 13.5h.01"/></svg>Расходы</button>
   <button data-v="catalog"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h4M7 14h2M15 10.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3zM8 6V4M16 6V4"/></svg>Справочник</button>
@@ -838,8 +860,23 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <div class="actions"><button class="btn" id="adGo">Продолжить</button></div>
   </div>
 
+  <div class="form" id="fHTrip" hidden>
+    <h3 id="fHTripTitle">Начать командировку</h3>
+    <p class="lbl">Город, где проходит командировка</p>
+    <input class="field" id="htCity" list="htCities" placeholder="Например: Липецк" maxlength="60" autocomplete="off">
+    <datalist id="htCities"></datalist>
+    <div class="two">
+      <div><p class="lbl">Начало</p><input class="field" type="date" id="htStart"></div>
+      <div id="htEndBlock"><p class="lbl">Конец</p><input class="field" type="date" id="htEnd"></div>
+    </div>
+    <p class="hint" style="margin:0 0 12px">Все часы за дни командировки помечаются этим городом и попадают в отчёт.</p>
+    <div class="actions"><button class="btn ghost" id="htDel" hidden>Удалить</button><button class="btn" id="htSave">Начать командировку</button></div>
+  </div>
+
   <div class="form" id="fHours" hidden>
     <h3 id="fHoursTitle">Рабочее время</h3>
+    <p class="lbl">Объект</p>
+    <select class="field" id="hObj"></select>
     <p class="lbl">Дата</p>
     <input class="field" type="date" id="hDate">
     <div class="two">
@@ -879,10 +916,11 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
   </div>
 
   <div class="form" id="fHrSend" hidden>
-    <h3>Рабочее время в Telegram</h3>
+    <h3>Рабочие часы в Telegram</h3>
     <div class="row" id="hsPeriod" style="flex-wrap:wrap;margin-bottom:12px">
-      <button class="seg" data-p="today">Сегодня</button><button class="seg" data-p="month">Этот месяц</button><button class="seg" data-p="prev">Прошлый месяц</button><button class="seg" data-p="all">Всё время</button>
+      <button class="seg" data-p="today">Сегодня</button><button class="seg" data-p="week">Неделя</button><button class="seg" data-p="month">Этот месяц</button><button class="seg" data-p="prev">Прошлый месяц</button><button class="seg" data-p="all">Всё время</button>
     </div>
+    <select class="field" id="hsObj" aria-label="Объект"></select>
     <pre class="hsText" id="hsText"></pre>
     <div class="actions"><button class="btn" id="hsGo">Отправить в Telegram</button></div>
   </div>
@@ -1178,7 +1216,7 @@ const PH=(function(){
 })();
 function normalize(s){
   s=Object.assign({tasks:[],notes:[],objects:[],car:{},carLog:[],hours:[],odo:[],trips:[],timer:null,updatedAt:0},s||{});
-  ['tasks','notes','objects','carLog','hours','odo','trips'].forEach(k=>{if(!Array.isArray(s[k]))s[k]=[]});
+  ['tasks','notes','objects','carLog','hours','odo','trips','htrips'].forEach(k=>{if(!Array.isArray(s[k]))s[k]=[]});
   if(!s.car||typeof s.car!=='object')s.car={};
   if(!Array.isArray(s.car.maint))s.car.maint=[];
   if(!s.car.docs||typeof s.car.docs!=='object')s.car.docs={};
@@ -1385,8 +1423,7 @@ function renderObjects(){
   const order={work:0,pnr:1,plan:2,service:3,done:4};
   const items=state.objects.filter(f).sort((a,b)=>(order[a.status]-order[b.status])||((a.deadline||'9')<(b.deadline||'9')?-1:1));
   const act=state.objects.filter(o=>['plan','work','pnr'].includes(o.status)).length;
-  const mh=monthMins();
-  $('#objCount').textContent='В работе: '+act+', всего: '+state.objects.length+(mh?'. Часов за '+MONTHS_N[new Date().getMonth()]+': '+fmtMins(mh):'');
+  $('#objCount').textContent='В работе: '+act+', всего: '+state.objects.length;
   const ul=$('#objList'); ul.innerHTML='';
   if(!items.length) ul.appendChild(emptyEl('Здесь пусто. Нажмите «+», чтобы добавить объект'));
   items.forEach(o=>{
@@ -1397,7 +1434,7 @@ function renderObjects(){
     b.innerHTML='<div class="obj-top"><span class="obj-name">'+esc(o.name)+'</span><span class="badge '+o.status+'">'+STATUS[o.status]+'</span></div>'+
       (o.addr?'<span class="obj-addr">'+esc(o.addr)+'</span>':'')+
       (sysList(o).length?'<div class="systems">'+sysList(o).map(s=>'<span class="sys">'+esc(s)+'</span>').join('')+'</div>':'')+
-      '<div class="obj-foot"><span>Работ: '+open+'</span>'+(matsLeft?'<span>Докупить: '+matsLeft+'</span>':'')+(monthMins(o.id)?'<span>'+fmtMins(monthMins(o.id))+' за месяц</span>':'')+(state.timer&&state.timer.objId===o.id?'<span class="late">Идёт работа</span>':'')+(o.svc&&o.svc.every>0&&o.svc.next&&o.status!=='done'?'<span'+(daysTo(o.svc.next)<=3?' class="late"':'')+'>ТО: '+esc(fmtDate(o.svc.next))+'</span>':'')+dl+'</div>';
+      '<div class="obj-foot"><span>Работ: '+open+'</span>'+(matsLeft?'<span>Докупить: '+matsLeft+'</span>':'')+(state.timer&&state.timer.objId===o.id?'<span class="late">Идёт работа</span>':'')+(o.svc&&o.svc.every>0&&o.svc.next&&o.status!=='done'?'<span'+(daysTo(o.svc.next)<=3?' class="late"':'')+'>ТО: '+esc(fmtDate(o.svc.next))+'</span>':'')+dl+'</div>';
     b.onclick=()=>showObject(o.id);
     li.appendChild(b); ul.appendChild(li);
   });
@@ -1431,7 +1468,7 @@ function renderObject(){
     ml.appendChild(li);
   });
   if(document.activeElement!==$('#oNote')) $('#oNote').value=o.note||'';
-  renderTimer(o); renderHours(o); renderPhotos(o); renderSvc(o); try{renderDocs(o)}catch(e){} objBadges(o);
+  renderPhotos(o); renderSvc(o); try{renderDocs(o)}catch(e){} objBadges(o);
 }
 let noteTimer=null;
 $('#oNote').oninput=e=>{const o=objById(openObjId); if(!o)return; o.note=e.target.value; clearTimeout(noteTimer); noteTimer=setTimeout(save,500);};
@@ -1460,40 +1497,14 @@ function stopTimer(){
   state.hours.push({id:uid(),objId:t.objId,date:iso(sd),start:hm(sd),end:hm(new Date(end)),mins,note:''});
   state.timer=null; save(); render();
 }
-function renderTimer(o){
-  const t=state.timer, box=$('#oTimer');
-  if(t&&t.objId===o.id){
-    box.className='timer run'; $('#oTimerVal').textContent=clock(Date.now()-t.start);
-    $('#oTimerSub').textContent='Начали в '+hm(new Date(t.start)); $('#oTimerBtn').textContent='Закончить';
-    $('#oTimerBtn').onclick=stopTimer;
-  } else {
-    box.className='timer'; $('#oTimerVal').textContent=fmtMins(state.hours.filter(h=>h.objId===o.id&&h.date===todayISO()).reduce((a,h)=>a+h.mins,0));
-    const other=t&&objById(t.objId);
-    $('#oTimerSub').textContent=other?'Сейчас таймер идёт на «'+other.name+'»':'Сегодня на объекте';
-    $('#oTimerBtn').textContent=other?'Переключить сюда':'Начать работу';
-    $('#oTimerBtn').onclick=()=>startTimer(o.id);
-  }
-}
-function renderHours(o){
-  const list=state.hours.filter(h=>h.objId===o.id).sort((a,b)=>cmp(b.date+b.start,a.date+a.start));
-  const total=list.reduce((a,h)=>a+h.mins,0);
-  $('#oHStat').innerHTML=total?'<span>За месяц: <b>'+esc(fmtMins(monthMins(o.id)))+'</b></span><span>Всего: <b>'+esc(fmtMins(total))+'</b></span>':'';
-  const ul=$('#oHours'); ul.innerHTML='';
-  list.slice(0,30).forEach(h=>{
-    const li=document.createElement('li'), b=document.createElement('button'); b.className='log';
-    b.innerHTML='<span class="tbody"><span class="ttl">'+esc(fmtDate(h.date)+(h.start&&h.end?', '+h.start+'–'+h.end:''))+'</span>'+(h.note?'<span class="meta">'+esc(h.note)+'</span>':'')+'</span><span class="sum">'+esc(fmtMins(h.mins))+'</span>';
-    b.onclick=()=>openHours(h); li.appendChild(b); ul.appendChild(li);
-  });
-}
-let hEditObj=null;
 function openHours(h){
-  editing=h||null; hEditObj=h?h.objId:openObjId;
+  editing=h||null;
+  hrObjOptions($('#hObj'),h?(h.objId||''):(state.timer?state.timer.objId||'':(hrPickObj||'')));
   $('#fHoursTitle').textContent=h?'Рабочее время':'Добавить время';
   $('#hDate').value=h?h.date:todayISO(); $('#hStart').value=h?(h.start||''):''; $('#hEnd').value=h?(h.end||''):'';
   $('#hDur').value=h&&!(h.start&&h.end)?String(Math.round(h.mins/60*100)/100).replace('.',','):'';
   $('#hNote').value=h?(h.note||''):''; $('#hDel').hidden=!h; openSheet('fHours');
 }
-$('#oAddHours').onclick=()=>openHours();
 $('#hSave').onclick=()=>{
   const date=$('#hDate').value||todayISO(), st=$('#hStart').value, en=$('#hEnd').value;
   let mins=0, start='', end='';
@@ -1501,17 +1512,18 @@ $('#hSave').onclick=()=>{
   else { mins=Math.round(parseFloat(($('#hDur').value||'').replace(',','.'))*60)||0; }
   if(!(mins>0)){ alert('Укажите начало и конец или количество часов'); return; }
   const data={date,start,end,mins,note:$('#hNote').value.trim()};
-  if(editing) Object.assign(editing,data); else state.hours.push(Object.assign({id:uid(),objId:hEditObj},data));
+  data.objId=$('#hObj').value;
+  if(editing) Object.assign(editing,data); else state.hours.push(Object.assign({id:uid()},data));
   save(); render(); closeSheet();
 };
 $('#hDel').onclick=()=>{state.hours=state.hours.filter(x=>x!==editing);save();render();closeSheet();};
 function renderRunbar(){
   const t=state.timer, o=t&&objById(t.objId);
-  $('#runbar').hidden=!o; if(!o) return;
-  $('#runObj').textContent=o.name; $('#runTime').textContent=clock(Date.now()-t.start);
+  $('#runbar').hidden=!t; if(!t) return;
+  $('#runObj').textContent=o?o.name:'Без объекта'; $('#runTime').textContent=clock(Date.now()-t.start);
 }
-$('#runbar').onclick=()=>{ if(state.timer){ go('objects'); showObject(state.timer.objId); } };
-setInterval(()=>{ if(!state.timer) return; renderRunbar(); if(view==='object'){const o=objById(openObjId); if(o) renderTimer(o);} },15000);
+$('#runbar').onclick=()=>go('hours');
+setInterval(()=>{ if(!state.timer) return; renderRunbar(); if(view==='hours') renderHoursTab(); },15000);
 
 /* ---------- photos ---------- */
 function renderPhotos(o){
@@ -2119,8 +2131,6 @@ function objBadges(o){
   ofb('eq',o.equip.length?String(o.equip.length):'');
   const open=state.tasks.filter(t=>t.objId===o.id&&!t.done).length; ofb('tasks',open?'открыто: '+open:'');
   const left=o.mats.filter(m=>!m.done).length; ofb('mats',left?'докупить: '+left:(o.mats.length?'всё есть':''),left?'warn':'');
-  const run=state.timer&&state.timer.objId===o.id; const mm=monthMins(o.id);
-  ofb('hours',run?'идёт работа':(mm?'за месяц '+fmtMins(mm):''),run?'warn':'');
   const nd=(o.docs||[]).length; ofb('docs',nd?nd+' '+plural(nd,'файл','файла','файлов'):'');
   ofb('photos',(o.photos||[]).length?String(o.photos.length):'');
   ofb('note',(o.note||'').trim()?'есть запись':'');
@@ -2201,34 +2211,137 @@ $$('#fRoute [data-app]').forEach(b=>b.onclick=()=>{
   setTimeout(()=>{ document.removeEventListener('visibilitychange',vis); if(!left&&!document.hidden) location.href=u.web; },1600);
 });
 
-/* ---------- рабочее время: отправка в Telegram ---------- */
-let hsPeriod='month';
+/* ---------- вкладка «Рабочие часы» ---------- */
+function htrips(){ if(!Array.isArray(state.htrips)) state.htrips=[]; return state.htrips; }
+function htActive(){ return htrips().find(t=>!t.end)||null; }
+function htFor(date){ return htrips().filter(t=>t.start<=date&&(!t.end||t.end>=date)).sort((a,b)=>cmp(b.start,a.start))[0]||null; }
+function htDays(t){ const e=t.end||todayISO(); return Math.max(1,Math.round((new Date(e+'T12:00:00')-new Date(t.start+'T12:00:00'))/864e5)+1); }
+function htSpan(t){ return dateRu(t.start)+'–'+(t.end?dateRu(t.end):'сейчас'); }
+function weekStart(){ const d=new Date(); d.setDate(d.getDate()-((d.getDay()+6)%7)); return iso(d); }
+function minsIn(a,b,objId){
+  let m=state.hours.filter(h=>h.date>=a&&h.date<=b&&(objId==null||h.objId===objId)).reduce((s,h)=>s+(+h.mins||0),0);
+  const t=state.timer; if(t&&(objId==null||t.objId===objId)){ const d=iso(new Date(t.start)); if(d>=a&&d<=b) m+=(Date.now()-t.start)/60000; }
+  return m;
+}
+function hrObjOptions(sel,cur,withAll){
+  const act=state.objects.filter(o=>o.status!=='done'||o.id===cur);
+  sel.innerHTML=(withAll?'<option value="*">Все объекты</option>':'')+'<option value="">Без объекта</option>'+act.map(o=>'<option value="'+esc(o.id)+'">'+esc(o.name)+'</option>').join('');
+  sel.value=cur==null?(withAll?'*':''):cur; if(sel.value===''&&cur&&cur!=='*') sel.value='';
+}
+let hrPickObj=null;
+function renderHoursTab(){
+  if(!$('#v-hours')) return;
+  const t=state.timer, today=todayISO(), d=new Date();
+  $('#hrSub').textContent=MONTHS_N[d.getMonth()][0].toUpperCase()+MONTHS_N[d.getMonth()].slice(1)+': '+fmtMins(minsIn(today.slice(0,7)+'-01',today));
+  // командировка
+  const a=htActive(), tb=$('#hrTrip');
+  if(a){ tb.className='hrtrip on'; tb.innerHTML='<span class="ic">🧳</span><span class="tx"><b>Командировка: '+esc(a.city)+'</b>с '+esc(dateRu(a.start))+', '+htDays(a)+'-й день · '+esc(fmtMins(htripMins(a)))+'</span><button id="hrTripEnd">Завершить</button>';
+    $('#hrTripEnd').onclick=()=>{ if(!confirm('Завершить командировку в '+a.city+' сегодняшним днём?')) return; a.end=today; if(a.end<a.start) a.end=a.start; save(); render(); };
+    tb.querySelector('.tx').onclick=()=>openHTrip(a); }
+  else { tb.className='hrtrip'; tb.innerHTML='<button class="seg" id="hrTripStart">🧳 Начать командировку</button>'; $('#hrTripStart').onclick=()=>openHTrip(); }
+  // таймер
+  const sel=$('#hrObj');
+  if(t){ hrObjOptions(sel,t.objId||''); sel.disabled=true; }
+  else { if(hrPickObj==null){ try{ hrPickObj=localStorage.getItem('hr-obj')||''; }catch(e){ hrPickObj=''; } } hrObjOptions(sel,hrPickObj); sel.disabled=false; }
+  const box=$('#hrTimer');
+  if(t){ box.className='timer run'; $('#hrTimerVal').textContent=clock(Date.now()-t.start); $('#hrTimerSub').textContent='Начали в '+hm(new Date(t.start))+(a?' · '+a.city:''); $('#hrTimerBtn').textContent='Закончить'; $('#hrTimerBtn').onclick=stopTimer; }
+  else { box.className='timer'; $('#hrTimerVal').textContent=fmtMins(minsIn(today,today)); $('#hrTimerSub').textContent='Сегодня'+(a?' · '+a.city:''); $('#hrTimerBtn').textContent='Начать работу'; $('#hrTimerBtn').onclick=()=>startTimer($('#hrObj').value); }
+  // сводка
+  $('#hrStats').innerHTML=[['Сегодня',minsIn(today,today)],['Неделя',minsIn(weekStart(),today)],['Месяц',minsIn(today.slice(0,7)+'-01',today)]].map(x=>'<div class="stat"><span>'+x[0]+'</span><b>'+esc((m=>{ m=Math.round(m); const h=Math.floor(m/60), mm=m%60; return h?h+' ч'+(mm?' '+mm+' м':''):mm+' мин'; })(x[1]))+'</b></div>').join('');
+  // журнал по дням
+  const ul=$('#hrList'); ul.innerHTML='';
+  const all=state.hours.slice().sort((x,y)=>cmp(y.date+(y.start||''),x.date+(x.start||'')));
+  if(!all.length&&!t) ul.appendChild(emptyEl('Записей пока нет. Нажмите «Начать работу» или «+», чтобы добавить время вручную'));
+  const days=[]; all.forEach(h=>{ let g=days[days.length-1]; if(!g||g.date!==h.date){ g={date:h.date,items:[]}; days.push(g); } g.items.push(h); });
+  days.slice(0,hrShow).forEach(g=>{
+    const tr=htFor(g.date), sum=g.items.reduce((s,h)=>s+h.mins,0), dd=new Date(g.date+'T12:00:00');
+    const hd=document.createElement('li'); hd.className='blh hrday'; hd.innerHTML='<span>'+esc(WD[dd.getDay()]+', '+fmtDate(g.date))+(tr?' <i class="hrcity">🧳 '+esc(tr.city)+'</i>':'')+'</span><span>'+esc(fmtMins(sum))+'</span>'; ul.appendChild(hd);
+    g.items.forEach(h=>{
+      const o=objById(h.objId), li=document.createElement('li'), b=document.createElement('button'); b.className='log';
+      b.innerHTML='<span class="tbody"><span class="ttl">'+esc(o?o.name:'Без объекта')+'</span><span class="meta">'+esc([h.start&&h.end?h.start+'–'+h.end:'',h.note].filter(Boolean).join(' · ')||'вручную')+'</span></span><span class="sum">'+esc(fmtMins(h.mins))+'</span>';
+      b.onclick=()=>openHours(h); li.appendChild(b); ul.appendChild(li);
+    });
+  });
+  $('#hrMore').hidden=days.length<=hrShow;
+  // прошлые командировки
+  const past=htrips().filter(x=>x.end).sort((x,y)=>cmp(y.start,x.start)), pl=$('#hrTrips'); pl.innerHTML='';
+  $('#hrTripsH').hidden=!past.length;
+  past.slice(0,12).forEach(x=>{ const li=document.createElement('li'), b=document.createElement('button'); b.className='log';
+    b.innerHTML='<span class="tbody"><span class="ttl">🧳 '+esc(x.city)+'</span><span class="meta">'+esc(htSpan(x)+', '+htDays(x)+' '+plural(htDays(x),'день','дня','дней'))+'</span></span><span class="sum">'+esc(fmtMins(htripMins(x)))+'</span>';
+    b.onclick=()=>openHTrip(x); li.appendChild(b); pl.appendChild(li); });
+}
+let hrShow=14;
+$('#hrMore').onclick=()=>{ hrShow+=30; renderHoursTab(); };
+$('#hrObj').onchange=()=>{ hrPickObj=$('#hrObj').value; try{ localStorage.setItem('hr-obj',hrPickObj); }catch(e){} };
+function htripMins(x){ return minsIn(x.start,x.end||todayISO()); }
+
+/* командировка: начать / изменить */
+let htEdit=null;
+function openHTrip(x){
+  htEdit=x||null;
+  $('#fHTripTitle').textContent=x?'Командировка':'Начать командировку';
+  let city=x?x.city:'';
+  if(!x){ try{ const mt=(state.money&&state.money.trips||[]).find(t=>!t.end); if(mt&&mt.city) city=mt.city; }catch(e){} }
+  $('#htCity').value=city; $('#htStart').value=x?x.start:todayISO(); $('#htEnd').value=x&&x.end?x.end:''; $('#htEndBlock').hidden=!x;
+  const dl=$('#htCities'); dl.innerHTML=[...new Set(htrips().map(t=>t.city).concat((state.money&&state.money.trips||[]).map(t=>t.city)).filter(Boolean))].map(c=>'<option value="'+esc(c)+'">').join('');
+  $('#htDel').hidden=!x; $('#htSave').textContent=x?'Сохранить':'Начать командировку'; openSheet('fHTrip');
+}
+$('#htSave').onclick=()=>{
+  const city=$('#htCity').value.trim(), st=$('#htStart').value||todayISO(), en=$('#htEnd').value;
+  if(!city){ $('#htCity').focus(); return; }
+  if(en&&en<st){ alert('Конец раньше начала'); return; }
+  if(htEdit){
+    const other=htActive(); if(!en&&other&&other!==htEdit){ alert('Сейчас уже идёт командировка в '+other.city+'. Сначала завершите её.'); return; }
+    Object.assign(htEdit,{city,start:st,end:en||null});
+  } else {
+    const a=htActive(); if(a) a.end=st>a.start?iso(addDays(new Date(st+'T12:00:00'),-1)):a.start;
+    htrips().push({id:uid(),city,start:st,end:null});
+  }
+  save(); render(); closeSheet();
+};
+$('#htDel').onclick=()=>{ if(!htEdit||!confirm('Удалить командировку? Записи часов останутся.')) return; state.htrips=htrips().filter(x=>x!==htEdit); save(); render(); closeSheet(); };
+
+/* отчёт в Telegram */
+let hsPeriod='month', hsObj='*';
 const syncHsP=segGroup('#hsPeriod','p',()=>hsPeriod,v=>{hsPeriod=v;hsPreview()});
 function hsRange(p){
   const t=todayISO(), d=new Date();
   if(p==='today') return [t,t,dateRu(t)];
-  if(p==='month') return [t.slice(0,7)+'-01',t,'за '+MONTHS_N[d.getMonth()]+' '+d.getFullYear()];
-  if(p==='prev'){ const pm=new Date(d.getFullYear(),d.getMonth()-1,1), e=new Date(d.getFullYear(),d.getMonth(),0); return [iso(pm),iso(e),'за '+MONTHS_N[pm.getMonth()]+' '+pm.getFullYear()]; }
+  if(p==='week') return [weekStart(),t,'неделя с '+dateRu(weekStart())];
+  if(p==='month') return [t.slice(0,7)+'-01',t,MONTHS_N[d.getMonth()]+' '+d.getFullYear()];
+  if(p==='prev'){ const pm=new Date(d.getFullYear(),d.getMonth()-1,1), e=new Date(d.getFullYear(),d.getMonth(),0); return [iso(pm),iso(e),MONTHS_N[pm.getMonth()]+' '+pm.getFullYear()]; }
   return ['0000-00-00','9999-99-99','за всё время'];
 }
-function hoursText(o,p){
-  const [a,b,lbl]=hsRange(p);
-  const list=state.hours.filter(h=>h.objId===o.id&&h.date>=a&&h.date<=b).sort((x,y)=>cmp(x.date+(x.start||''),y.date+(y.start||'')));
-  const L=['⏱ Рабочее время: '+o.name];
-  if(o.addr) L.push('Адрес: '+o.addr);
-  L.push('Период: '+lbl,'');
-  let tot=0;
-  list.forEach(h=>{ tot+=h.mins; L.push(dateRu(h.date)+(h.start&&h.end?', '+h.start+'–'+h.end:'')+' — '+fmtMins(h.mins)+(h.note?'. '+h.note:'')); });
+function hoursText(p,objSel){
+  const [a,b,lbl]=hsRange(p), one=objSel!=='*', obj=one?objById(objSel):null;
+  const list=state.hours.filter(h=>h.date>=a&&h.date<=b&&(!one||h.objId===objSel)).sort((x,y)=>cmp(x.date+(x.start||''),y.date+(y.start||'')));
+  const L=['⏱ Рабочие часы: '+lbl];
+  if(one) L.push('Объект: '+(obj?obj.name+(obj.addr?', '+obj.addr:''):'без объекта'));
+  const trips=htrips().filter(t=>t.start<=b&&(t.end||todayISO())>=a).sort((x,y)=>cmp(x.start,y.start));
+  trips.forEach(t=>L.push('🧳 Командировка: '+t.city+', '+htSpan(t)+' ('+htDays(t)+' '+plural(htDays(t),'день','дня','дней')+')'));
+  L.push('');
+  let tot=0, tripMins=0; const tripDays=new Set(), byObj={};
+  const days=[]; list.forEach(h=>{ let g=days[days.length-1]; if(!g||g.date!==h.date){ g={date:h.date,items:[]}; days.push(g); } g.items.push(h); });
+  days.forEach(g=>{
+    const tr=htFor(g.date), sum=g.items.reduce((s,h)=>s+h.mins,0), dd=new Date(g.date+'T12:00:00');
+    L.push(dateRu(g.date)+' ('+WD[dd.getDay()]+') — '+fmtMins(sum)+(tr?' · '+tr.city:''));
+    g.items.forEach(h=>{ const o=objById(h.objId); tot+=h.mins; byObj[o?o.name:'без объекта']=(byObj[o?o.name:'без объекта']||0)+h.mins;
+      const pre=[h.start&&h.end?h.start+'–'+h.end:'',one?'':(o?o.name:'без объекта')].filter(Boolean).join(' ');
+      L.push('   '+(pre?pre+' — ':'')+fmtMins(h.mins)+(h.note?'. '+h.note:'')); });
+    if(tr){ tripMins+=sum; tripDays.add(g.date); }
+  });
   const t=state.timer;
-  if(t&&t.objId===o.id){ const sd=new Date(t.start), di=iso(sd); if(di>=a&&di<=b) L.push(dateRu(di)+', с '+hm(sd)+' — идёт работа ('+fmtMins((Date.now()-t.start)/60000)+')'); }
-  if(!list.length&&!(t&&t.objId===o.id)) L.push('Записей нет');
-  const days=new Set(list.map(h=>h.date)).size;
-  L.push('','Итого: '+fmtMins(tot)+(list.length?' ('+days+' '+plural(days,'день','дня','дней')+')':''));
+  if(t&&(!one||t.objId===objSel)){ const sd=new Date(t.start), di=iso(sd); if(di>=a&&di<=b){ const o=objById(t.objId); L.push('Сейчас: с '+hm(sd)+(one?'':' '+(o?o.name:'без объекта'))+' — идёт работа ('+fmtMins((Date.now()-t.start)/60000)+')'); } }
+  if(!list.length&&!(t)) L.push('Записей нет');
+  L.push('','Итого: '+fmtMins(tot)+(days.length?' ('+days.length+' '+plural(days.length,'день','дня','дней')+')':''));
+  if(tripMins) L.push('В командировке: '+fmtMins(tripMins)+', '+tripDays.size+' '+plural(tripDays.size,'день','дня','дней'));
+  const ks=Object.keys(byObj); if(!one&&ks.length>1) L.push('По объектам: '+ks.sort((x,y)=>byObj[y]-byObj[x]).map(k=>k+' — '+fmtMins(byObj[k])).join('; '));
   return L.join('\n');
 }
-function hsPreview(){ const o=objById(openObjId); if(o) $('#hsText').textContent=hoursText(o,hsPeriod); }
-$('#oHoursSend').onclick=()=>{ const o=objById(openObjId); if(!o) return; syncHsP(); hsPreview(); const c=tgCfg(); $('#hsGo').textContent=c.token&&c.chat?'Отправить боту':'Отправить в Telegram'; openSheet('fHrSend'); };
-$('#hsGo').onclick=async()=>{ const o=objById(openObjId); if(!o) return; const b=$('#hsGo'); b.disabled=true; try{ await tgOut(null,hoursText(o,hsPeriod),'Рабочее время: '+o.name); closeSheet(); }finally{ b.disabled=false; } };
+function hsPreview(){ hsObj=$('#hsObj').value; $('#hsText').textContent=hoursText(hsPeriod,hsObj); }
+$('#hsObj').onchange=hsPreview;
+$('#hrSend').onclick=()=>{ hrObjOptions($('#hsObj'),'*',true); syncHsP(); hsPreview(); const c=tgCfg(); $('#hsGo').textContent=c.token&&c.chat?'Отправить боту':'Отправить в Telegram'; openSheet('fHrSend'); };
+$('#hsGo').onclick=async()=>{ const b=$('#hsGo'); b.disabled=true; try{ await tgOut(null,hoursText(hsPeriod,hsObj),'Рабочие часы'); closeSheet(); }finally{ b.disabled=false; } };
 
 /* ---------- документация объекта (PDF) ---------- */
 const DOC_SECS=['Проект','Исполнительная документация','Паспорта и сертификаты','Акты и протоколы','Схемы','Прочее'];
@@ -2463,7 +2576,7 @@ function renderNotes(){
     b.onclick=()=>openNote(n); g.appendChild(b);
   });
 }
-function render(){if(ensureSvcTasks())save();renderRunbar();renderToday();renderTasks();renderObjects();renderObject();renderCar();renderNotes();try{renderMoney()}catch(e){}}
+function render(){if(ensureSvcTasks())save();renderRunbar();renderToday();renderTasks();renderObjects();renderObject();renderCar();renderNotes();try{renderMoney()}catch(e){}try{renderHoursTab()}catch(e){console.error(e)}}
 
 /* ---------- navigation ---------- */
 function showView(v){
@@ -2475,12 +2588,12 @@ function showView(v){
   window.scrollTo(0,0);
 }
 function go(v){showView(v); if(v==='catalog') renderCatalog();}
-$$('nav button').forEach(b=>b.onclick=()=>go(b.dataset.v));
+$$('nav button').forEach(b=>{ b.onclick=()=>go(b.dataset.v); const tn=[...b.childNodes].find(n=>n.nodeType===3&&n.textContent.trim()); if(tn){ const s=document.createElement('span'); s.className='nl'; s.textContent=tn.textContent.trim(); b.replaceChild(s,tn); } });
 
 /* ---------- перестановка вкладок: зажать вкладку и тянуть влево/вправо ---------- */
 (function(){
-  const box=$('nav .in'), K='nav-order';
-  try{ const o=JSON.parse(localStorage.getItem(K)||'null'); if(Array.isArray(o)){ const rest=[...box.querySelectorAll('button')].filter(b=>!o.includes(b.dataset.v)); o.forEach(v=>{ const b=box.querySelector('button[data-v="'+v+'"]'); if(b) box.appendChild(b); }); rest.forEach(b=>{ const prev=b.dataset.v==='money'?box.querySelector('button[data-v="car"]'):null; if(prev&&prev.nextSibling) box.insertBefore(b,prev.nextSibling); else box.appendChild(b); }); } }catch(e){}
+  const box=$('nav .in'), K='nav-order'; const DEF_PREV={}; [...box.querySelectorAll('button')].forEach((b,i,a)=>{ if(i) DEF_PREV[b.dataset.v]=a[i-1].dataset.v; });
+  try{ const o=JSON.parse(localStorage.getItem(K)||'null'); if(Array.isArray(o)){ const rest=[...box.querySelectorAll('button')].filter(b=>!o.includes(b.dataset.v)); o.forEach(v=>{ const b=box.querySelector('button[data-v="'+v+'"]'); if(b) box.appendChild(b); }); rest.forEach(b=>{ const pv=DEF_PREV[b.dataset.v], prev=pv?box.querySelector('button[data-v="'+pv+'"]'):null; if(prev&&prev.nextSibling) box.insertBefore(b,prev.nextSibling); else box.appendChild(b); }); } }catch(e){}
   let timer=null, drag=null, sx=0, sy=0, eat=false, hint=null;
   function showHint(txt){ if(!hint){ hint=document.createElement('div'); hint.className='navhint'; document.body.appendChild(hint); } hint.textContent=txt; hint.hidden=false; }
   function hideHint(){ if(hint) hint.hidden=true; }
@@ -2525,7 +2638,7 @@ let editing=null;
 function openSheet(id){
   $$('.form').forEach(f=>f.hidden=f.id!==id);
   $('#scrim').classList.add('on'); $('#sheet').classList.add('on'); $('#sheet').scrollTop=0;
-  const first=(id==='fSet'||id==='fHrSend'||id==='fDay'||id==='fTrRep'||id==='fBuy'||id==='fTrp')?null:$('#'+id+' input, #'+id+' textarea'); if(first) setTimeout(()=>first.focus({preventScroll:true}),260);
+  const first=(id==='fSet'||id==='fHours'||id==='fHrSend'||id==='fDay'||id==='fTrRep'||id==='fBuy'||id==='fTrp')?null:$('#'+id+' input, #'+id+' textarea'); if(first) setTimeout(()=>first.focus({preventScroll:true}),260);
 }
 function closeSheet(){try{kmPick.discard();lgPick.discard()}catch(e){}try{dsPick.discard();dePick.discard()}catch(e){}try{byPick.discard()}catch(e){}$('#scrim').classList.remove('on');$('#sheet').classList.remove('on');document.activeElement&&document.activeElement.blur();}
 $('#scrim').onclick=closeSheet;
@@ -2905,7 +3018,7 @@ function applyNav(){
   const bs=[...document.querySelectorAll('nav .in button')];
   bs.forEach(b=>b.hidden=navHidden.includes(b.dataset.v));
   const vis=bs.filter(b=>!b.hidden);
-  $('nav .in').style.gridTemplateColumns='repeat('+Math.max(1,vis.length)+',minmax(0,1fr))';
+  $('nav .in').style.gridTemplateColumns='repeat('+Math.max(1,vis.length)+',minmax(0,1fr))'; $('nav .in').classList.toggle('many',vis.length>7);
   const key={object:'objects',check:'objects',tpl:'objects',dev:'catalog'}[view]||view;
   if(vis.length&&navHidden.includes(key)) go(vis[0].dataset.v);
 }
@@ -3046,6 +3159,7 @@ $('#fab').onclick=()=>{
   else if(view==='object') openTask(null,openObjId);
   else if(view==='car') openLog();
   else if(view==='money') openBuy();
+  else if(view==='hours') openHours();
   else if(view==='tpl') openTplForm();
   else openTask();
 };
