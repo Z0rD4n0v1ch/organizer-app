@@ -2958,6 +2958,8 @@ function prjSummary(){
   const sheetSub=Object.keys(groups).map(s=>'<b>'+esc(s)+':</b> '+esc(groups[s].map(x=>x.title).join(', '))).join('<br>');
   h+=li('sheets',R.sheets.some(s=>PRJ_SEC[s.kind]),'Разложить листы по разделам ('+R.sheets.filter(s=>PRJ_SEC[s.kind]).length+')',sheetSub||'листы не распознаны');
   h+=li('pass',pass.length,'Паспорта и сертификаты ('+pass.length+' из '+R.equip.length+')',R.equip.length?esc(pass.map(e=>e.model).join(', ')||'')+(R.equip.length>pass.length?'<br>Нет в справочнике: '+esc(R.equip.filter(e=>!(e.match&&e.match.d&&e.match.d.length)).map(e=>e.model||e.name).join(', ')):''):'оборудование не выбрано');
+  const noPass=R.equip.filter(e=>!(e.match&&e.match.d&&e.match.d.length));
+  if(APP&&noPass.length) h+=li('tinko',true,'Искать остальные паспорта на tinko.ru ('+noPass.length+')','Для оборудования, которого нет в справочнике: '+esc(noPass.map(e=>e.model||e.name).join(', '))+'. Нужен интернет, займёт до минуты.');
   h+=li('acts',true,'Бланки актов и протоколов ('+acts.length+')',esc(acts.map(a=>a.name).join(', ')));
   if(R.address&&!o.addr) h+=li('addr',true,'Адрес объекта',esc(R.address));
   // позиции спецификации: выбор, куда добавить каждую
@@ -2996,7 +2998,7 @@ $('#prjGo').onclick=async()=>{
     docSecs(o); const ensure=s=>{ if(!o.docSecs.includes(s)) o.docSecs.push(s); return s; };
     let ts=(pd.ts||Date.now())-1; const push=d=>{ d.ts=ts--; d.from=pd.id; o.docs.push(d); };
     // повторный разбор: старые ссылки и бланки этого проекта заменяем
-    const old=o.docs.filter(d=>d.from===pd.id&&((on('sheets')&&d.kind==='ref')||(on('pass')&&d.kind==='link')||(on('acts')&&d.gen)));
+    const old=o.docs.filter(d=>d.from===pd.id&&((on('sheets')&&d.kind==='ref')||((on('pass')||on('tinko'))&&d.kind==='link')||(on('acts')&&d.gen)));
     old.forEach(d=>{ if(d.gen) DOC.del(d.id); }); o.docs=o.docs.filter(d=>!old.includes(d));
     if(on('sheets')){
       R.sheets.forEach(s=>{ const sec=PRJ_SEC[s.kind]; if(!sec) return; push({id:uid(),kind:'ref',of:pd.id,sec:ensure(sec),name:s.title,page:s.from,to:s.to}); docOpenSec[o.id+'|'+sec]=true; });
@@ -3007,6 +3009,14 @@ $('#prjGo').onclick=async()=>{
       const sec=ensure('Паспорта и сертификаты');
       R.equip.forEach(e=>{ const d=e.match; if(!d||!d.d) return; d.d.slice(0,2).forEach(x=>push({id:uid(),kind:'link',url:x[1],sec,name:(e.model||d.m)+' — '+x[0],maker:CATS[d._mk].name})); });
       docOpenSec[o.id+'|'+sec]=true;
+    }
+    if(on('tinko')&&APP){
+      const sec=ensure('Паспорта и сертификаты'), list=R.equip.filter(e=>!(e.match&&e.match.d&&e.match.d.length)); let found=0;
+      for(let i=0;i<list.length;i++){ const e=list[i]; b.textContent='tinko.ru: '+(i+1)+' из '+list.length+'…';
+        const pr=await tinkoProduct(e.model||e.name); if(!pr||!pr.docs.length) continue; found++;
+        const pick=[]; ['pass','man','cert'].forEach(k=>{ const x=pr.docs.find(d=>DOC_KIND(d[0])===k); if(x&&!pick.includes(x)) pick.push(x); }); if(!pick.length) pick.push(pr.docs[0]);
+        pick.slice(0,2).forEach(x=>push({id:uid(),kind:'link',url:x[1],sec,name:(e.model||e.name)+' — '+x[0],maker:'tinko.ru'})); }
+      docOpenSec[o.id+'|'+sec]=true; prjCur.tinkoFound=found;
     }
     if(on('acts')){
       const sec=ensure('Акты и протоколы'), acts=actsBuild(R);
@@ -3033,6 +3043,54 @@ function isFileUrl(u){ return /\.(pdf|zip|rar|docx?|xlsx?|7z)($|[?#])|\/download
 let catDl={}; try{ catDl=JSON.parse(localStorage.getItem('catdl')||'{}')||{}; }catch(e){}
 function catDlSave(){ try{ localStorage.setItem('catdl',JSON.stringify(catDl)); }catch(e){} }
 function catDlMark(id,ext,size){ if(ext&&size){ catDl[id]={ext,size}; } else delete catDl[id]; catDlSave(); }
+/* ---------- запасной источник документации: tinko.ru (если у производителя файла или прибора нет) ---------- */
+let tinkoMap={}; try{ tinkoMap=JSON.parse(localStorage.getItem('tinkomap')||'{}')||{}; }catch(e){}
+const tnorm=s=>String(s||'').toLowerCase().replace(/ё/g,'е').replace(/[^a-zа-я0-9]+/gi,'');
+const DOC_KIND=t=>{ t=String(t||'').toLowerCase(); return /паспорт|этикетк/.test(t)?'pass':/сертиф|декларац/.test(t)?'cert':/руковод|инструк|описан|монтаж|эксплуатац/.test(t)?'man':/схем/.test(t)?'scheme':'other'; };
+function parseHtml(body){ try{ return new DOMParser().parseFromString(body,'text/html'); }catch(e){ return null; } }
+async function tinkoCandidates(model){
+  const out=[], add=u=>{ const m=String(u).match(/tinko\.ru\/catalog\/product\/(\d+)/)||String(u).match(/^\/catalog\/product\/(\d+)/); if(m){ const x='https://www.tinko.ru/catalog/product/'+m[1]+'/'; if(!out.includes(x)) out.push(x); } };
+  for(const su of ['https://www.tinko.ru/search/?q='+encodeURIComponent(model),'https://www.tinko.ru/catalog/search/?q='+encodeURIComponent(model)]){
+    const r=await httpGet(su); if(r.code===200&&r.body){ const d=parseHtml(r.body); if(d) d.querySelectorAll('a[href*="/catalog/product/"]').forEach(a=>add(a.getAttribute('href'))); (r.body.match(/\/catalog\/product\/\d+\//g)||[]).forEach(add); }
+    if(out.length) break;
+  }
+  if(!out.length){ // поисковик: только страницы tinko.ru
+    const r=await httpGet('https://html.duckduckgo.com/html/?q='+encodeURIComponent('site:tinko.ru '+model));
+    if(r.code===200&&r.body){ const d=parseHtml(r.body); if(d) d.querySelectorAll('a[href]').forEach(a=>{ const h=a.getAttribute('href')||''; const m=h.match(/uddg=([^&]+)/); add(m?decodeURIComponent(m[1]):h); }); }
+    else logErr('tinko','поиск не ответил: '+r.code,{model});
+  }
+  return out.slice(0,4);
+}
+function tinkoQuery(model){ return String(model||'').replace(/[®™]/g,'').replace(/\[[^\]]*\]|\([^)]*\)/g,' ').replace(/\bпроект\b.*$/i,'').replace(/\bцвет\b.*$/i,'').replace(/\s+/g,' ').trim().slice(0,60); }
+function tinkoKey(model){ const q=tinkoQuery(model), toks=q.split(/[\s,;/]+/).filter(x=>/\d/.test(x)&&x.length>=4).sort((a,b)=>b.length-a.length); return tnorm(toks[0]||q); }
+async function tinkoProduct(model){
+  const key=tinkoKey(model); if(!key||key.length<3) return null; model=tinkoQuery(model)||model;
+  if(tinkoMap[key]&&tinkoMap[key].docs) return tinkoMap[key];
+  const cands=await tinkoCandidates(model);
+  for(const u of cands){
+    const r=await httpGet(u); if(r.code!==200||!r.body) continue;
+    const d=parseHtml(r.body); if(!d) continue;
+    const title=((d.querySelector('h1')||{}).textContent||d.title||'').replace(/\s+/g,' ').trim();
+    if(!tnorm(title).includes(key)&&!tnorm(r.body.slice(0,200000)).includes(key)) continue;   // не тот прибор
+    const docs=[], seen=new Set();
+    d.querySelectorAll('a[href]').forEach(a=>{ let h; try{ h=new URL(a.getAttribute('href'),u).href; }catch(e){ return; }
+      if(!/\.pdf($|\?)|\/documentation\//i.test(h)||seen.has(h)) return; seen.add(h);
+      const t=(a.textContent||a.getAttribute('title')||'').replace(/\s+/g,' ').trim()||'Документ'; docs.push([t.slice(0,80),h]); });
+    (r.body.match(/https?:\/\/www\.tinko\.ru\/upload\/exchange\/public\/documentation\/[^"'\s<>]+?\.pdf/gi)||[]).forEach(h=>{ if(!seen.has(h)){ seen.add(h); docs.push(['Документ',h]); } });
+    tinkoMap[key]={page:u,title,docs,ts:Date.now()}; try{ localStorage.setItem('tinkomap',JSON.stringify(tinkoMap)); }catch(e){}
+    logErr('tinko','найдено на tinko.ru: '+title+' — документов '+docs.length,{model,page:u});
+    return tinkoMap[key];
+  }
+  logErr('tinko','на tinko.ru не найдено: '+model,{candidates:cands.length});
+  return null;
+}
+/* документ того же типа (паспорт, руководство, сертификат) для прибора с tinko.ru */
+async function tinkoDoc(model,docTitle){
+  const p=await tinkoProduct(model); if(!p||!p.docs.length) return null;
+  const want=DOC_KIND(docTitle);
+  const hit=p.docs.find(x=>DOC_KIND(x[0])===want)||(want==='man'?p.docs.find(x=>DOC_KIND(x[0])==='other'):null);
+  return hit?{url:hit[1],label:hit[0],page:p.page}:null;
+}
 /* ссылки на файлы у производителей меняются: при 404 ищем новую на странице прибора и запоминаем */
 let docFix={}; try{ docFix=JSON.parse(localStorage.getItem('docfix')||'{}')||{}; }catch(e){}
 const fixUrl=u=>docFix[u]||u;
@@ -3067,12 +3125,16 @@ async function catFetch(orig,id,noFirst){
   if(r===true){ if(docGone[orig]) setGone(orig); return true; }
   const code=noFirst?404:DOC.lastCode;
   if(code===404||code===410||code===-2||code===403){ const nu=await docRepair(orig); if(nu){ const r2=await DOC.fetch(nu,id); if(r2===true) return true; r=r2; } }
+  // у производителя нет — ищем этот документ у дистрибьютора tinko.ru
+  if(code===404||code===410||code===-2||code===403||docGone[orig]){ const meta=docMeta(orig);
+    if(meta&&APP){ const td=await tinkoDoc(meta.m,meta.title);
+      if(td){ const r3=await DOC.fetch(td.url,id); if(r3===true){ docFix[orig]=td.url; try{ localStorage.setItem('docfix',JSON.stringify(docFix)); }catch(e){} setGone(orig); logErr('tinko','документ взят с tinko.ru: '+meta.m+' — '+meta.title,{url:td.url}); return true; } } } }
   if(docGone[orig]) r=docGone[orig];
   return r;
 }
 function catDocsAll(keys){ const m=new Map(); (keys||MAKERS).forEach(k=>CATS[k]&&CATS[k].items.forEach(d=>(d.d||[]).forEach(x=>{ if(isFileUrl(x[1])&&!m.has(x[1])) m.set(x[1],{url:fixUrl(x[1]),orig:x[1],id:urlId(x[1]),mk:k,name:d.m+' — '+x[0]}); }))); return [...m.values()]; }
 const EXT_NAME={pdf:'PDF',zip:'архив ZIP',rar:'архив RAR',doc:'Word',docx:'Word',xls:'Excel',xlsx:'Excel',jpg:'картинка',png:'картинка'};
-function catDocStatus(id,orig){ const r=catDl[id]; if(!r&&orig&&docGone[orig]) return 'нет на сайте: '+docGone[orig]; return r?'скачан · '+(EXT_NAME[r.ext]||r.ext)+' · '+fmtSize(r.size):''; }
+function catDocStatus(id,orig){ const r=catDl[id]; if(!r&&orig&&docGone[orig]) return 'нет на сайте: '+docGone[orig]; return r?'скачан · '+(EXT_NAME[r.ext]||r.ext)+' · '+fmtSize(r.size)+(orig&&/tinko\.ru/.test(docFix[orig]||'')&&!/tinko\.ru/.test(orig)?' · с tinko.ru':''):''; }
 function catDocsHtml(d){
   return (d.d||[]).map((x,i)=>{
     if(!isFileUrl(x[1])) return '<a class="cdlink" href="'+esc(x[1])+'" target="_blank" rel="noopener">'+esc(x[0])+'</a>';

@@ -225,7 +225,9 @@ public class MainActivity extends Activity {
                 String body = "";
                 try {
                     HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
-                    c.setRequestProperty("User-Agent", "organizer-app");
+                    boolean gh = url.contains("github") || url.contains("nominatim");
+                    c.setRequestProperty("User-Agent", gh ? "organizer-app" : "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Mobile Safari/537.36 organizer-app");
+                    c.setRequestProperty("Accept-Language", "ru-RU,ru;q=0.9");
                     c.setRequestProperty("Cache-Control", "no-cache");
                     c.setUseCaches(false);
                     c.setInstanceFollowRedirects(true);
