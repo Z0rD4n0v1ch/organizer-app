@@ -19,14 +19,17 @@ public class PhotoProvider extends ContentProvider {
         return Uri.parse("content://" + AUTH + "/" + id.replaceAll("[^A-Za-z0-9_-]", "") + ".jpg");
     }
 
-    /** PDF: content://…/doc/<id>/<имя файла>.pdf — имя нужно, чтобы получатель видел понятное название. */
-    public static Uri docUri(String id, String name) {
+    /** Документ: content://…/doc/<id>/<имя файла> — имя нужно, чтобы получатель видел понятное название. */
+    public static Uri docUri(String id, String name, String ext) {
+        if (ext == null || ext.isEmpty()) ext = "pdf";
         String n = (name == null ? "" : name).replaceAll("[\\\\/:*?\"<>|]", "_").trim();
         if (n.isEmpty()) n = "document";
-        if (!n.toLowerCase().endsWith(".pdf")) n += ".pdf";
+        if (!n.toLowerCase().endsWith("." + ext)) n += "." + ext;
         return new Uri.Builder().scheme("content").authority(AUTH).appendPath("doc")
-                .appendPath(id.replaceAll("[^A-Za-z0-9_-]", "")).appendPath(n).build();
+                .appendPath(Store.clean(id)).appendPath(n).build();
     }
+
+    public static Uri docUri(String id, String name) { return docUri(id, name, "pdf"); }
 
     private static boolean isDoc(Uri uri) {
         java.util.List<String> s = uri.getPathSegments();
@@ -37,7 +40,7 @@ public class PhotoProvider extends ContentProvider {
         if (isDoc(uri)) {
             String id = uri.getPathSegments().get(1);
             if (!id.matches("[A-Za-z0-9_-]+")) throw new FileNotFoundException();
-            File f = new File(new File(id.startsWith("c_") ? getContext().getCacheDir() : getContext().getFilesDir(), "docs"), id + ".pdf");
+            File f = Store.docFile(getContext(), id);
             if (!f.exists()) throw new FileNotFoundException();
             return f;
         }
@@ -50,7 +53,7 @@ public class PhotoProvider extends ContentProvider {
 
     @Override public boolean onCreate() { return true; }
 
-    @Override public String getType(Uri uri) { return isDoc(uri) ? "application/pdf" : "image/jpeg"; }
+    @Override public String getType(Uri uri) { if (!isDoc(uri)) return "image/jpeg"; try { return Store.mime(Store.ext(fileFor(uri))); } catch (FileNotFoundException e) { return "application/octet-stream"; } }
 
     @Override
     public ParcelFileDescriptor openFile(Uri uri, String mode) throws FileNotFoundException {

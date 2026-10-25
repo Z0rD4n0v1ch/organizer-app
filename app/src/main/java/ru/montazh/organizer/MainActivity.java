@@ -15,6 +15,7 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.StatFs;
 import android.provider.MediaStore;
 import android.provider.Settings;
 import android.util.Base64;
@@ -59,6 +60,8 @@ public class MainActivity extends Activity {
     private ValueCallback<Uri[]> fileCallback;
     private volatile boolean downloading = false;
     private volatile boolean prefetching = false;
+    private java.util.concurrent.ExecutorService batch;
+    private volatile boolean batchStop = false;
     private volatile String lastInstallUrl;
     private Uri cameraUri;
     private boolean notifAsked = false;
@@ -329,11 +332,7 @@ public class MainActivity extends Activity {
         }
 
         /* ---- PDF-документы объектов: файлы во внутренней памяти, c_* — временные (скачанные из справочника) ---- */
-        private File docFile(String id) {
-            File dir = new File(id.startsWith("c_") ? getCacheDir() : getFilesDir(), "docs");
-            if (!dir.exists()) dir.mkdirs();
-            return new File(dir, id.replaceAll("[^A-Za-z0-9_-]", "") + ".pdf");
-        }
+        private File docFile(String id) { return Store.docFile(MainActivity.this, id); }
 
         @JavascriptInterface
         public boolean docWrite(String id, String base64, boolean append) {
@@ -374,9 +373,10 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void docShare(final String id, final String name) {
             runOnUiThread(() -> {
-                Uri u = PhotoProvider.docUri(id, name);
+                File f = docFile(id);
+                Uri u = PhotoProvider.docUri(id, name, Store.ext(f));
                 Intent i = new Intent(Intent.ACTION_SEND);
-                i.setType("application/pdf");
+                i.setType(Store.mime(Store.ext(f)));
                 i.putExtra(Intent.EXTRA_STREAM, u);
                 i.setClipData(android.content.ClipData.newRawUri("", u));
                 i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
@@ -390,47 +390,205 @@ public class MainActivity extends Activity {
             });
         }
 
-        /** Скачивает PDF по ссылке (документация из справочника), результат — window.onDocFetch(req, код, текст ошибки). */
+        /** Скачивает файл по ссылке во внутреннюю папку документа id. Возвращает (код, ошибка, тип, размер). */
+        private Object[] download(String url, String id) {
+            int code;
+            String err = "", ext = "";
+            long size = 0;
+            String sid = Store.clean(id);
+            File dir = sid.startsWith("k_") ? Store.catDir(MainActivity.this) : docFile(sid).getParentFile();
+            File tmp = new File(dir, sid + ".part");
+            try {
+                String u = url, hint = "";
+                HttpURLConnection c = null;
+                for (int hop = 0; hop < 8; hop++) {
+                    c = (HttpURLConnection) new URL(u).openConnection();
+                    c.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Mobile Safari/537.36");
+                    c.setRequestProperty("Accept", "application/pdf,application/octet-stream,*/*");
+                    c.setInstanceFollowRedirects(false);
+                    c.setConnectTimeout(20000);
+                    c.setReadTimeout(60000);
+                    int rc = c.getResponseCode();
+                    if (rc >= 300 && rc < 400 && c.getHeaderField("Location") != null) {
+                        u = new URL(new URL(u), c.getHeaderField("Location")).toString();
+                        c.disconnect();
+                        continue;
+                    }
+                    break;
+                }
+                code = c.getResponseCode();
+                if (code == 200) {
+                    String cd = c.getHeaderField("Content-Disposition");
+                    if (cd != null) {
+                        Matcher m = Pattern.compile("filename\\*?=(?:UTF-8'')?\"?([^\";]+)", Pattern.CASE_INSENSITIVE).matcher(cd);
+                        if (m.find()) hint = java.net.URLDecoder.decode(m.group(1), "UTF-8");
+                    }
+                    if (hint.isEmpty()) hint = Uri.parse(u).getLastPathSegment();
+                    try (InputStream in = c.getInputStream(); OutputStream out = new FileOutputStream(tmp)) {
+                        byte[] buf = new byte[65536];
+                        int n;
+                        while ((n = in.read(buf)) > 0) { out.write(buf, 0, n); size += n; }
+                    }
+                    ext = Store.sniff(tmp, hint);
+                    if ("html".equals(ext)) { code = -2; err = "по ссылке не файл, а страница сайта"; }
+                    else {
+                        File[] old = dir.listFiles((d, nm) -> nm.startsWith(sid + ".") && !nm.endsWith(".part"));
+                        if (old != null) for (File x : old) //noinspection ResultOfMethodCallIgnored
+                            x.delete();
+                        File dst = sid.startsWith("k_") ? new File(dir, sid + "." + ext) : docFile(sid);
+                        if (!tmp.renameTo(dst)) { code = -1; err = "не удалось сохранить файл"; }
+                    }
+                }
+            } catch (Exception e) {
+                code = -1;
+                err = String.valueOf(e.getMessage());
+            }
+            //noinspection ResultOfMethodCallIgnored
+            tmp.delete();
+            return new Object[]{code, err, ext, size};
+        }
+
+        /** Скачивает файл по ссылке (документация из справочника), результат — window.onDocFetch(req, код, ошибка, тип, размер). */
         @JavascriptInterface
         public void docFetch(final String req, final String url, final String id) {
             new Thread(() -> {
-                int code;
-                String err = "";
-                File f = docFile(id), tmp = new File(f.getPath() + ".part");
-                try {
-                    String u = url;
-                    HttpURLConnection c = null;
-                    for (int hop = 0; hop < 6; hop++) {
-                        c = (HttpURLConnection) new URL(u).openConnection();
-                        c.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android) organizer-app");
-                        c.setInstanceFollowRedirects(false);
-                        c.setConnectTimeout(15000);
-                        c.setReadTimeout(60000);
-                        int rc = c.getResponseCode();
-                        if (rc >= 300 && rc < 400 && c.getHeaderField("Location") != null) {
-                            u = new URL(new URL(u), c.getHeaderField("Location")).toString();
-                            c.disconnect();
-                            continue;
-                        }
-                        break;
-                    }
-                    code = c.getResponseCode();
-                    if (code == 200) {
-                        try (InputStream in = c.getInputStream(); OutputStream out = new FileOutputStream(tmp)) {
-                            byte[] buf = new byte[65536];
-                            int n;
-                            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-                        }
-                        if (!tmp.renameTo(f)) { code = -1; err = "не удалось сохранить файл"; }
-                    }
-                } catch (Exception e) {
-                    code = -1;
-                    err = String.valueOf(e.getMessage());
-                    //noinspection ResultOfMethodCallIgnored
-                    tmp.delete();
-                }
-                callJs("window.onDocFetch && window.onDocFetch(" + JSONObject.quote(req) + "," + code + "," + JSONObject.quote(err) + ")");
+                Object[] r = download(url, id);
+                callJs("window.onDocFetch && window.onDocFetch(" + JSONObject.quote(req) + "," + r[0] + "," + JSONObject.quote((String) r[1]) + "," + JSONObject.quote((String) r[2]) + "," + r[3] + ")");
             }).start();
+        }
+
+        /** Есть ли скачанный документ: {"ok":true,"size":…,"ext":"pdf"}. */
+        @JavascriptInterface
+        public String docInfo(String id) {
+            File f = docFile(id);
+            try {
+                JSONObject o = new JSONObject();
+                o.put("ok", f.exists() && f.length() > 0);
+                o.put("size", f.exists() ? f.length() : 0);
+                o.put("ext", Store.ext(f));
+                return o.toString();
+            } catch (Exception e) { return "{}"; }
+        }
+
+        /** Открывает не-PDF файл (архив, Word…) в другом приложении телефона. */
+        @JavascriptInterface
+        public void docOpenExt(final String id, final String name) {
+            runOnUiThread(() -> {
+                File f = docFile(id);
+                Uri u = PhotoProvider.docUri(id, name, Store.ext(f));
+                Intent i = new Intent(Intent.ACTION_VIEW);
+                i.setDataAndType(u, Store.mime(Store.ext(f)));
+                i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                try { startActivity(Intent.createChooser(i, "Открыть")); }
+                catch (Exception e) { Toast.makeText(MainActivity.this, "Нет приложения, чтобы открыть этот файл", Toast.LENGTH_SHORT).show(); }
+            });
+        }
+
+        /** Копия документа в «Загрузки/Органайзер/Документация». Возвращает, куда сохранено, или "" при ошибке. */
+        @JavascriptInterface
+        public String docSaveDl(String id, String name) {
+            File f = docFile(id);
+            if (!f.exists()) return "";
+            String ext = Store.ext(f);
+            String nm = (name == null ? "document" : name).replaceAll("[\\\\/:*?\"<>|]", "_").trim();
+            if (nm.isEmpty()) nm = "document";
+            if (!nm.toLowerCase().endsWith("." + ext)) nm += "." + ext;
+            try {
+                if (Build.VERSION.SDK_INT >= 29) {
+                    android.content.ContentResolver cr = getContentResolver();
+                    ContentValues v = new ContentValues();
+                    v.put(MediaStore.MediaColumns.DISPLAY_NAME, nm);
+                    v.put(MediaStore.MediaColumns.MIME_TYPE, Store.mime(ext));
+                    v.put(MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS + "/Органайзер/Документация");
+                    Uri u = cr.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
+                    if (u == null) return "";
+                    try (InputStream in = new java.io.FileInputStream(f); OutputStream out = cr.openOutputStream(u)) {
+                        if (out == null) return "";
+                        byte[] buf = new byte[65536];
+                        int n;
+                        while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                    }
+                    return "Загрузки/Органайзер/Документация/" + nm;
+                } else {
+                    File dir = new File(getExternalFilesDir(null), "Документация");
+                    if (!dir.exists()) //noinspection ResultOfMethodCallIgnored
+                        dir.mkdirs();
+                    try (InputStream in = new java.io.FileInputStream(f); OutputStream out = new FileOutputStream(new File(dir, nm))) {
+                        byte[] buf = new byte[65536];
+                        int n;
+                        while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                    }
+                    return "Android/data/" + getPackageName() + "/files/Документация/" + nm;
+                }
+            } catch (Exception e) { return ""; }
+        }
+
+        /* ---- скачивание всей документации справочника: очередь в фоне, 3 файла одновременно ---- */
+        @JavascriptInterface
+        public void catBatch(final String json) {
+            if (batch != null && !batch.isShutdown()) return;
+            final org.json.JSONArray list;
+            try { list = new org.json.JSONArray(json); } catch (Exception e) { return; }
+            batchStop = false;
+            batch = java.util.concurrent.Executors.newFixedThreadPool(3);
+            final java.util.concurrent.atomic.AtomicInteger done = new java.util.concurrent.atomic.AtomicInteger(), ok = new java.util.concurrent.atomic.AtomicInteger(), fail = new java.util.concurrent.atomic.AtomicInteger();
+            final java.util.concurrent.atomic.AtomicLong bytes = new java.util.concurrent.atomic.AtomicLong();
+            final int total = list.length();
+            for (int i = 0; i < total; i++) {
+                final JSONObject it = list.optJSONObject(i);
+                if (it == null) continue;
+                batch.execute(() -> {
+                    String id = it.optString("id"), url = it.optString("url");
+                    String ext = "";
+                    long sz = 0;
+                    int code = 0;
+                    if (!batchStop) {
+                        File have = docFile(id);
+                        if (have.exists() && have.length() > 0) { code = 200; ext = Store.ext(have); sz = have.length(); }
+                        else {
+                            StatFs st = new StatFs(Store.catDir(MainActivity.this).getPath());
+                            if (st.getAvailableBytes() < 50L * 1024 * 1024) { batchStop = true; code = -3; }
+                            else { Object[] r = download(url, id); code = (int) r[0]; ext = (String) r[2]; sz = (long) r[3]; }
+                        }
+                    }
+                    if (code == 200) { ok.incrementAndGet(); bytes.addAndGet(sz); } else if (!batchStop || code == -3) fail.incrementAndGet();
+                    int d = done.incrementAndGet();
+                    try {
+                        JSONObject o = new JSONObject();
+                        o.put("done", d); o.put("total", total); o.put("ok", ok.get()); o.put("fail", fail.get()); o.put("bytes", bytes.get());
+                        o.put("id", id); o.put("code", code); o.put("ext", ext); o.put("size", sz); o.put("stopped", batchStop); o.put("nospace", code == -3);
+                        callJs("window.onCatBatch && window.onCatBatch(" + JSONObject.quote(o.toString()) + ")");
+                    } catch (Exception ignored) { }
+                    if (d == total) batch.shutdown();
+                });
+            }
+        }
+
+        @JavascriptInterface
+        public void catBatchCancel() { batchStop = true; if (batch != null) batch.shutdownNow(); }
+
+        @JavascriptInterface
+        public boolean catBatchRunning() { return batch != null && !batch.isTerminated(); }
+
+        /* ---- память: сколько занято, сколько свободно, где хранить документацию ---- */
+        @JavascriptInterface
+        public String storageInfo() { return Store.info(MainActivity.this).toString(); }
+
+        @JavascriptInterface
+        public void storageMove(final String to) {
+            new Thread(() -> {
+                String err = Store.move(MainActivity.this, to);
+                callJs("window.onStorageMoved && window.onStorageMoved(" + JSONObject.quote(err) + ")");
+            }).start();
+        }
+
+        @JavascriptInterface
+        public void catClear() {
+            for (String l : new String[]{"phone", "sd"}) {
+                File[] fs = Store.catDir(MainActivity.this, l).listFiles();
+                if (fs != null) for (File f : fs) //noinspection ResultOfMethodCallIgnored
+                    f.delete();
+            }
         }
 
         /* ---- отправка в Telegram от имени бота (Bot API) ---- */
