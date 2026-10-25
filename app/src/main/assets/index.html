@@ -1279,6 +1279,18 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
 <script src="trassir.js"></script>
 <script src="hikvision.js"></script>
 <script src="smartec.js"></script>
+<script src="delta.js"></script>
+<script src="eia.js"></script>
+<script src="esmart.js"></script>
+<script src="bastion.js"></script>
+<script src="rielta.js"></script>
+<script src="teko.js"></script>
+<script src="altonika.js"></script>
+<script src="crow.js"></script>
+<script src="kss.js"></script>
+<script src="meanwell.js"></script>
+<script src="wirenboard.js"></script>
+<script src="philips.js"></script>
 <script>
 (function(){
 /* ---------- журнал ошибок для отчёта (только ошибки и технические сведения, без ваших записей и токенов) ---------- */
@@ -2913,10 +2925,14 @@ async function pdfPagesText(bytes,onPage){
 }
 const PRJ_SEC={scheme:'Схемы',kj:'Исполнительная документация',spec:'Исполнительная документация',pz:'Проект',general:'Проект'};
 function prjMatch(e){
-  const q=bnorm(e.model), qn=q.replace(/\s/g,''); if(qn.length<4) return null;
+  const q=bnorm(e.model), qn=q.replace(/\s/g,'').replace(/^(оборудование)?зип/,''); if(qn.length<3) return null;
+  /* варианты записи из проектов: «Шорох-3 исп.В» = «Шорох-3В», кириллическая «З» вместо цифры 3 (RR-701ТКЗ) */
+  const alts=Array.from(new Set([qn, qn.replace(/исп/g,''), qn.replace(/(\d|[a-zа-я])з(?=\d|$)/g,'$13')]));
+  const sub=/\d/.test(qn); /* частичное совпадение — только для обозначений с цифрами, иначе «Кронштейн» найдёт любой кронштейн */
   let best=null;
-  MAKERS.forEach(k=>CATS[k].items.forEach(d=>{ const m=bnorm(d.m).replace(/\s/g,''); if(m.length<4) return;
-    if(m===qn||(qn.length>=6&&m.includes(qn))||(m.length>=6&&qn.includes(m))){ const sc=(m===qn?3:1)+(d.d&&d.d.length?1:0); if(!best||sc>best.sc) best={d,sc}; } }));
+  MAKERS.forEach(k=>CATS[k].items.forEach(d=>{ const m=bnorm(d.m).replace(/\s/g,''); if(m.length<3) return;
+    const ex=alts.includes(m);
+    if(ex||(sub&&((qn.length>=6&&m.includes(qn))||(m.length>=6&&qn.includes(m))))){ const sc=(ex?3:1)+(d.d&&d.d.length?1:0); if(!best||sc>best.sc) best={d,sc}; } }));
   return best&&best.d;
 }
 let prjCur=null;
@@ -4303,7 +4319,7 @@ $('#tplBack').onclick=()=>{ if(tplFrom==='check'&&ck){showView('check');renderCh
 
 /* ---------- Equipment catalogs (Болид, Аргус-Спектр, ...) ---------- */
 const CATS=window.CATALOGS=window.CATALOGS||{};
-const MAKER_ORDER=['bolid','argus','rubezh','trassir','hikvision','smartec'];
+const MAKER_ORDER=['bolid','argus','rubezh','trassir','hikvision','smartec','delta','eia','esmart','bastion','rielta','teko','altonika','crow','kss','meanwell','wirenboard','philips'];
 let MAKERS=[];
 const LAT2CYR={a:'а',b:'б',c:'с',d:'д',e:'е',f:'ф',g:'г',h:'х',i:'и',j:'й',k:'к',l:'л',m:'м',n:'н',o:'о',p:'п',q:'к',r:'р',s:'с',t:'т',u:'у',v:'в',w:'в',x:'х',y:'ы',z:'з'};
 function bnorm(s){return String(s||'').toLowerCase().replace(/ё/g,'е').replace(/[a-z]/g,ch=>LAT2CYR[ch]).replace(/[\-–—.,()«»"\/:]/g,'').replace(/\s+/g,' ').trim()}

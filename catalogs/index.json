@@ -1,12 +1,12 @@
 {
- "updated": "2026-10-25T09:45",
+ "updated": "2026-10-26T00:03",
  "catalogs": {
   "bolid": {
    "name": "Болид",
    "file": "bolid.json",
-   "date": "2026-10-23",
-   "rev": "2026-10-23T21:00",
-   "count": 111
+   "date": "2026-10-26",
+   "rev": "2026-10-26T00:03",
+   "count": 115
   },
   "argus": {
    "name": "Аргус-Спектр",
@@ -18,16 +18,16 @@
   "rubezh": {
    "name": "Рубеж",
    "file": "rubezh.json",
-   "date": "2026-10-24",
-   "rev": "2026-10-24T15:10",
-   "count": 535
+   "date": "2026-10-26",
+   "rev": "2026-10-26T00:03",
+   "count": 536
   },
   "trassir": {
    "name": "Трассир",
    "file": "trassir.json",
-   "date": "2026-10-23",
-   "rev": "2026-10-23T22:37",
-   "count": 24
+   "date": "2026-10-26",
+   "rev": "2026-10-26T00:03",
+   "count": 29
   },
   "hikvision": {
    "name": "Hikvision",
@@ -39,9 +39,93 @@
   "smartec": {
    "name": "Smartec",
    "file": "smartec.json",
-   "date": "2026-10-25",
-   "rev": "2026-10-25T09:45",
-   "count": 250
+   "date": "2026-10-26",
+   "rev": "2026-10-26T00:03",
+   "count": 251
+  },
+  "delta": {
+   "name": "Delta",
+   "file": "delta.json",
+   "date": "2026-10-26",
+   "rev": "2026-10-26T00:03",
+   "count": 3
+  },
+  "eia": {
+   "name": "Электротехника и Автоматика",
+   "file": "eia.json",
+   "date": "2026-10-26",
+   "rev": "2026-10-26T00:03",
+   "count": 3
+  },
+  "esmart": {
+   "name": "ESMART",
+   "file": "esmart.json",
+   "date": "2026-10-26",
+   "rev": "2026-10-26T00:03",
+   "count": 1
+  },
+  "bastion": {
+   "name": "Бастион",
+   "file": "bastion.json",
+   "date": "2026-10-26",
+   "rev": "2026-10-26T00:03",
+   "count": 2
+  },
+  "rielta": {
+   "name": "Риэлта",
+   "file": "rielta.json",
+   "date": "2026-10-26",
+   "rev": "2026-10-26T00:03",
+   "count": 5
+  },
+  "teko": {
+   "name": "ТЕКО",
+   "file": "teko.json",
+   "date": "2026-10-26",
+   "rev": "2026-10-26T00:03",
+   "count": 2
+  },
+  "altonika": {
+   "name": "Альтоника",
+   "file": "altonika.json",
+   "date": "2026-10-26",
+   "rev": "2026-10-26T00:03",
+   "count": 3
+  },
+  "crow": {
+   "name": "Crow",
+   "file": "crow.json",
+   "date": "2026-10-26",
+   "rev": "2026-10-26T00:03",
+   "count": 1
+  },
+  "kss": {
+   "name": "КСС",
+   "file": "kss.json",
+   "date": "2026-10-26",
+   "rev": "2026-10-26T00:03",
+   "count": 1
+  },
+  "meanwell": {
+   "name": "MEAN WELL",
+   "file": "meanwell.json",
+   "date": "2026-10-26",
+   "rev": "2026-10-26T00:03",
+   "count": 1
+  },
+  "wirenboard": {
+   "name": "Wiren Board",
+   "file": "wirenboard.json",
+   "date": "2026-10-26",
+   "rev": "2026-10-26T00:03",
+   "count": 1
+  },
+  "philips": {
+   "name": "Philips",
+   "file": "philips.json",
+   "date": "2026-10-26",
+   "rev": "2026-10-26T00:03",
+   "count": 1
   }
  }
 }
