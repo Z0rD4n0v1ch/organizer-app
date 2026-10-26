@@ -1839,6 +1839,7 @@ function photoPicker(px){
   $('#'+px+'GalInput').onchange=e=>{pick([...e.target.files]);e.target.value=''};
   return {
     set(id){ st.id=id||null; st.fresh=false; st.drop=null; $('#'+px+'PhBlock').hidden=!PHOTO; if(PHOTO) show(); },
+    adopt(id){ st.id=id; st.fresh=true; show(); },
     get(){ return st.id; },
     commit(){ if(st.drop){try{PH.del(st.drop)}catch(e){}} st.fresh=false; st.drop=null; },
     discard(){ if(st.fresh&&st.id){try{PH.del(st.id)}catch(e){}} st.id=null; st.fresh=false; st.drop=null; }
@@ -2278,12 +2279,25 @@ const byPdf=(function(){
   };
   return {
     set(p){ st.cur=p?Object.assign({},p):null; st.fresh=false; st.drop=null; $('#byPdfBlock').hidden=!DOC.ok; show(); },
+    async adopt(p){ st.cur=Object.assign({},p); st.fresh=true; show(); const u=await DOC.load(p.id); if(u) byPdfTotal(u); },
     get(){ return st.cur; },
     commit(){ if(st.drop) DOC.del(st.drop); st.fresh=false; st.drop=null; },
     discard(){ if(st.fresh&&st.cur) DOC.del(st.cur.id); st.cur=null; st.fresh=false; st.drop=null; }
   };
 })();
-function fmtSize(n){ return n>=1048576?(n/1048576).toFixed(1).replace('.',',')+' МБ':Math.max(1,Math.round(n/1024))+' КБ'; }
+/* чек пришёл через «Поделиться» из другого приложения: новая покупка с этим чеком */
+window.onShareIn=function(){
+  let j=null; try{ j=APP&&Android.shareInTake?Android.shareInTake():null; }catch(e){}
+  if(!j) return; let x=null; try{ x=JSON.parse(j); }catch(e){ return; }
+  if(x.kind==='error'){ logErr('share','не удалось принять файл: '+(x.msg||'')); alert('Не удалось принять файл: '+(x.msg||'ошибка')); return; }
+  if($('#sheet').classList.contains('on')) closeSheet();
+  try{ if(!$('#pdfv').hidden) closePdf(); }catch(e){}
+  go('money'); openBuy();
+  if(x.kind==='pdf') byPdf.adopt({id:x.id,name:x.name||'Чек',size:x.size||0});
+  else if(x.kind==='img') byPick.adopt(x.id);
+  $('#fBuyTitle').textContent='Новая покупка по чеку';
+};
+setTimeout(()=>{ try{ window.onShareIn(); }catch(e){} },400);
 /* из электронного чека подставляем итог, если позиции ещё не заполнены */
 async function byPdfTotal(u){
   try{

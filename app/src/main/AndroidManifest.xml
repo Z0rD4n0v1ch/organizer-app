@@ -25,6 +25,13 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <!-- «Поделиться» чеком из банка, ОФД, почты: PDF или картинка → новая покупка в «Расходах» -->
+            <intent-filter android:label="Чек в Расходы">
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pdf" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
         </activity>
         <provider
             android:name=".PhotoProvider"

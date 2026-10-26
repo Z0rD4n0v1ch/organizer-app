@@ -17,6 +17,10 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.StatFs;
 import android.provider.MediaStore;
+import android.provider.OpenableColumns;
+import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.provider.Settings;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
@@ -151,7 +155,80 @@ public class MainActivity extends Activity {
         else registerReceiver(installReceiver, f);
 
         if (savedInstanceState != null) web.restoreState(savedInstanceState);
-        else web.loadUrl("file:///android_asset/index.html");
+        else {
+            web.loadUrl("file:///android_asset/index.html");
+            handleShare(getIntent());
+        }
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        handleShare(intent);
+    }
+
+    /* ---------- «Поделиться» в органайзер: PDF-чек или фото чека ---------- */
+    private volatile String shareIn = null;
+
+    private void handleShare(Intent intent) {
+        if (intent == null || !Intent.ACTION_SEND.equals(intent.getAction())) return;
+        final Uri uri;
+        if (Build.VERSION.SDK_INT >= 33) uri = intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri.class);
+        else uri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+        final String type0 = intent.getType();
+        setIntent(new Intent(this, MainActivity.class));   // чтобы не принять тот же файл повторно
+        if (uri == null) return;
+        new Thread(() -> {
+            JSONObject j = new JSONObject();
+            try {
+                String type = type0;
+                try { String t = getContentResolver().getType(uri); if (t != null) type = t; } catch (Exception ignored) { }
+                String name = "";
+                try (Cursor c = getContentResolver().query(uri, new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+                    if (c != null && c.moveToFirst()) name = c.getString(0);
+                } catch (Exception ignored) { }
+                if (name == null) name = "";
+                boolean pdf = (type != null && type.contains("pdf")) || name.toLowerCase().endsWith(".pdf");
+                String id = (pdf ? "d" : "s") + System.currentTimeMillis() + Integer.toHexString((int) (Math.random() * 0xffff));
+                if (pdf) {
+                    File out = Store.docFile(this, id);
+                    long n = 0;
+                    try (InputStream in = getContentResolver().openInputStream(uri); FileOutputStream o = new FileOutputStream(out)) {
+                        byte[] buf = new byte[65536]; int k;
+                        while ((k = in.read(buf)) > 0) { o.write(buf, 0, k); n += k; }
+                    }
+                    byte[] head = new byte[4];
+                    try (InputStream in = new java.io.FileInputStream(out)) { if (in.read(head) < 4) head = new byte[4]; }
+                    if (!new String(head, StandardCharsets.ISO_8859_1).equals("%PDF")) { out.delete(); throw new Exception("файл не похож на PDF"); }
+                    j.put("kind", "pdf"); j.put("id", id); j.put("size", n);
+                    j.put("name", name.replaceAll("(?i)\\.pdf$", ""));
+                } else {
+                    BitmapFactory.Options o = new BitmapFactory.Options();
+                    o.inJustDecodeBounds = true;
+                    try (InputStream in = getContentResolver().openInputStream(uri)) { BitmapFactory.decodeStream(in, null, o); }
+                    if (o.outWidth <= 0) throw new Exception("не удалось прочитать картинку");
+                    int max = Math.max(o.outWidth, o.outHeight), sample = 1;
+                    while (max / (sample * 2) >= 1600) sample *= 2;
+                    BitmapFactory.Options o2 = new BitmapFactory.Options();
+                    o2.inSampleSize = sample;
+                    Bitmap bm;
+                    try (InputStream in = getContentResolver().openInputStream(uri)) { bm = BitmapFactory.decodeStream(in, null, o2); }
+                    if (bm == null) throw new Exception("не удалось прочитать картинку");
+                    float k = Math.min(1f, 1600f / Math.max(bm.getWidth(), bm.getHeight()));
+                    if (k < 1f) { Bitmap sc = Bitmap.createScaledBitmap(bm, Math.round(bm.getWidth() * k), Math.round(bm.getHeight() * k), true); if (sc != bm) bm.recycle(); bm = sc; }
+                    File dir = new File(getFilesDir(), "photos");
+                    if (!dir.exists()) //noinspection ResultOfMethodCallIgnored
+                        dir.mkdirs();
+                    try (FileOutputStream out = new FileOutputStream(new File(dir, id + ".jpg"))) { bm.compress(Bitmap.CompressFormat.JPEG, 85, out); }
+                    bm.recycle();
+                    j.put("kind", "img"); j.put("id", id); j.put("name", name);
+                }
+            } catch (Throwable e) {
+                try { j = new JSONObject(); j.put("kind", "error"); j.put("msg", String.valueOf(e.getMessage())); } catch (Exception ignored) { }
+            }
+            shareIn = j.toString();
+            callJs("window.onShareIn && window.onShareIn()");
+        }).start();
     }
 
     @Override
@@ -772,6 +849,14 @@ public class MainActivity extends Activity {
             File dir = new File(getFilesDir(), "photos");
             if (!dir.exists()) dir.mkdirs();
             return new File(dir, id.replaceAll("[^A-Za-z0-9_-]", "") + ".jpg");
+        }
+
+        /** Принятый через «Поделиться» файл (JSON) — один раз, затем очищается. */
+        @JavascriptInterface
+        public String shareInTake() {
+            String s = shareIn;
+            shareIn = null;
+            return s;
         }
 
         @JavascriptInterface
