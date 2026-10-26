@@ -674,6 +674,77 @@ public class MainActivity extends Activity {
             }).start();
         }
 
+        /** Альбом фото (sendMediaGroup, 2–10 штук): ids и подписи — JSON-массивы. */
+        @JavascriptInterface
+        public void tgMediaVia(final String id, final String base, final String token, final String chat, final String idsJson, final String capsJson) {
+            new Thread(() -> {
+                int code = -1;
+                String body = "";
+                try {
+                    JSONArray ids = new JSONArray(idsJson), caps = new JSONArray(capsJson), media = new JSONArray();
+                    java.util.List<File> files = new java.util.ArrayList<>();
+                    for (int i = 0; i < ids.length(); i++) {
+                        File f = photoFile(ids.optString(i));
+                        if (f == null || !f.exists()) continue;
+                        JSONObject m = new JSONObject();
+                        m.put("type", "photo");
+                        m.put("media", "attach://p" + files.size());
+                        String cap = caps.optString(i, "");
+                        if (cap.length() > 1024) cap = cap.substring(0, 1024);
+                        if (!cap.isEmpty()) m.put("caption", cap);
+                        media.put(m);
+                        files.add(f);
+                    }
+                    if (files.isEmpty()) {
+                        code = 200;
+                        body = "{\"ok\":true,\"result\":[]}";
+                    } else {
+                        String b0 = (base == null || base.isEmpty()) ? "https://api.telegram.org" : base.replaceAll("/+$", "");
+                        URL url = new URL(b0 + "/bot" + token + (files.size() == 1 ? "/sendPhoto" : "/sendMediaGroup"));
+                        HttpURLConnection c = (HttpURLConnection) url.openConnection();
+                        c.setConnectTimeout(15000);
+                        c.setReadTimeout(120000);
+                        c.setDoOutput(true);
+                        String b = "----org" + System.currentTimeMillis();
+                        c.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + b);
+                        try (OutputStream out = c.getOutputStream()) {
+                            writePart(out, b, "chat_id", chat);
+                            if (files.size() == 1) {
+                                writePart(out, b, "caption", media.getJSONObject(0).optString("caption", ""));
+                            } else {
+                                writePart(out, b, "media", media.toString());
+                            }
+                            for (int i = 0; i < files.size(); i++) {
+                                String name = files.size() == 1 ? "photo" : "p" + i;
+                                out.write(("--" + b + "\r\nContent-Disposition: form-data; name=\"" + name + "\"; filename=\"chek_" + i + ".jpg\"\r\nContent-Type: image/jpeg\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+                                try (InputStream in = new java.io.FileInputStream(files.get(i))) {
+                                    byte[] buf = new byte[65536];
+                                    int n;
+                                    while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                                }
+                                out.write("\r\n".getBytes(StandardCharsets.UTF_8));
+                            }
+                            out.write(("--" + b + "--\r\n").getBytes(StandardCharsets.UTF_8));
+                        }
+                        code = c.getResponseCode();
+                        InputStream is = code >= 400 ? c.getErrorStream() : c.getInputStream();
+                        if (is != null) {
+                            StringBuilder sb = new StringBuilder();
+                            try (BufferedReader r = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+                                String line;
+                                while ((line = r.readLine()) != null) sb.append(line);
+                            }
+                            body = sb.toString();
+                        }
+                    }
+                } catch (Exception e) {
+                    code = -1;
+                    body = e.getClass().getSimpleName() + ": " + e.getMessage();
+                }
+                callJs("window.onTg && window.onTg(" + JSONObject.quote(id) + "," + code + "," + JSONObject.quote(body) + ")");
+            }).start();
+        }
+
         private void writePart(OutputStream out, String b, String name, String value) throws java.io.IOException {
             out.write(("--" + b + "\r\nContent-Disposition: form-data; name=\"" + name + "\"\r\n\r\n").getBytes(StandardCharsets.UTF_8));
             out.write(value.getBytes(StandardCharsets.UTF_8));

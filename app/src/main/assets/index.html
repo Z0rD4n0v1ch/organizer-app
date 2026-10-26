@@ -398,6 +398,15 @@ nav .nl{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;whit
 .byx{border:0;background:transparent;font-size:24px;line-height:44px;color:var(--muted);padding:0}
 .bytot{background:var(--bg);border-radius:14px;padding:10px 14px;margin:0 0 14px}
 .bytot:empty{display:none}
+#mrDates[hidden]{display:none}
+.mrchk{display:flex;align-items:center;gap:10px;margin:4px 0 10px;font-size:15px}
+.mrchk input{width:20px;height:20px;accent-color:var(--accent)}
+.mrtext{background:var(--bg);border-radius:14px;padding:12px 14px;margin:0 0 10px;font:13px/1.45 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-word;max-height:42vh;overflow:auto}
+.mrph{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin:0 0 10px}
+.mrph:empty{display:none}
+.mrph figure{margin:0;position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--bg)}
+.mrph img{width:100%;height:100%;object-fit:cover;display:block}
+.mrph figcaption{position:absolute;left:0;right:0;bottom:0;padding:2px 5px;font-size:11px;color:#fff;background:linear-gradient(transparent,rgba(0,0,0,.65))}
 .byline{display:flex;justify-content:space-between;gap:10px;padding:4px 0;font-size:14px}
 .byline.big{font-size:16px}.byline.big b{font:600 18px "Unbounded",sans-serif}
 #v-today>.upd,#v-today>.install,#v-today>.runbar{margin-top:14px}
@@ -708,7 +717,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <ul class="list" id="mnTrips"></ul>
     <h2>Получено от организации <button class="link" id="mnAdvAdd">Добавить</button></h2>
     <ul class="list" id="mnAdv"></ul>
-    <div class="pbtns" style="margin-top:14px"><button id="mnReport"><svg viewBox="0 0 24 24"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/><path d="M9 13l12-9"/></svg>Отправить отчёт в Telegram</button></div>
+    <div class="pbtns" style="margin-top:14px"><button id="mnReport"><svg viewBox="0 0 24 24"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/><path d="M9 13l12-9"/></svg>Отчёт в Telegram</button></div>
   </section>
 
   <section class="view" id="v-hours">
@@ -1092,6 +1101,21 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <div class="bytot" id="ktRes"></div>
     <div class="actions"><button class="btn ghost" id="ktDel" hidden>Удалить</button><button class="btn" id="ktSave">Завершить командировку</button></div>
     <button class="btn ghost plain tgbtn" id="ktSend"><svg viewBox="0 0 24 24"><path d="M21 4L3 11l6 2 2 6 3-4 5 4z"/><path d="M9 13l12-9"/></svg><span>Завершить и отправить в Telegram</span></button>
+    <p class="hint" style="text-align:center;margin:8px 0 0"><button class="link tgset" type="button">Настроить Telegram-бота</button></p>
+  </div>
+
+  <div class="form" id="fMnRep" hidden>
+    <h3>Отчёт о расходах</h3>
+    <div class="chips" id="mrRange"><button type="button" class="chip" data-r="all">Всё время</button><button type="button" class="chip" data-r="last">Новое с прошлого отчёта</button><button type="button" class="chip" data-r="month">Этот месяц</button><button type="button" class="chip" data-r="custom">Период</button></div>
+    <div class="two" id="mrDates"><div><p class="lbl">С</p><input class="field" type="date" id="mrFrom"></div><div><p class="lbl">По</p><input class="field" type="date" id="mrTo"></div></div>
+    <label class="mrchk"><input type="checkbox" id="mrPhotos" checked> <span>Приложить фото чеков</span></label>
+    <textarea class="field" id="mrNote" rows="2" style="min-height:0;height:64px" maxlength="600" placeholder="Комментарий к отчёту (необязательно)"></textarea>
+    <p class="lbl" style="margin-top:12px">Так отчёт придёт в чат</p>
+    <pre class="mrtext" id="mrText"></pre>
+    <div class="mrph" id="mrPh"></div>
+    <div class="bytot" id="mrSum"></div>
+    <p class="hint" id="mrLast"></p>
+    <div class="actions"><button class="btn ghost" id="mrShare">Поделиться</button><button class="btn" id="mrSend">Отправить в Telegram</button></div>
     <p class="hint" style="text-align:center;margin:8px 0 0"><button class="link tgset" type="button">Настроить Telegram-бота</button></p>
   </div>
 
@@ -2277,19 +2301,117 @@ $('#ktSave').onclick=()=>{ const r=ktStore(); if(r&&r.wasActive){ const t=r.t, T
 $('#ktSend').onclick=async()=>{ const r=ktStore(); if(!r) return; if(await tgOut('',tripCaption(r.t),'Командировка','money')){ r.t.sent=Date.now(); save(); renderMoney(); } };
 $('#ktDel').onclick=()=>{ if(!trpEdit||!confirm('Удалить командировку «'+(trpEdit.city||'')+'»?')) return; const m=mon(); m.trips=m.trips.filter(x=>x!==trpEdit); save(); renderMoney(); closeSheet(); };
 
-/* отчёт */
-function moneyReport(){
-  const m=mon(), T=moneyTotals(), L=['Отчёт о расходах на '+dateRu(todayISO()),''];
-  L.push('Получено от организации: '+rub(T.adv));
-  m.adv.slice().sort((a,b)=>cmp(a.date,b.date)).forEach(a=>L.push('  '+dateRu(a.date)+' — '+rub(a.sum)+(a.note?' ('+a.note+')':'')));
-  L.push('','Покупки: '+rub(T.buys));
-  m.buys.slice().sort((a,b)=>cmp(a.date,b.date)).forEach(b=>{ L.push('  '+dateRu(b.date)+(b.photo?'':' (без чека)')+' — '+rub(buyTotal(b))); (b.items||[]).forEach(i=>L.push('    · '+(i.name||'без названия')+' — '+rub(i.sum))); });
-  if(m.trips.length){ L.push('','Суточные: '+rub(T.diem));
-    m.trips.slice().sort((a,b)=>cmp(a.start,b.start)).forEach(t=>L.push('  '+(t.city||'')+', '+dRange(t.start,t.end||todayISO())+(t.end?'':' (идёт)')+': '+tripDays(t)+' '+plural(tripDays(t),'сутки','суток','суток')+' × '+rub(t.rate)+' = '+rub(tripSumDiem(t)))); }
-  L.push('','Остаток: '+rub(T.left));
-  return L.join('\n');
+/* отчёт: предпросмотр, период, фото чеков альбомами */
+const inR=(d,f,t)=>(!f||d>=f)&&(!t||d<=t);
+function repData(f,t,fresh){
+  const m=mon(), ok=(x,d)=>fresh?!x.rep:inR(d,f,t);
+  const adv=m.adv.filter(a=>ok(a,a.date)).sort((a,b)=>cmp(a.date,b.date)),
+    buys=m.buys.filter(b=>ok(b,b.date)).sort((a,b)=>cmp(a.date,b.date)||(a.ts||0)-(b.ts||0)),
+    trips=m.trips.filter(x=>fresh?(!x.end||!x.rep):inR(x.start,f,t)||inR(x.end||todayISO(),f,t)||(x.start<=(f||'')&&(x.end||todayISO())>=(t||'9'))).sort((a,b)=>cmp(a.start,b.start));
+  let n=0; const photos=[]; buys.forEach(b=>{ if(b.photo){ b._chk=++n; photos.push(b); } else b._chk=0; });
+  return {adv,buys,trips,photos};
 }
-$('#mnReport').onclick=()=>tgOut('',moneyReport(),'Отчёт о расходах','money');
+function moneyReport(f,t,note,withPh,fresh){
+  const D=repData(f,t,fresh), T=moneyTotals(), all=!f&&!t, sum=a=>a.reduce((x,y)=>x+y,0);
+  const L=['Отчёт о расходах на '+dateRu(todayISO())];
+  if(fresh) L.push('Новое с прошлого отчёта ('+dateRu(String(mon().lastReport||'').slice(0,10))+')');
+  else if(!all) L.push('Период: '+(f?dateRu(f):'…')+' — '+(t?dateRu(t):'…'));
+  if(note) L.push(note);
+  L.push('','Получено от организации: '+rub(sum(D.adv.map(a=>a.sum))));
+  D.adv.forEach(a=>L.push('  '+dateRu(a.date)+' — '+rub(a.sum)+(a.note?' ('+a.note+')':'')));
+  L.push('','Покупки: '+rub(sum(D.buys.map(buyTotal))));
+  D.buys.forEach(b=>{ L.push('  '+dateRu(b.date)+' — '+rub(buyTotal(b))+(b.photo?(withPh?' (чек '+b._chk+')':''):' (без чека)')); (b.items||[]).forEach(i=>L.push('    · '+(i.name||'без названия')+' — '+rub(i.sum))); });
+  if(D.trips.length){ L.push('','Суточные: '+rub(sum(D.trips.map(tripSumDiem))));
+    D.trips.forEach(x=>L.push('  '+(x.city||'')+', '+dRange(x.start,x.end||todayISO())+(x.end?'':' (идёт)')+': '+tripDays(x)+' '+plural(tripDays(x),'сутки','суток','суток')+' × '+rub(x.rate)+' = '+rub(tripSumDiem(x)))); }
+  L.push('','Остаток общей суммы на сегодня: '+rub(T.left));
+  if(withPh&&D.photos.length) L.push('Фото чеков: '+D.photos.length+' — следующими сообщениями');
+  return {text:L.join('\n'),D};
+}
+let mrR=null;
+function mrPeriod(){
+  const m=mon(), last=m.lastReport||'';
+  if(mrR==='all') return ['',''];
+  if(mrR==='month') return [todayISO().slice(0,8)+'01',''];
+  return [$('#mrFrom').value,$('#mrTo').value];
+}
+function mrRender(){
+  $$('#mrRange .chip').forEach(c=>c.classList.toggle('on',c.dataset.r===mrR));
+  $('#mrDates').hidden=mrR!=='custom';
+  const [f,t]=mrPeriod(), ph=$('#mrPhotos').checked, R=moneyReport(f,t,$('#mrNote').value.trim(),ph,mrR==='last'&&!!mon().lastReport);
+  $('#mrText').textContent=R.text;
+  const box=$('#mrPh'); box.innerHTML='';
+  if(ph&&PHOTO) R.D.photos.forEach(b=>{ const fg=document.createElement('figure'); fg.innerHTML='<img loading="lazy" alt="" src="'+PH.url(b.photo)+'"><figcaption>чек '+b._chk+' · '+esc(rub(buyTotal(b)))+'</figcaption>'; fg.onclick=()=>showPhoto(b.photo,'Чек '+b._chk+' · '+dateRu(b.date)+' · '+rub(buyTotal(b))); box.appendChild(fg); });
+  const nP=ph?R.D.photos.length:0, nA=Math.ceil(nP/10), noPh=R.D.buys.filter(b=>!b.photo).length;
+  $('#mrSum').innerHTML='<div class="byline"><span>Сообщений с текстом</span><b>'+tgSplit(R.text,4000).length+'</b></div>'+
+    (nP?'<div class="byline"><span>Фото чеков</span><b>'+nP+(nA>1?' ('+nA+' '+plural(nA,'альбом','альбома','альбомов')+')':'')+'</b></div>':'')+
+    (noPh?'<div class="byline"><span>Покупок без фото чека</span><b>'+noPh+'</b></div>':'');
+  const last=mon().lastReport; $('#mrLast').textContent=last?'Прошлый отчёт отправлен '+new Date(last).toLocaleString('ru-RU',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}):'';
+  $$('#mrRange .chip')[1].hidden=!last;
+  return R;
+}
+function openMnRep(){ if(mrR===null) mrR=mon().lastReport?'last':'all'; if(mrR==='last'&&!mon().lastReport) mrR='all'; if(!$('#mrFrom').value) $('#mrFrom').value=todayISO().slice(0,8)+'01'; if(!$('#mrTo').value) $('#mrTo').value=todayISO(); $('#mrSend').disabled=false; $('#mrSend').textContent='Отправить в Telegram'; mrRender(); openSheet('fMnRep'); }
+$('#mnReport').onclick=openMnRep;
+$$('#mrRange .chip').forEach(c=>c.onclick=()=>{ mrR=c.dataset.r; mrRender(); });
+['#mrFrom','#mrTo','#mrPhotos','#mrNote'].forEach(x=>$(x).addEventListener('input',mrRender)); $('#mrPhotos').addEventListener('change',mrRender);
+$('#mrSend').onclick=async()=>{
+  const R=mrRender(), ph=$('#mrPhotos').checked?R.D.photos:[], btn=$('#mrSend');
+  if(!tgCfg('money').token||!tgCfg('money').chat){ if(confirm('Telegram-бот для расходов не настроен. Настроить сейчас?')) openTg('money'); return; }
+  btn.disabled=true; btn.textContent='Отправляю текст…';
+  let r=await tgSend('money','',R.text);
+  if(r.ok&&ph.length) r=await tgAlbum('money',ph.map(b=>({id:b.photo,cap:'Чек '+b._chk+' · '+dateRu(b.date)+' · '+rub(buyTotal(b))+((b.items||[])[0]&&b.items[0].name?' · '+b.items[0].name+(b.items.length>1?' и ещё '+(b.items.length-1):''):'')})),(i,n)=>{ btn.textContent='Фото чеков: '+i+' из '+n+'…'; });
+  btn.disabled=false; btn.textContent='Отправить в Telegram';
+  if(r.ok){ const m=mon(); m.lastReport=new Date().toISOString(); const now=Date.now(); R.D.buys.forEach(b=>{ b.rep=now; if(!b.sent) b.sent=now; }); R.D.adv.forEach(a=>a.rep=now); R.D.trips.forEach(x=>{ if(x.end) x.rep=now; }); save(); renderMoney(); closeSheet();
+    alert('Отчёт отправлен'+(r.title?' в «'+r.title+'»':'')+(ph.length?', фото чеков: '+ph.length:'')); return; }
+  alert('Не удалось отправить: '+r.description+(r.done?'\nУже ушло фото: '+r.done+' из '+ph.length:''));
+};
+$('#mrShare').onclick=async()=>{
+  const R=mrRender(), ph=$('#mrPhotos').checked?R.D.photos:[];
+  if(!APP&&ph.length&&navigator.canShare){ try{ const files=[]; for(const b of ph){ const bl=await PH.blob(b.photo); if(bl) files.push(new File([bl],'chek_'+b._chk+'.jpg',{type:'image/jpeg'})); }
+    if(files.length&&navigator.canShare({files})){ await navigator.share({files,text:R.text}).catch(()=>{}); return; } }catch(e){} }
+  shareText('Отчёт о расходах',R.text);
+};
+/* фото альбомами по 10 (sendMediaGroup), одиночное — обычным фото */
+async function tgAlbum(p,list,prog){
+  const cfg=tgCfg(p); if(!(cfg.token&&cfg.chat)) return {ok:false,none:true,description:'бот не настроен'};
+  let done=0;
+  for(let i=0;i<list.length;i+=10){
+    const part=list.slice(i,i+10); let r=null;
+    prog&&prog(Math.min(i+part.length,list.length),list.length);
+    if(part.length===1){ r=await tgSend(p,part[0].id,part[0].cap); if(!r.ok) return Object.assign(r,{done}); done++; continue; }
+    for(let k=0;k<3;k++){
+      r=await tgMedia(cfg,part);
+      const pr=(r&&r.parameters)||{};
+      if(r&&r.ok) break;
+      if(pr.migrate_to_chat_id){ tgMigrate(cfg.chat,pr.migrate_to_chat_id); cfg.chat=String(pr.migrate_to_chat_id); continue; }
+      if(r&&r.error_code===429&&pr.retry_after&&pr.retry_after<=30){ await new Promise(s=>setTimeout(s,pr.retry_after*1000+300)); continue; }
+      break;
+    }
+    if(!(r&&r.ok)){ logErr('telegram','альбом чеков: '+((r&&r.description)||'нет ответа'),{code:r&&r.error_code}); return {ok:false,done,description:tgHuman(r&&r.description)}; }
+    done+=part.length;
+    if(i+10<list.length) await new Promise(s=>setTimeout(s,1200));   // не упираться в лимит Telegram на группы
+  }
+  return {ok:true,title:cfg.title||''};
+}
+function tgMedia(cfg,part){
+  return new Promise(async res=>{
+    const base=tgBase(cfg.base);
+    if(APP&&Android.tgMediaVia){
+      const id='t'+(++tgSeq); tgCb[id]=(code,body)=>{ let j=null; try{j=JSON.parse(body)}catch(e){} res(j||{ok:false,description:tgErr(code,body)}); };
+      Android.tgMediaVia(id,base,cfg.token,cfg.chat,JSON.stringify(part.map(x=>x.id)),JSON.stringify(part.map(x=>x.cap))); return;
+    }
+    if(APP){ // старая сборка без альбомов — по одному фото
+      for(const x of part){ const r=await tgApi('sendPhoto',{chat_id:cfg.chat,token:cfg.token,base:cfg.base||'',caption:x.cap},x.id); if(!(r&&r.ok)){ res(r); return; } }
+      res({ok:true}); return;
+    }
+    try{
+      const fd=new FormData(); fd.append('chat_id',cfg.chat); const media=[];
+      for(let k=0;k<part.length;k++){ const b=await PH.blob(part[k].id); if(!b) continue; fd.append('p'+k,b,'chek_'+k+'.jpg'); media.push({type:'photo',media:'attach://p'+k,caption:part[k].cap.slice(0,1024)}); }
+      if(!media.length){ res({ok:true}); return; }
+      fd.append('media',JSON.stringify(media));
+      const r=await fetch(base+'/bot'+cfg.token+'/sendMediaGroup',{method:'POST',body:fd}); res(await r.json());
+    }catch(e){ res({ok:false,description:'нет связи с сервером Telegram (возможна блокировка)'}); }
+  });
+}
 /* подписи и отправка в Telegram — так же, как пробег в «Авто» */
 function buyCaption(b){
   const L=['Покупка '+dateRu(b.date)], items=b.items||[];
@@ -3561,7 +3683,7 @@ let editing=null;
 function openSheet(id){
   $$('.form').forEach(f=>f.hidden=f.id!==id);
   $('#scrim').classList.add('on'); $('#sheet').classList.add('on'); $('#sheet').scrollTop=0;
-  const first=(id==='fSet'||id==='fHours'||id==='fHrSend'||id==='fDay'||id==='fTrRep'||id==='fBuy'||id==='fTrp')?null:$('#'+id+' input, #'+id+' textarea'); if(first) setTimeout(()=>first.focus({preventScroll:true}),260);
+  const first=(id==='fSet'||id==='fHours'||id==='fHrSend'||id==='fDay'||id==='fTrRep'||id==='fBuy'||id==='fTrp'||id==='fMnRep')?null:$('#'+id+' input, #'+id+' textarea'); if(first) setTimeout(()=>first.focus({preventScroll:true}),260);
 }
 function closeSheet(){try{kmPick.discard();lgPick.discard()}catch(e){}try{dsPick.discard();dePick.discard()}catch(e){}try{byPick.discard()}catch(e){}$('#scrim').classList.remove('on');$('#sheet').classList.remove('on');document.activeElement&&document.activeElement.blur();}
 $('#scrim').onclick=closeSheet;
