@@ -18,6 +18,18 @@
 ```
 В приложении: Настройки → Бригада → адрес `http://<ip>:8090`.
 
+## Установка одной командой (Ubuntu 24.04, от root)
+С доменом (адрес будет https://, сертификат получится сам — домен должен уже указывать на IP сервера):
+```
+curl -fsSL https://github.com/Z0rD4n0v1ch/organizer-app/raw/brigade-sync/server/install.sh | bash -s -- brig.example.ru
+```
+Без домена, только для проверки (http://IP, без шифрования):
+```
+curl -fsSL https://github.com/Z0rD4n0v1ch/organizer-app/raw/brigade-sync/server/install.sh | bash
+```
+Скрипт ставит PocketBase, схему и API бригады, создаёт службу `brigade` (сама запускается после перезагрузки) и печатает адрес для приложения и пароль панели администратора.
+Обновить сервер — запустить ту же команду ещё раз (данные в /opt/brigade/pb_data сохраняются).
+
 ## Для бригады (VPS в России)
 1. VPS с Linux (1 ядро, 1 ГБ памяти достаточно), домен или поддомен на его IP.
 2. Скачать PocketBase для linux_amd64 со страницы релизов, положить рядом папки `pb_migrations` и `pb_hooks` из этой ветки.
