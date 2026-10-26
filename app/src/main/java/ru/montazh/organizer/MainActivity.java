@@ -851,6 +851,72 @@ public class MainActivity extends Activity {
             return new File(dir, id.replaceAll("[^A-Za-z0-9_-]", "") + ".jpg");
         }
 
+        /** Бригада: загрузка файла объекта (фото или PDF) на сервер. kind: photo|doc */
+        @JavascriptInterface
+        public void brigUpload(final String id, final String url, final String token, final String key, final String obj, final String kind, final String fileId) {
+            new Thread(() -> {
+                int code = -1;
+                String body = "";
+                try {
+                    File f = "photo".equals(kind) ? photoFile(fileId) : docFile(fileId);
+                    if (!f.exists()) { code = 200; body = "{\"ok\":true,\"missing\":true}"; }
+                    else {
+                        HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+                        c.setConnectTimeout(15000);
+                        c.setReadTimeout(180000);
+                        c.setDoOutput(true);
+                        c.setRequestProperty("Authorization", token);
+                        String b = "----org" + System.currentTimeMillis();
+                        c.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + b);
+                        try (OutputStream out = c.getOutputStream()) {
+                            writePart(out, b, "key", key);
+                            writePart(out, b, "obj", obj);
+                            out.write(("--" + b + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"" + Store.clean(fileId) + ("photo".equals(kind) ? ".jpg" : ".pdf") + "\"\r\nContent-Type: " + ("photo".equals(kind) ? "image/jpeg" : "application/pdf") + "\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+                            try (InputStream in = new java.io.FileInputStream(f)) {
+                                byte[] buf = new byte[65536]; int n;
+                                while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                            }
+                            out.write(("\r\n--" + b + "--\r\n").getBytes(StandardCharsets.UTF_8));
+                        }
+                        code = c.getResponseCode();
+                        c.disconnect();
+                    }
+                } catch (Exception e) {
+                    code = -1;
+                    body = e.getClass().getSimpleName() + ": " + e.getMessage();
+                }
+                callJs("window.onBrigFile && window.onBrigFile(" + JSONObject.quote(id) + "," + code + "," + JSONObject.quote(body) + ")");
+            }).start();
+        }
+
+        /** Бригада: скачать файл объекта с сервера в фото или документы. */
+        @JavascriptInterface
+        public void brigDownload(final String id, final String url, final String token, final String kind, final String fileId) {
+            new Thread(() -> {
+                int code = -1;
+                try {
+                    HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+                    c.setConnectTimeout(15000);
+                    c.setReadTimeout(180000);
+                    c.setRequestProperty("Authorization", token);
+                    code = c.getResponseCode();
+                    if (code == 200) {
+                        File f = "photo".equals(kind) ? photoFile(fileId) : docFile(fileId);
+                        File tmp = new File(f.getPath() + ".part");
+                        try (InputStream in = c.getInputStream(); FileOutputStream out = new FileOutputStream(tmp)) {
+                            byte[] buf = new byte[65536]; int n;
+                            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+                        }
+                        if (!tmp.renameTo(f)) { tmp.delete(); code = -1; }
+                    }
+                    c.disconnect();
+                } catch (Exception e) {
+                    code = -1;
+                }
+                callJs("window.onBrigFile && window.onBrigFile(" + JSONObject.quote(id) + "," + code + ",\"\")");
+            }).start();
+        }
+
         /** Принятый через «Поделиться» файл (JSON) — один раз, затем очищается. */
         @JavascriptInterface
         public String shareInTake() {

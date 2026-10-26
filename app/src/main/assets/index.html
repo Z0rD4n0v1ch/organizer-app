@@ -409,6 +409,8 @@ nav .nl{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;whit
 .byx{border:0;background:transparent;font-size:24px;line-height:44px;color:var(--muted);padding:0}
 .bytot{background:var(--bg);border-radius:14px;padding:10px 14px;margin:0 0 14px}
 .bytot:empty{display:none}
+.brline{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--surface);border-radius:14px;padding:10px 14px;margin:4px 0 12px;font-size:14px}
+.hint.err{color:var(--red)}
 #mrDates[hidden]{display:none}
 .mrchk{display:flex;align-items:center;gap:10px;margin:4px 0 10px;font-size:15px}
 .mrchk input{width:20px;height:20px;accent-color:var(--accent)}
@@ -591,6 +593,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     </div>
     <dl class="info" id="oInfo"></dl>
     <div class="systems" id="oSystems"></div>
+    <div id="oBrig"></div>
     <h2 class="fold" data-sec="svc"><span class="ft"><i class="chev"></i><span id="oSvcTitle">Обслуживание</span><small class="fb" id="ofb_svc"></small></span><button class="link" id="oSvcSet">Настроить</button></h2>
     <div class="secb">
     <div class="svc" id="oSvc"></div>
@@ -1136,6 +1139,18 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <p class="hint" style="text-align:center;margin:8px 0 0"><button class="link tgset" type="button">Настроить Telegram-бота</button></p>
   </div>
 
+  <div class="form" id="fBrig" hidden>
+    <h3>Бригада</h3>
+    <div id="brBody"></div>
+  </div>
+
+  <div class="form" id="fBrAs" hidden>
+    <h3 id="brAsTitle">Назначить</h3>
+    <div class="setlist" id="brAsList"></div>
+    <p class="hint" style="margin:8px 0 14px">Объект увидят только отмеченные. Если снять отметку, объект удалится с телефона этого человека.</p>
+    <div class="actions"><button class="btn" id="brAsSave">Сохранить</button></div>
+  </div>
+
   <div class="form" id="fDay" hidden>
     <h3 id="fDayTitle">Пробег за день</h3>
     <input class="field" type="date" id="dyDate" aria-label="Дата">
@@ -1190,6 +1205,9 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
       <button class="setrow" data-tg="hours"><span>Бот для рабочих часов</span><i></i></button>
     </div>
     <p class="hint" style="margin:6px 0 18px">Для каждого раздела можно указать своего бота или отдельный чат. Без бота отправка идёт через «Поделиться».</p>
+    <p class="lbl">Бригада</p>
+    <div class="setlist"><button class="setrow" id="setBrig"><span>Общие объекты бригады</span><i id="setBrigI"></i></button></div>
+    <p class="hint" style="margin:6px 0 18px">Бригадир выкладывает объекты и назначает людей, правки видны всем назначенным.</p>
     <p class="lbl" style="margin-top:18px">Автосохранение копии данных</p>
     <div class="setlist">
       <label class="setrow"><span>Сохранять копию автоматически</span><input type="checkbox" class="tgl" id="abOn"></label>
@@ -1435,6 +1453,7 @@ function save(){
   state.updatedAt=Date.now();
   try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){}
   if(docRef){clearTimeout(pushTimer);pushTimer=setTimeout(push,700);}
+  if(window.brDirty) window.brDirty();
   scheduleReminders();
 }
 let remTimer=null;
@@ -1637,6 +1656,7 @@ function renderObject(){
   if(o.geo) rows.push(['Координаты',geoStr(o.geo)]);
   if(o.deadline) rows.push(['Срок сдачи',fmtDate(o.deadline)]);
   $('#oInfo').innerHTML=rows.map(r=>'<div><dt>'+esc(r[0])+'</dt><dd>'+esc(r[1])+'</dd></div>').join('');
+  try{ brObj(o); }catch(e){}
   $('#oInfo').hidden=!rows.length;
   $('#oSystems').innerHTML=sysList(o).map(s=>'<span class="sys">'+esc(s)+'</span>').join('');
   const tl=$('#oTasks'); tl.innerHTML='';
@@ -3833,7 +3853,7 @@ function openObj(o){
   $('#obContact').value=o?o.contact||'':''; $('#obPhone').value=o?o.phone||'':'';
   $('#obSysOther').value=o?o.sysOther||'':''; $('#obDeadline').value=o?o.deadline||'':'';
   fSys=o?o.systems.slice():[]; fStatus=o?o.status:'plan'; syncSys(); syncStatus();
-  $('#obDel').hidden=!o; openSheet('fObj');
+  $('#obDel').hidden=!o||!BR.canDelObj(o); openSheet('fObj');
 }
 $('#obSave').onclick=()=>{
   const name=$('#obName').value.trim(); if(!name){$('#obName').focus();return}
@@ -4862,9 +4882,255 @@ if(WEB){
   if(ios&&!standalone&&!off) $('#iosHint').hidden=false;
   $('#iosHintX').onclick=()=>{ $('#iosHint').hidden=true; try{localStorage.setItem('ios-hint-off','1')}catch(e){} };
 }
+/* ---------- бригада: общие объекты через сервер синхронизации (прототип) ---------- */
+const BR=(function(){
+  const CK='brig-cfg', SK='brig-snap', QK='brig-files';
+  const SUBS={equip:'equip',mats:'mat',checks:'check',photos:'photo',docs:'doc'}, KIND2ARR={equip:'equip',mat:'mats',check:'checks',photo:'photos',doc:'docs'};
+  const LOCAL_F={id:1,brig:1,brigAs:1,equip:1,mats:1,checks:1,photos:1,docs:1};
+  const ld=(k,d)=>{ try{ return JSON.parse(localStorage.getItem(k)||'null')||d; }catch(e){ return d; } };
+  const st=(k,v)=>{ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} };
+  let cfg=ld(CK,null), snap=ld(SK,{}), fq=ld(QK,{up:[],down:[]});
+  let busy=false, again=false, timer=null, applying=false, lastOk=0, lastErr='', meAt=0;
+  const h=v=>{ const s=JSON.stringify(v===undefined?null:v); let x=5381; for(let i=0;i<s.length;i++) x=((x<<5)+x+s.charCodeAt(i))|0; return x.toString(36); };
+  const on=()=>!!(cfg&&cfg.token);
+  const role=()=>cfg&&cfg.me?cfg.me.role:'';
+  const objs=()=>state.objects.filter(o=>o.brig);
+  function base(){ return String(cfg&&cfg.url||'').replace(/\/+$/,''); }
+  async function api(method,path,body){
+    const r=await fetch(base()+path,{method,headers:Object.assign({'Content-Type':'application/json'},cfg&&cfg.token?{Authorization:cfg.token}:{}),body:body?JSON.stringify(body):undefined});
+    let j=null; try{ j=await r.json(); }catch(e){}
+    if(!r.ok){ const err=new Error((j&&j.message)||('сервер ответил '+r.status)); err.code=r.status; throw err; }
+    return j;
+  }
+  /* всё, что относится к объектам бригады: ключ → {kind,obj,cid,data,file?} */
+  function collect(){
+    const out={};
+    objs().forEach(o=>{
+      Object.keys(o).forEach(f=>{ if(!LOCAL_F[f]) out['f:'+o.id+':'+f]={field:f,obj:o.id,val:o[f]}; });
+      Object.keys(SUBS).forEach(a=>(o[a]||[]).forEach(x=>{ if(x&&x.id) out[SUBS[a]+':'+x.id]={kind:SUBS[a],obj:o.id,cid:x.id,data:x}; }));
+      state.tasks.forEach(t=>{ if(t.objId===o.id) out['task:'+t.id]={kind:'task',obj:o.id,cid:t.id,data:t}; });
+    });
+    return out;
+  }
+  function hasFile(kind,d){ return kind==='photo'||(kind==='doc'&&d&&d.kind!=='ref'&&d.kind!=='link'); }
+  function diff(){
+    const cur=collect(), now=Date.now(), items=[], byObj={}, ups=[];
+    for(const k in cur){ const c=cur[k], hv=h(c.field?c.val:c.data); if(snap[k]===hv) continue;
+      if(c.field){ const it=byObj[c.obj]||(byObj[c.obj]={kind:'obj',cid:c.obj,data:{_t:{}},upd:now,_k:[]}); it.data[c.field]=c.val===undefined?null:c.val; it.data._t[c.field]=now; it._k.push([k,hv]); }
+      else { items.push({kind:c.kind,obj:c.obj,cid:c.cid,data:c.data,upd:now,_k:[[k,hv]]}); if(snap[k]===undefined&&hasFile(c.kind,c.data)) ups.push({kind:c.kind,cid:c.cid,obj:c.obj,img:c.kind==='photo'||c.data.kind==='img'}); }
+    }
+    const live=new Set(objs().map(o=>o.id));
+    for(const k in snap){ if(cur[k]) continue;
+      if(k.startsWith('f:')){ const [,oid,f]=k.split(':'); if(!live.has(oid)) continue; const it=byObj[oid]||(byObj[oid]={kind:'obj',cid:oid,data:{_t:{}},upd:now,_k:[]}); it.data[f]=null; it.data._t[f]=now; it._k.push([k,null]); continue; }
+      if(k.startsWith('o:')){ const oid=k.slice(2); if(!live.has(oid)) items.push({kind:'obj',cid:oid,del:true,upd:now,_k:[[k,null]]}); continue; }
+      const i=k.indexOf(':'), kind=k.slice(0,i), cid=k.slice(i+1), obj=snap['@'+k];
+      if(obj&&live.has(obj)) items.push({kind,obj,cid,del:true,upd:now,_k:[[k,null]]});
+      else if(obj&&!live.has(obj)) { /* объект удалён целиком — уйдёт удалением объекта */ }
+    }
+    // новые объекты: отметка «o:id», чтобы знать об их удалении
+    live.forEach(id=>{ if(snap['o:'+id]===undefined){ const it=byObj[id]||(byObj[id]={kind:'obj',cid:id,data:{_t:{}},upd:now,_k:[]}); it._k.push(['o:'+id,'1']); } });
+    return {items:Object.values(byObj).concat(items),ups,cur};
+  }
+  function remember(k,hv,obj){ if(hv===null){ delete snap[k]; delete snap['@'+k]; } else { snap[k]=hv; if(obj&&!k.startsWith('f:')&&!k.startsWith('o:')) snap['@'+k]=obj; } }
+  /* применение записи с сервера */
+  function ensureObj(id){ let o=state.objects.find(x=>x.id===id); if(!o){ o={id,name:'Объект',addr:'',contact:'',phone:'',systems:[],sysOther:'',status:'plan',deadline:'',mats:[],photos:[],equip:[],checks:[],docs:[],note:'',brig:true}; state.objects.push(o); } o.brig=true; return o; }
+  function applyItem(it){
+    if(it.kind==='obj'){
+      if(it.del){ wipeObj(it.cid); return; }
+      const o=ensureObj(it.cid); o.brigAs=it.assigned||o.brigAs||[];
+      const d=it.data||{}; Object.keys(d).forEach(f=>{ if(f==='_t'||LOCAL_F[f]) return; if(d[f]===null) delete o[f]; else o[f]=d[f]; remember('f:'+o.id+':'+f,d[f]===null?null:h(d[f])); });
+      ['mats','photos','equip','checks','docs'].forEach(a=>{ if(!Array.isArray(o[a])) o[a]=[]; }); if(!Array.isArray(o.systems)) o.systems=[];
+      snap['o:'+o.id]='1'; return;
+    }
+    const o=state.objects.find(x=>x.id===it.obj&&x.brig); if(!o) return;
+    const k=it.kind+':'+it.cid;
+    if(it.kind==='task'){
+      const i=state.tasks.findIndex(t=>t.id===it.cid);
+      if(it.del){ if(i>=0) state.tasks.splice(i,1); remember(k,null); return; }
+      const t=Object.assign({},it.data,{id:it.cid,objId:it.obj}); if(i>=0) state.tasks[i]=t; else state.tasks.push(t); remember(k,h(t),it.obj); return;
+    }
+    const a=KIND2ARR[it.kind]; if(!a) return; if(!Array.isArray(o[a])) o[a]=[];
+    const i=o[a].findIndex(x=>x.id===it.cid);
+    if(it.del){ if(i>=0){ const x=o[a][i]; o[a].splice(i,1); dropFile(it.kind,x); } remember(k,null); return; }
+    const x=Object.assign({},it.data,{id:it.cid}); if(i>=0) o[a][i]=x; else { o[a].push(x); if(hasFile(it.kind,x)) queueDown(it.kind,x,it.obj); }
+    remember(k,h(x),it.obj);
+  }
+  function dropFile(kind,x){ try{ if(kind==='photo'||(x&&x.kind==='img')) PH.del(x.id); else if(kind==='doc') DOC.del(x.id); }catch(e){} }
+  function wipeObj(id){
+    const o=state.objects.find(x=>x.id===id); if(!o) return;
+    (o.photos||[]).forEach(p=>dropFile('photo',p)); (o.docs||[]).forEach(d=>dropFile('doc',d));
+    state.objects=state.objects.filter(x=>x!==o); state.tasks=state.tasks.filter(t=>t.objId!==id);
+    if(state.hours) state.hours.forEach(x=>{ if(x.objId===id) x.objId=''; });
+    purge(id);
+    fq.down=fq.down.filter(x=>x.obj!==id); fq.up=fq.up.filter(x=>x.obj!==id);
+    if(openObjId===id&&view==='object') go('objects');
+  }
+  function purge(id){
+    Object.keys(snap).forEach(k=>{ if(k.startsWith('@')&&snap[k]===id){ delete snap[k]; delete snap[k.slice(1)]; } });
+    Object.keys(snap).forEach(k=>{ if(k.startsWith('f:'+id+':')||k==='o:'+id) delete snap[k]; });
+  }
+  function queueDown(kind,x,obj){ const img=kind==='photo'||x.kind==='img'; if(!fq.down.some(q=>q.cid===x.id)) fq.down.push({kind,cid:x.id,obj,img}); }
+  /* файлы: на Android — нативно, в браузере — fetch */
+  let fSeq=0; const fCb={};
+  window.onBrigFile=function(id,code,body){ const f=fCb[id]; delete fCb[id]; if(f) f(code,body); };
+  function nat(fn,args){ return new Promise(res=>{ const id='bf'+(++fSeq); fCb[id]=(code,body)=>res({code,body}); Android[fn].apply(Android,[id].concat(args)); }); }
+  async function upFile(q){
+    const key=q.kind+':'+q.cid;
+    if(APP&&Android.brigUpload){ const r=await nat('brigUpload',[base()+'/api/brig/file',cfg.token,key,q.obj,q.img?'photo':'doc',q.cid]); return r.code===200; }
+    let b=null; if(q.img) b=await PH.blob(q.cid); else { const u=await DOC.load(q.cid); if(u) b=new Blob([u],{type:'application/pdf'}); }
+    if(!b) return true;   // файла нет на этом телефоне — нечего отправлять
+    const fd=new FormData(); fd.append('key',key); fd.append('obj',q.obj); fd.append('file',b,q.cid+(q.img?'.jpg':'.pdf'));
+    const r=await fetch(base()+'/api/brig/file',{method:'POST',headers:{Authorization:cfg.token},body:fd}); return r.ok;
+  }
+  async function downFile(q){
+    const url=base()+'/api/brig/file?key='+encodeURIComponent(q.kind+':'+q.cid);
+    if(APP&&Android.brigDownload){ const r=await nat('brigDownload',[url,cfg.token,q.img?'photo':'doc',q.cid]); return r.code===200||r.code===404; }
+    const r=await fetch(url,{headers:{Authorization:cfg.token}}); if(r.status===404) return true; if(!r.ok) return false;
+    const u=new Uint8Array(await r.arrayBuffer());
+    if(q.img){ let s=''; for(let i=0;i<u.length;i+=32768) s+=String.fromCharCode.apply(null,u.subarray(i,i+32768)); return !!PH.save(q.cid,btoa(s)); }
+    return await DOC.save(q.cid,u);
+  }
+  async function files(){
+    for(const q of fq.up.slice()){ let ok=false; try{ ok=await upFile(q); }catch(e){} if(ok){ fq.up=fq.up.filter(x=>x!==q); st(QK,fq); } else break; }
+    let got=0;
+    for(const q of fq.down.slice()){ let ok=false; try{ ok=await downFile(q); }catch(e){} if(ok){ fq.down=fq.down.filter(x=>x!==q); st(QK,fq); got++; } else break; }
+    if(got) render();
+  }
+  /* один цикл: отправить своё → забрать чужое → файлы */
+  async function sync(){
+    if(!on()) return; if(busy){ again=true; return; } busy=true;
+    try{
+      if(Date.now()-meAt>60e3){ const m=await api('GET','/api/brig/me'); cfg.me=m.me; cfg.brigade=Object.assign(cfg.brigade||{},m.brigade); cfg.members=m.members; meAt=Date.now(); st(CK,cfg); }
+      const D=diff(); let changed=false; const refetch=[];
+      if(D.items.length){
+        const send=D.items.map(x=>{ const y=Object.assign({},x); delete y._k; return y; });
+        const R=await api('POST','/api/brig/push',{items:send});
+        applying=true;
+        (R.results||[]).forEach((r,i)=>{ const it=D.items[i];
+          if(r.ok){ it._k.forEach(([k,hv])=>remember(k,hv,it.obj)); if(it.kind==='obj'&&it.del) purge(it.cid); }
+          else { if(r.item){ applyItem(r.item); changed=true; } else refetch.push(it.kind==='obj'?it.cid:it.obj); lastErr=r.reason||''; }
+        });
+        D.ups.forEach(u=>{ const r=(R.results||[]).find(x=>x.kind===u.kind&&x.cid===u.cid); if(r&&r.ok&&!fq.up.some(q=>q.cid===u.cid)) fq.up.push(u); });
+        st(SK,snap); st(QK,fq);
+      }
+      const known=new Set(cfg.known||[]);
+      let P=await api('GET','/api/brig/pull?since='+(cfg.seq||0));
+      const fresh=P.objs.filter(x=>!known.has(x)).concat(refetch).filter((x,i,a)=>a.indexOf(x)===i);
+      if(fresh.length) P=await api('GET','/api/brig/pull?since='+(cfg.seq||0)+'&full='+encodeURIComponent(fresh.join(',')));
+      applying=true;
+      const items=P.items.slice().sort((a,b)=>(a.kind==='obj'?0:1)-(b.kind==='obj'?0:1)||a.seq-b.seq);
+      items.forEach(it=>{ applyItem(it); changed=true; });
+      // отозванные объекты — удалить с телефона
+      const vis=new Set(P.objs);
+      objs().forEach(o=>{ if(!vis.has(o.id)&&snap['o:'+o.id]){ wipeObj(o.id); changed=true; } });
+      cfg.seq=P.seq; cfg.known=P.objs; st(CK,cfg); st(SK,snap); st(QK,fq);
+      lastOk=Date.now(); if(!refetch.length) lastErr='';
+      if(changed){ save(); render(); }
+      applying=false;
+      await files();
+    }catch(e){
+      applying=false;
+      if(e.code===401||e.code===403){ revoked(); }
+      else lastErr=e.message||'нет связи с сервером';
+    }finally{ busy=false; status(); if(again){ again=false; setTimeout(sync,300); } }
+  }
+  function revoked(){
+    const n=objs().length;
+    if(role()==='foreman'){ objs().forEach(o=>{ o.brig=false; delete o.brigAs; }); }
+    else objs().map(o=>o.id).forEach(wipeObj);
+    cfg=null; snap={}; fq={up:[],down:[]}; localStorage.removeItem(CK); st(SK,snap); st(QK,fq); save(); render();
+    alert('Доступ к бригаде закрыт.'+(n&&role()!=='foreman'?' Объекты бригады удалены с телефона.':''));
+  }
+  function dirty(){ if(!on()||applying) return; clearTimeout(timer); timer=setTimeout(sync,1500); }
+  function status(){ const el=$('#brStatus'); if(!el) return; el.textContent=!on()?'':lastErr?'Ошибка: '+lastErr:lastOk?'Синхронизировано в '+new Date(lastOk).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'}):'Синхронизация…'; el.className='hint'+(lastErr?' err':''); }
+  window.brDirty=dirty;
+  setInterval(()=>{ if(on()&&document.visibilityState==='visible') sync(); },10e3);
+  document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='visible') sync(); });
+  setTimeout(sync,1200);
+  /* вход */
+  async function enter(url,path,body){
+    cfg={url:String(url).trim().replace(/\/+$/,'')};
+    try{ const r=await api('POST',path,body); cfg.token=r.token; cfg.me={id:r.record.id,name:r.record.name,role:r.record.role}; cfg.seq=0; cfg.known=[]; snap={}; fq={up:[],down:[]}; st(CK,cfg); st(SK,snap); st(QK,fq); meAt=0; await sync(); return null; }
+    catch(e){ cfg=null; return e.message||'ошибка'; }
+  }
+  function leave(){ if(role()!=='foreman') objs().map(o=>o.id).forEach(wipeObj); else objs().forEach(o=>{ o.brig=false; delete o.brigAs; }); cfg=null; snap={}; fq={up:[],down:[]}; localStorage.removeItem(CK); st(SK,snap); st(QK,fq); save(); render(); }
+  async function assign(oid,ids){ const r=await api('POST','/api/brig/assign',{obj:oid,members:ids}); const o=state.objects.find(x=>x.id===oid); if(o){ o.brigAs=r.assigned; save(); } sync(); return r; }
+  async function refreshMe(){ try{ const m=await api('GET','/api/brig/me'); cfg.me=m.me; cfg.brigade=Object.assign(cfg.brigade||{},m.brigade); cfg.members=m.members; meAt=Date.now(); st(CK,cfg); }catch(e){ if(e.code===401||e.code===403) revoked(); } }
+  async function kick(id){ await api('POST','/api/brig/kick',{member:id}); meAt=0; await sync(); }
+  return {on,role,cfg:()=>cfg,sync,refreshMe,dirty,enter,leave,assign,kick,status,canDelObj:o=>!(o&&o.brig&&role()!=='foreman')};
+})();
+
+/* интерфейс бригады */
+function brMembersHtml(c){
+  return (c.members||[]).map(m=>'<div class="setrow"><span>'+esc(m.name)+'<small class="meta" style="display:block">'+(m.role==='foreman'?'бригадир':'монтажник')+(m.id===c.me.id?' · это вы':'')+'</small></span>'+(BR.role()==='foreman'&&m.id!==c.me.id?'<button class="link brkick" data-id="'+esc(m.id)+'" style="color:var(--red)">Убрать</button>':'')+'</div>').join('');
+}
+async function openBrig(){
+  if(BR.on()) await BR.refreshMe();
+  const c=BR.cfg(), b=$('#brBody');
+  if(!c||!c.token){
+    let url=''; try{ url=localStorage.getItem('brig-url')||''; }catch(e){}
+    b.innerHTML='<p class="hint" style="margin:0 0 12px">Общие объекты для всей бригады: бригадир выкладывает объект и назначает на него людей, правки появляются у всех назначенных за несколько секунд. Работает и без связи — изменения досылаются позже.</p>'+
+      '<p class="lbl">Адрес сервера бригады</p><input class="field" id="brUrl" placeholder="https://…" autocomplete="off" autocapitalize="off" value="'+esc(url)+'">'+
+      '<p class="lbl" style="margin-top:12px">Ваше имя</p><input class="field" id="brName" maxlength="60" placeholder="Как вас видят в бригаде">'+
+      '<div class="chips" id="brMode"><button type="button" class="chip on" data-m="join">Вступить по коду</button><button type="button" class="chip" data-m="create">Создать бригаду</button></div>'+
+      '<input class="field" id="brCode" placeholder="Код приглашения от бригадира" autocapitalize="characters" autocomplete="off">'+
+      '<input class="field" id="brBName" placeholder="Название бригады" maxlength="80" hidden>'+
+      '<p class="hint err" id="brErr"></p><div class="actions"><button class="btn" id="brGo">Вступить</button></div>';
+    let mode='join';
+    $$('#brMode .chip').forEach(x=>x.onclick=()=>{ mode=x.dataset.m; $$('#brMode .chip').forEach(y=>y.classList.toggle('on',y===x)); $('#brCode').hidden=mode!=='join'; $('#brBName').hidden=mode!=='create'; $('#brGo').textContent=mode==='join'?'Вступить':'Создать'; });
+    $('#brGo').onclick=async()=>{
+      const url=$('#brUrl').value.trim(), name=$('#brName').value.trim();
+      if(!/^https?:\/\//.test(url)){ $('#brUrl').focus(); $('#brErr').textContent='Укажите адрес сервера, начиная с https://'; return; }
+      if(!name){ $('#brName').focus(); return; }
+      try{ localStorage.setItem('brig-url',url); }catch(e){}
+      $('#brGo').disabled=true; $('#brErr').textContent='Подключаюсь…';
+      const err=mode==='join'?await BR.enter(url,'/api/brig/join',{code:$('#brCode').value,name}):await BR.enter(url,'/api/brig/create',{brigade:$('#brBName').value.trim()||'Бригада',name});
+      $('#brGo').disabled=false;
+      if(err){ $('#brErr').textContent='Не получилось: '+err; return; }
+      openBrig(); renderSetBrig();
+    };
+  } else {
+    const fm=c.me.role==='foreman';
+    b.innerHTML='<div class="bytot"><div class="byline big"><span>'+esc(c.brigade&&c.brigade.name||'Бригада')+'</span></div><div class="byline"><span>Вы</span><b>'+esc(c.me.name)+' · '+(fm?'бригадир':'монтажник')+'</b></div>'+
+      (fm&&c.brigade&&c.brigade.code?'<div class="byline"><span>Код приглашения</span><b style="letter-spacing:2px">'+esc(c.brigade.code)+'</b></div>':'')+'</div>'+
+      (fm?'<button class="btn ghost" id="brShare" style="width:100%;margin-bottom:12px">Отправить код приглашения</button>':'')+
+      '<p class="lbl">Участники</p><div class="setlist" id="brMem">'+brMembersHtml(c)+'</div>'+
+      '<p class="hint" id="brStatus" style="margin:10px 0"></p>'+
+      '<div class="actions"><button class="btn ghost" id="brLeave">Выйти из бригады</button><button class="btn" id="brNow">Синхронизировать</button></div>'+
+      '<p class="hint" style="margin-top:10px">'+(fm?'Чтобы выложить объект, откройте его и нажмите «Выложить в бригаду», затем назначьте людей.':'Здесь видны только объекты, на которые вас назначил бригадир.')+'</p>';
+    if(fm) $('#brShare').onclick=()=>shareText('Код бригады','Вступайте в бригаду «'+(c.brigade.name||'')+'» в «Органайзере монтажника»:\nНастройки → Бригада → Вступить по коду\nАдрес сервера: '+c.url+'\nКод: '+c.brigade.code);
+    $$('#brMem .brkick').forEach(x=>x.onclick=async()=>{ const m=(c.members||[]).find(y=>y.id===x.dataset.id); if(!m||!confirm('Убрать «'+m.name+'» из бригады? Объекты бригады удалятся с его телефона при следующей синхронизации.')) return; try{ await BR.kick(m.id); openBrig(); }catch(e){ alert('Не получилось: '+e.message); } });
+    $('#brNow').onclick=async()=>{ await BR.sync(); openBrig(); };
+    $('#brLeave').onclick=()=>{ if(!confirm(fm?'Выйти из бригады? Объекты останутся у вас как личные.':'Выйти из бригады? Объекты бригады удалятся с этого телефона.')) return; BR.leave(); openBrig(); renderSetBrig(); };
+    BR.status();
+  }
+  openSheet('fBrig');
+}
+function renderSetBrig(){ const i=$('#setBrigI'); if(!i) return; const c=BR.cfg(); i.textContent=c&&c.token?(c.brigade&&c.brigade.name||'подключено'):'не подключено'; }
+function brObj(o){
+  const box=$('#oBrig'); if(!box) return; const c=BR.cfg();
+  if(!c||!c.token){ box.innerHTML=''; return; }
+  const fm=c.me.role==='foreman';
+  if(!o.brig){ box.innerHTML=fm?'<button class="seg" id="brPub" style="margin:4px 0 12px">Выложить в бригаду</button>':''; if(fm) $('#brPub').onclick=()=>{ if(!confirm('Выложить «'+o.name+'» в бригаду? Объект увидят те, кого вы назначите.')) return; o.brig=true; o.brigAs=[c.me.id]; save(); renderObject(); BR.sync(); }; return; }
+  const names=(o.brigAs||[]).map(id=>{ const m=(c.members||[]).find(x=>x.id===id); return m?m.name:null; }).filter(Boolean);
+  box.innerHTML='<div class="brline"><span><b>Объект бригады</b>'+(names.length?' · '+esc(names.join(', ')):'')+'</span>'+(fm?'<button class="link" id="brAs">Назначить</button>':'')+'</div>';
+  if(fm) $('#brAs').onclick=()=>openBrAs(o);
+}
+async function openBrAs(o){
+  await BR.refreshMe(); const c=BR.cfg(); if(!c) return; const as=new Set(o.brigAs||[]);
+  $('#brAsTitle').textContent='Кто работает на «'+o.name+'»';
+  $('#brAsList').innerHTML=(c.members||[]).filter(m=>m.id!==c.me.id).map(m=>'<label class="setrow"><span>'+esc(m.name)+'</span><input type="checkbox" class="tgl" data-id="'+esc(m.id)+'"'+(as.has(m.id)?' checked':'')+'></label>').join('')||'<p class="hint" style="padding:12px">В бригаде пока никого нет. Отправьте код приглашения в настройках → Бригада.</p>';
+  $('#brAsSave').onclick=async()=>{ const ids=[...$$('#brAsList input:checked')].map(x=>x.dataset.id); $('#brAsSave').disabled=true; try{ await BR.assign(o.id,ids); closeSheet(); renderObject(); }catch(e){ alert('Не получилось: '+e.message+(/не выложен/.test(e.message)?'. Подождите синхронизации и повторите.':'')); } $('#brAsSave').disabled=false; };
+  openSheet('fBrAs');
+}
+$('#setBrig').onclick=openBrig;
+{ const prevR=window.onAppResume; window.onAppResume=function(){ try{ prevR&&prevR(); }catch(e){} BR.sync(); }; }
+renderSetBrig();
+window.__brig={BR,st:()=>state,go,showObject:id=>showObject(id),PH,DOC};
 applyNav();
 save(); render(); connect();
 })();
+
 </script>
 </body>
 </html>
