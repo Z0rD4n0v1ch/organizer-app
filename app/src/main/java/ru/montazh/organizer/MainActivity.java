@@ -674,49 +674,54 @@ public class MainActivity extends Activity {
             }).start();
         }
 
-        /** Альбом фото (sendMediaGroup, 2–10 штук): ids и подписи — JSON-массивы. */
+        /** Фото или PDF (из документов) пачкой до 10 (sendMediaGroup), одиночный — sendPhoto/sendDocument.
+         *  itemsJson: [{id, doc:true|false, name, cap}] */
         @JavascriptInterface
-        public void tgMediaVia(final String id, final String base, final String token, final String chat, final String idsJson, final String capsJson) {
+        public void tgFilesVia(final String id, final String base, final String token, final String chat, final String itemsJson) {
             new Thread(() -> {
                 int code = -1;
                 String body = "";
                 try {
-                    JSONArray ids = new JSONArray(idsJson), caps = new JSONArray(capsJson), media = new JSONArray();
+                    JSONArray items = new JSONArray(itemsJson), media = new JSONArray();
                     java.util.List<File> files = new java.util.ArrayList<>();
-                    for (int i = 0; i < ids.length(); i++) {
-                        File f = photoFile(ids.optString(i));
+                    java.util.List<String> names = new java.util.ArrayList<>(), types = new java.util.ArrayList<>(), caps = new java.util.ArrayList<>();
+                    for (int i = 0; i < items.length(); i++) {
+                        JSONObject it = items.getJSONObject(i);
+                        boolean doc = it.optBoolean("doc");
+                        File f = doc ? docFile(it.optString("id")) : photoFile(it.optString("id"));
                         if (f == null || !f.exists()) continue;
-                        JSONObject m = new JSONObject();
-                        m.put("type", "photo");
-                        m.put("media", "attach://p" + files.size());
-                        String cap = caps.optString(i, "");
+                        String cap = it.optString("cap", "");
                         if (cap.length() > 1024) cap = cap.substring(0, 1024);
+                        String nm = it.optString("name", "");
+                        if (nm.isEmpty()) nm = "chek_" + i + (doc ? ".pdf" : ".jpg");
+                        JSONObject m = new JSONObject();
+                        m.put("type", doc ? "document" : "photo");
+                        m.put("media", "attach://f" + files.size());
                         if (!cap.isEmpty()) m.put("caption", cap);
                         media.put(m);
-                        files.add(f);
+                        files.add(f); names.add(nm.replace("\"", "")); types.add(doc ? "document" : "photo"); caps.add(cap);
                     }
                     if (files.isEmpty()) {
                         code = 200;
                         body = "{\"ok\":true,\"result\":[]}";
                     } else {
+                        boolean one = files.size() == 1;
+                        String method = one ? ("document".equals(types.get(0)) ? "/sendDocument" : "/sendPhoto") : "/sendMediaGroup";
                         String b0 = (base == null || base.isEmpty()) ? "https://api.telegram.org" : base.replaceAll("/+$", "");
-                        URL url = new URL(b0 + "/bot" + token + (files.size() == 1 ? "/sendPhoto" : "/sendMediaGroup"));
-                        HttpURLConnection c = (HttpURLConnection) url.openConnection();
+                        HttpURLConnection c = (HttpURLConnection) new URL(b0 + "/bot" + token + method).openConnection();
                         c.setConnectTimeout(15000);
-                        c.setReadTimeout(120000);
+                        c.setReadTimeout(180000);
                         c.setDoOutput(true);
                         String b = "----org" + System.currentTimeMillis();
                         c.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + b);
                         try (OutputStream out = c.getOutputStream()) {
                             writePart(out, b, "chat_id", chat);
-                            if (files.size() == 1) {
-                                writePart(out, b, "caption", media.getJSONObject(0).optString("caption", ""));
-                            } else {
-                                writePart(out, b, "media", media.toString());
-                            }
+                            if (one) writePart(out, b, "caption", caps.get(0));
+                            else writePart(out, b, "media", media.toString());
                             for (int i = 0; i < files.size(); i++) {
-                                String name = files.size() == 1 ? "photo" : "p" + i;
-                                out.write(("--" + b + "\r\nContent-Disposition: form-data; name=\"" + name + "\"; filename=\"chek_" + i + ".jpg\"\r\nContent-Type: image/jpeg\r\n\r\n").getBytes(StandardCharsets.UTF_8));
+                                String field = one ? types.get(i) : "f" + i;
+                                String mime = "document".equals(types.get(i)) ? "application/pdf" : "image/jpeg";
+                                out.write(("--" + b + "\r\nContent-Disposition: form-data; name=\"" + field + "\"; filename=\"" + names.get(i) + "\"\r\nContent-Type: " + mime + "\r\n\r\n").getBytes(StandardCharsets.UTF_8));
                                 try (InputStream in = new java.io.FileInputStream(files.get(i))) {
                                     byte[] buf = new byte[65536];
                                     int n;
