@@ -26,11 +26,22 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
             <!-- «Поделиться» чеком из банка, ОФД, почты: PDF или картинка → новая покупка в «Расходах» -->
-            <intent-filter android:label="Чек в Расходы">
+            <intent-filter android:label="Органайзер">
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="application/pdf" />
                 <data android:mimeType="image/*" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/x-zip-compressed" />
+                <data android:mimeType="application/octet-stream" />
+            </intent-filter>
+            <!-- «Открыть с помощью» для присланного файла объекта (.zip) -->
+            <intent-filter android:label="Объект в Органайзер">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="application/zip" />
+                <data android:mimeType="application/x-zip-compressed" />
             </intent-filter>
         </activity>
         <provider

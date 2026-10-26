@@ -171,9 +171,12 @@ public class MainActivity extends Activity {
     private volatile String shareIn = null;
 
     private void handleShare(Intent intent) {
-        if (intent == null || !Intent.ACTION_SEND.equals(intent.getAction())) return;
+        if (intent == null) return;
+        final boolean view = Intent.ACTION_VIEW.equals(intent.getAction());
+        if (!view && !Intent.ACTION_SEND.equals(intent.getAction())) return;
         final Uri uri;
-        if (Build.VERSION.SDK_INT >= 33) uri = intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri.class);
+        if (view) uri = intent.getData();
+        else if (Build.VERSION.SDK_INT >= 33) uri = intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri.class);
         else uri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
         final String type0 = intent.getType();
         setIntent(new Intent(this, MainActivity.class));   // чтобы не принять тот же файл повторно
@@ -189,8 +192,19 @@ public class MainActivity extends Activity {
                 } catch (Exception ignored) { }
                 if (name == null) name = "";
                 boolean pdf = (type != null && type.contains("pdf")) || name.toLowerCase().endsWith(".pdf");
-                String id = (pdf ? "d" : "s") + System.currentTimeMillis() + Integer.toHexString((int) (Math.random() * 0xffff));
-                if (pdf) {
+                boolean zip = !pdf && ((type != null && (type.contains("zip") || type.contains("octet-stream"))) || name.toLowerCase().endsWith(".zip"));
+                String id = (zip ? "z_in" : pdf ? "d" : "s") + System.currentTimeMillis() + Integer.toHexString((int) (Math.random() * 0xffff));
+                if (zip) {
+                    File out = Store.docFile(this, id);
+                    try (InputStream in = getContentResolver().openInputStream(uri); FileOutputStream o = new FileOutputStream(out)) {
+                        byte[] buf = new byte[65536]; int k;
+                        while ((k = in.read(buf)) > 0) o.write(buf, 0, k);
+                    }
+                    byte[] head = new byte[2];
+                    try (InputStream in = new java.io.FileInputStream(out)) { if (in.read(head) < 2) head = new byte[2]; }
+                    if (head[0] != 'P' || head[1] != 'K') { out.delete(); throw new Exception("это не файл объекта органайзера"); }
+                    j.put("kind", "objzip"); j.put("id", id); j.put("name", name);
+                } else if (pdf) {
                     File out = Store.docFile(this, id);
                     long n = 0;
                     try (InputStream in = getContentResolver().openInputStream(uri); FileOutputStream o = new FileOutputStream(out)) {
@@ -852,6 +866,21 @@ public class MainActivity extends Activity {
         }
 
         /** Принятый через «Поделиться» файл (JSON) — один раз, затем очищается. */
+        /** Фото целиком в base64 (для упаковки объекта в файл). */
+        @JavascriptInterface
+        public String photoB64(String id) {
+            File f = photoFile(id);
+            if (!f.exists()) return null;
+            try (InputStream in = new java.io.FileInputStream(f)) {
+                java.io.ByteArrayOutputStream bo = new java.io.ByteArrayOutputStream();
+                byte[] buf = new byte[65536]; int n;
+                while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
+                return Base64.encodeToString(bo.toByteArray(), Base64.NO_WRAP);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
         @JavascriptInterface
         public String shareInTake() {
             String s = shareIn;

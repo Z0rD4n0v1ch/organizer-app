@@ -102,7 +102,7 @@ h2{font:500 16px/1.2 "Unbounded",system-ui,sans-serif;margin:26px 0 10px;display
 .obj-foot .late{color:var(--red)}
 .back{border:0;background:transparent;display:flex;align-items:center;gap:4px;padding:6px 0;color:var(--muted);font-size:15px}
 .back svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2}
-.quick{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:16px 0 4px}
+.quick{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:16px 0 4px}
 .qbtn{display:flex;flex-direction:column;align-items:center;gap:4px;border:0;border-radius:14px;background:var(--surface);padding:12px 4px;font-size:13px;text-decoration:none;color:var(--ink)}
 .qbtn svg{width:22px;height:22px;stroke:var(--accent);fill:none;stroke-width:1.8}
 .qbtn[aria-disabled="true"]{opacity:.4;pointer-events:none}
@@ -576,6 +576,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
       <button class="chip" data-f="done">Сданы</button>
       <button class="chip" data-f="all">Все</button>
     </div>
+    <p class="hint" style="margin:-4px 0 10px"><button class="link" id="objImport">Принять объект из файла</button><input type="file" id="objImportInput" accept=".zip,application/zip" hidden></p>
     <ul class="list" id="objList"></ul>
   </section>
 
@@ -588,6 +589,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
       <a class="qbtn" id="oCall"><svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2"/></svg>Позвонить</a>
       <a class="qbtn" id="oRoute" href="#"><svg viewBox="0 0 24 24"><path d="M12 21s-7-6.2-7-11a7 7 0 0114 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>Маршрут</a>
       <button class="qbtn" id="oEdit"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>Изменить</button>
+      <button class="qbtn" id="oShare"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/></svg>Поделиться</button>
     </div>
     <dl class="info" id="oInfo"></dl>
     <div class="systems" id="oSystems"></div>
@@ -1134,6 +1136,29 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <p class="hint" id="mrLast"></p>
     <div class="actions"><button class="btn ghost" id="mrShare">Поделиться</button><button class="btn" id="mrSend">Отправить в Telegram</button></div>
     <p class="hint" style="text-align:center;margin:8px 0 0"><button class="link tgset" type="button">Настроить Telegram-бота</button></p>
+  </div>
+
+  <div class="form" id="fObjShare" hidden>
+    <h3 id="oshTitle">Поделиться объектом</h3>
+    <p class="hint" style="margin:0 0 12px">Объект уйдёт одним файлом — отправьте его коллеге в Telegram или почтой. У него файл откроется в органайзере: «Поделиться» → «Органайзер» или «Объекты» → «Принять объект из файла».</p>
+    <div class="setlist">
+      <label class="setrow"><span id="oshPhotosL">Фото объекта</span><input type="checkbox" class="tgl" id="oshPhotos" checked></label>
+      <label class="setrow"><span id="oshDocsL">Документация</span><input type="checkbox" class="tgl" id="oshDocs" checked></label>
+      <label class="setrow"><span id="oshTasksL">Задачи по объекту</span><input type="checkbox" class="tgl" id="oshTasks" checked></label>
+    </div>
+    <p class="hint" style="margin:8px 0 14px">Карточка, оборудование, материалы и чек-листы входят всегда. Рабочие часы и расходы не передаются.</p>
+    <p class="hint" id="oshMsg"></p>
+    <div class="actions"><button class="btn" id="oshGo">Поделиться</button></div>
+  </div>
+
+  <div class="form" id="fObjImp" hidden>
+    <h3 id="oimTitle">Объект</h3>
+    <div class="bytot" id="oimInfo"></div>
+    <p class="hint" id="oimNote" style="margin:0 0 14px"></p>
+    <button class="btn" id="oimNew" style="width:100%">Добавить объект</button>
+    <button class="btn" id="oimUpd" style="width:100%;margin-bottom:8px">Обновить</button>
+    <button class="btn ghost" id="oimAdd" style="width:100%;margin-bottom:8px">Только добавить новое</button>
+    <button class="btn ghost plain" id="oimCopy" style="width:100%">Сохранить как отдельную копию</button>
   </div>
 
   <div class="form" id="fDay" hidden>
@@ -2291,6 +2316,7 @@ window.onShareIn=function(){
   if(!j) return; let x=null; try{ x=JSON.parse(j); }catch(e){ return; }
   if(x.kind==='error'){ logErr('share','не удалось принять файл: '+(x.msg||'')); alert('Не удалось принять файл: '+(x.msg||'ошибка')); return; }
   if($('#sheet').classList.contains('on')) closeSheet();
+  if(x.kind==='objzip'){ DOC.load(x.id).then(u=>{ DOC.del(x.id); if(u) objImportBytes(u); else alert('Файл объекта не прочитался'); }); return; }
   try{ if(!$('#pdfv').hidden) closePdf(); }catch(e){}
   go('money'); openBuy();
   if(x.kind==='pdf') byPdf.adopt({id:x.id,name:x.name||'Чек',size:x.size||0});
@@ -3770,7 +3796,7 @@ let editing=null;
 function openSheet(id){
   $$('.form').forEach(f=>f.hidden=f.id!==id);
   $('#scrim').classList.add('on'); $('#sheet').classList.add('on'); $('#sheet').scrollTop=0;
-  const first=(id==='fSet'||id==='fHours'||id==='fHrSend'||id==='fDay'||id==='fTrRep'||id==='fBuy'||id==='fTrp'||id==='fMnRep')?null:$('#'+id+' input, #'+id+' textarea'); if(first) setTimeout(()=>first.focus({preventScroll:true}),260);
+  const first=(id==='fSet'||id==='fHours'||id==='fHrSend'||id==='fDay'||id==='fTrRep'||id==='fBuy'||id==='fTrp'||id==='fMnRep'||id==='fObjShare'||id==='fObjImp')?null:$('#'+id+' input, #'+id+' textarea'); if(first) setTimeout(()=>first.focus({preventScroll:true}),260);
 }
 function closeSheet(){try{kmPick.discard();lgPick.discard()}catch(e){}try{dsPick.discard();dePick.discard()}catch(e){}try{byPick.discard();byPdf.discard()}catch(e){}$('#scrim').classList.remove('on');$('#sheet').classList.remove('on');document.activeElement&&document.activeElement.blur();}
 $('#scrim').onclick=closeSheet;
@@ -4862,6 +4888,168 @@ if(WEB){
   if(ios&&!standalone&&!off) $('#iosHint').hidden=false;
   $('#iosHintX').onclick=()=>{ $('#iosHint').hidden=true; try{localStorage.setItem('ios-hint-off','1')}catch(e){} };
 }
+/* ---------- поделиться объектом файлом (.zip) и принять объект из файла ---------- */
+const ZIP=(function(){
+  const T=new Uint32Array(256); for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=c&1?0xEDB88320^(c>>>1):c>>>1; T[n]=c>>>0; }
+  const crc=u=>{ let c=0xFFFFFFFF; for(let i=0;i<u.length;i++) c=T[(c^u[i])&255]^(c>>>8); return (c^0xFFFFFFFF)>>>0; };
+  const enc=new TextEncoder(), dec=new TextDecoder();
+  function build(entries){   // без сжатия: фото и PDF уже сжаты
+    const parts=[], cen=[]; let off=0;
+    const d=new Date(), dt=((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate(), tm=(d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1);
+    for(const e of entries){
+      const nm=enc.encode(e.name), data=e.data, c=crc(data);
+      const h=new DataView(new ArrayBuffer(30)); h.setUint32(0,0x04034b50,true); h.setUint16(4,20,true); h.setUint16(6,0x0800,true); h.setUint16(8,0,true); h.setUint16(10,tm,true); h.setUint16(12,dt,true); h.setUint32(14,c,true); h.setUint32(18,data.length,true); h.setUint32(22,data.length,true); h.setUint16(26,nm.length,true); h.setUint16(28,0,true);
+      parts.push(new Uint8Array(h.buffer),nm,data);
+      const z=new DataView(new ArrayBuffer(46)); z.setUint32(0,0x02014b50,true); z.setUint16(4,20,true); z.setUint16(6,20,true); z.setUint16(8,0x0800,true); z.setUint16(10,0,true); z.setUint16(12,tm,true); z.setUint16(14,dt,true); z.setUint32(16,c,true); z.setUint32(20,data.length,true); z.setUint32(24,data.length,true); z.setUint16(28,nm.length,true); z.setUint32(42,off,true);
+      cen.push(new Uint8Array(z.buffer),nm); off+=30+nm.length+data.length;
+    }
+    const cs=cen.reduce((s,x)=>s+x.length,0), E=new DataView(new ArrayBuffer(22)); E.setUint32(0,0x06054b50,true); E.setUint16(8,entries.length,true); E.setUint16(10,entries.length,true); E.setUint32(12,cs,true); E.setUint32(16,off,true);
+    const all=parts.concat(cen,[new Uint8Array(E.buffer)]), out=new Uint8Array(all.reduce((s,x)=>s+x.length,0)); let p=0; for(const x of all){ out.set(x,p); p+=x.length; } return out;
+  }
+  async function read(u){
+    const v=new DataView(u.buffer,u.byteOffset,u.byteLength); let e=-1;
+    for(let i=u.length-22;i>=Math.max(0,u.length-65557);i--) if(v.getUint32(i,true)===0x06054b50){ e=i; break; }
+    if(e<0) throw new Error('файл не похож на архив объекта');
+    const n=v.getUint16(e+10,true); let p=v.getUint32(e+16,true); const out={};
+    for(let k=0;k<n;k++){
+      if(v.getUint32(p,true)!==0x02014b50) throw new Error('архив повреждён');
+      const meth=v.getUint16(p+10,true), csz=v.getUint32(p+20,true), nl=v.getUint16(p+28,true), xl=v.getUint16(p+30,true), cl=v.getUint16(p+32,true), lo=v.getUint32(p+42,true);
+      const name=dec.decode(u.subarray(p+46,p+46+nl)); p+=46+nl+xl+cl;
+      const ds=lo+30+v.getUint16(lo+26,true)+v.getUint16(lo+28,true); let data=u.subarray(ds,ds+csz);
+      if(meth===8){ if(typeof DecompressionStream==='undefined') throw new Error('архив сжат, а телефон не умеет его распаковать'); data=new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer()); }
+      else if(meth!==0) throw new Error('неизвестный способ сжатия в архиве');
+      out[name]=data;
+    }
+    return out;
+  }
+  return {build,read,enc,dec};
+})();
+const b64u=u=>{ let s=''; for(let i=0;i<u.length;i+=32768) s+=String.fromCharCode.apply(null,u.subarray(i,i+32768)); return btoa(s); };
+const unb64u=s=>{ const b=atob(s), u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; };
+async function photoBytes(id){
+  if(APP){ try{ const s=Android.photoB64&&Android.photoB64(id); return s?unb64u(s):null; }catch(e){ return null; } }
+  const b=await PH.blob(id); return b?new Uint8Array(await b.arrayBuffer()):null;
+}
+const OSH_LOCAL={brig:1,brigAs:1};
+/* что уйдёт в файл */
+function oshParts(o){
+  const docsF=(o.docs||[]).filter(d=>d.kind!=='ref'&&d.kind!=='link'), tasks=state.tasks.filter(t=>t.objId===o.id);
+  return {photos:o.photos||[],docsF,docs:o.docs||[],tasks};
+}
+let oshObj=null;
+function openObjShare(o){
+  oshObj=o; const P=oshParts(o), dsz=P.docsF.filter(d=>d.kind!=='img').reduce((s,d)=>s+(d.size||0),0);
+  $('#oshTitle').textContent='Поделиться: '+o.name;
+  $('#oshPhotosL').textContent='Фото объекта ('+P.photos.length+')'; $('#oshPhotos').checked=true; $('#oshPhotos').disabled=!P.photos.length;
+  $('#oshDocsL').textContent='Документация: файлы ('+P.docsF.length+(dsz?', около '+fmtSize(dsz):'')+')'; $('#oshDocs').checked=true; $('#oshDocs').disabled=!P.docsF.length;
+  $('#oshTasksL').textContent='Задачи по объекту ('+P.tasks.length+')'; $('#oshTasks').checked=true; $('#oshTasks').disabled=!P.tasks.length;
+  $('#oshMsg').textContent=''; $('#oshGo').disabled=false; openSheet('fObjShare');
+}
+async function oshBuild(o,withPh,withDocs,withTasks){
+  const P=oshParts(o), files=[], miss=[];
+  const obj=JSON.parse(JSON.stringify(o)); Object.keys(OSH_LOCAL).forEach(k=>delete obj[k]);
+  if(!withPh) obj.photos=[];
+  const fileOf=async(kind,id)=>{ const u=kind==='pdf'?await DOC.load(id):await photoBytes(id); if(!u){ miss.push(id); return; } files.push({name:'files/'+id+(kind==='pdf'?'.pdf':'.jpg'),data:u,id,kind}); };
+  if(withPh) for(const p of P.photos) await fileOf('photo',p.id);
+  if(withDocs) for(const d of P.docsF) await fileOf(d.kind==='img'?'photo':'pdf',d.id);
+  else obj.docs=(obj.docs||[]).filter(d=>d.kind==='ref'||d.kind==='link');
+  const man={format:'organizer-object',v:1,exported:new Date().toISOString(),app:(typeof curBuild!=='undefined'&&curBuild)?String(curBuild):'',object:obj,tasks:withTasks?P.tasks.map(t=>JSON.parse(JSON.stringify(t))):[],files:files.map(f=>({path:f.name,id:f.id,kind:f.kind}))};
+  const zip=ZIP.build([{name:'object.json',data:ZIP.enc.encode(JSON.stringify(man))}].concat(files.map(f=>({name:f.name,data:f.data}))));
+  return {zip,miss,n:files.length};
+}
+function oshName(o){ return ('Объект '+o.name).replace(/[\\/:*?"<>|]+/g,' ').replace(/\s+/g,' ').trim().slice(0,60)+'.zip'; }
+async function oshShare(zip,name){
+  if(APP){
+    try{ const old=localStorage.getItem('osh-last'); if(old) DOC.del(old); }catch(e){}
+    const id='z_'+uid().replace(/[^A-Za-z0-9_-]/g,''); try{ localStorage.setItem('osh-last',id); }catch(e){}
+    if(!(await DOC.save(id,zip))) throw new Error('не хватило места для файла');
+    Android.docShare(id,name); return;
+  }
+  const f=new File([zip],name,{type:'application/zip'});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){ try{ await navigator.share({files:[f],title:name}); return; }catch(e){ if(e&&e.name==='AbortError') return; } }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(f); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000);
+}
+$('#oshGo').onclick=async()=>{
+  const o=oshObj; if(!o) return; const btn=$('#oshGo'); btn.disabled=true; $('#oshMsg').textContent='Собираю файл…';
+  try{
+    const R=await oshBuild(o,$('#oshPhotos').checked,$('#oshDocs').checked,$('#oshTasks').checked);
+    $('#oshMsg').textContent='Файл: '+fmtSize(R.zip.length)+(R.miss.length?' · не найдено файлов: '+R.miss.length:'');
+    await oshShare(R.zip,oshName(o)); closeSheet();
+    if(R.miss.length) alert('Не нашлось файлов: '+R.miss.length+' (возможно, удалены с телефона). Остальное отправлено.');
+  }catch(e){ logErr('share','объект: '+(e.message||e)); $('#oshMsg').textContent='Не получилось: '+(e.message||e); }
+  btn.disabled=false;
+};
+$('#oShare').onclick=()=>{ const o=objById(openObjId); if(o) openObjShare(o); };
+
+/* приём объекта */
+let oimp=null;
+async function objImportBytes(u){
+  try{
+    const Z=await ZIP.read(u), mj=Z['object.json'];
+    if(!mj) throw new Error('в архиве нет данных объекта');
+    const man=JSON.parse(ZIP.dec.decode(mj));
+    if(man.format!=='organizer-object'||!man.object||!man.object.id) throw new Error('это не файл объекта органайзера');
+    oimp={man,Z}; openObjImport();
+  }catch(e){ logErr('share','приём объекта: '+(e.message||e)); alert('Не удалось открыть файл объекта: '+(e.message||e)); }
+}
+const ARR=['equip','mats','checks','photos','docs'];
+function oimpDiff(cur,inc,tasks){
+  let add=0, chg=0; const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+  ARR.forEach(a=>(inc[a]||[]).forEach(x=>{ const y=(cur[a]||[]).find(z=>z.id===x.id); if(!y) add++; else if(!same(x,y)) chg++; }));
+  tasks.forEach(t=>{ const y=state.tasks.find(z=>z.id===t.id); if(!y) add++; else if(!same(Object.assign({},t,{objId:cur.id}),y)) chg++; });
+  const card=Object.keys(inc).filter(k=>ARR.indexOf(k)<0&&k!=='id'&&!OSH_LOCAL[k]&&!same(inc[k],cur[k]));
+  return {add,chg,card};
+}
+function openObjImport(){
+  const {man}=oimp, o=man.object, cur=state.objects.find(x=>x.id===o.id);
+  const cnt=a=>(o[a]||[]).length, when=man.exported?new Date(man.exported).toLocaleString('ru-RU',{day:'numeric',month:'long',hour:'2-digit',minute:'2-digit'}):'';
+  $('#oimTitle').textContent=o.name||'Объект';
+  $('#oimInfo').innerHTML=(o.addr?'<div class="byline"><span>Адрес</span><b>'+esc(o.addr)+'</b></div>':'')+
+    '<div class="byline"><span>Задачи</span><b>'+man.tasks.length+'</b></div><div class="byline"><span>Оборудование</span><b>'+cnt('equip')+'</b></div><div class="byline"><span>Материалы</span><b>'+cnt('mats')+'</b></div>'+
+    '<div class="byline"><span>Документация</span><b>'+cnt('docs')+'</b></div><div class="byline"><span>Фото</span><b>'+cnt('photos')+'</b></div>'+(when?'<div class="byline"><span>Отправлен</span><b>'+esc(when)+'</b></div>':'');
+  if(cur){
+    const D=oimpDiff(cur,o,man.tasks);
+    $('#oimNote').textContent='Этот объект уже есть у вас. В присланном: новых записей — '+D.add+', изменённых — '+D.chg+(D.card.length?', изменено в карточке — '+D.card.length:'')+'. Удалённое отправителем у вас не удаляется.';
+    $('#oimUpd').hidden=false; $('#oimUpd').textContent='Обновить: добавить новое и принять изменения'; $('#oimAdd').hidden=false; $('#oimAdd').textContent='Только добавить новое'; $('#oimCopy').hidden=false;
+    $('#oimNew').hidden=true;
+  } else { $('#oimNote').textContent='Объект добавится в «Объекты» со всеми присланными файлами.'; $('#oimUpd').hidden=true; $('#oimAdd').hidden=true; $('#oimCopy').hidden=true; $('#oimNew').hidden=false; }
+  openSheet('fObjImp');
+}
+async function oimpFiles(ids,remap){
+  const {man,Z}=oimp; let bad=0;
+  for(const f of man.files){ if(ids&&!ids.has(f.id)) continue; const u=Z[f.path]; if(!u){ bad++; continue; } const id=remap?remap(f.id):f.id;
+    if(f.kind==='pdf'){ if(!(await DOC.save(id,u))) bad++; } else if(!PH.save(id,b64u(u))) bad++; }
+  return bad;
+}
+async function oimpApply(mode){
+  const {man}=oimp, inc=JSON.parse(JSON.stringify(man.object)); let cur=state.objects.find(x=>x.id===inc.id), bad=0;
+  ARR.forEach(a=>{ if(!Array.isArray(inc[a])) inc[a]=[]; }); if(!Array.isArray(inc.systems)) inc.systems=[];
+  if(mode==='copy'||!cur){
+    const map={}, nid=id=>map[id]||(map[id]=mode==='copy'?'i'+uid().replace(/[^A-Za-z0-9_-]/g,''):id);
+    const o=inc; if(mode==='copy'){ o.id=uid(); o.name=o.name+' (копия)'; ARR.forEach(a=>o[a].forEach(x=>{ x.id=nid(x.id); })); o.docs.forEach(d=>{ if(d.from) d.from=nid(d.from); if(d.of) d.of=nid(d.of); }); o.equip.forEach(e=>{ if(e.src) e.src=nid(e.src); }); o.mats.forEach(m=>{ if(m.src) m.src=nid(m.src); }); }
+    bad=await oimpFiles(null,mode==='copy'?nid:null);
+    state.objects.push(o);
+    man.tasks.forEach(t=>{ const x=Object.assign({},t,{objId:o.id}); if(mode==='copy'||!state.tasks.some(z=>z.id===t.id)){ if(mode==='copy') x.id=uid(); state.tasks.push(x); } });
+    cur=o;
+  } else {
+    const need=new Set();
+    ARR.forEach(a=>inc[a].forEach(x=>{ const i=cur[a].findIndex(z=>z.id===x.id);
+      if(i<0){ cur[a].push(x); need.add(x.id); } else if(mode==='upd'&&JSON.stringify(cur[a][i])!==JSON.stringify(x)){ cur[a][i]=x; } }));
+    man.tasks.forEach(t=>{ const x=Object.assign({},t,{objId:cur.id}), i=state.tasks.findIndex(z=>z.id===t.id); if(i<0) state.tasks.push(x); else if(mode==='upd') state.tasks[i]=x; });
+    if(mode==='upd') Object.keys(inc).forEach(k=>{ if(ARR.indexOf(k)<0&&k!=='id'&&!OSH_LOCAL[k]) cur[k]=inc[k]; });
+    bad=await oimpFiles(need,null);
+  }
+  save(); render(); closeSheet(); showObject(cur.id);
+  if(bad) alert('Объект принят, но '+bad+' '+plural(bad,'файл','файла','файлов')+' сохранить не удалось (возможно, мало места).');
+  oimp=null;
+}
+$('#oimNew').onclick=()=>oimpApply('new');
+$('#oimUpd').onclick=()=>oimpApply('upd');
+$('#oimAdd').onclick=()=>oimpApply('add');
+$('#oimCopy').onclick=()=>oimpApply('copy');
+$('#objImport').onclick=()=>$('#objImportInput').click();
+$('#objImportInput').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return; objImportBytes(new Uint8Array(await f.arrayBuffer())); };
+window.__osh={ZIP,oshBuild,objImportBytes,st:()=>state,showObject:id=>showObject(id),PH,DOC};
 applyNav();
 save(); render(); connect();
 })();
