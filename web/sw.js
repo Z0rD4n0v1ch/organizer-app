@@ -1,6 +1,6 @@
 /* Органайзер монтажника — офлайн-работа веб-версии и хранение фото */
 const V='org-__VERSION__', PHOTOS='org-photos', FONTS='org-fonts', KEEP=[PHOTOS,FONTS,'org-backups','org-docs'];
-const SHELL=['./','index.html','bolid.js','argus.js','rubezh.js','trassir.js','hikvision.js','smartec.js','delta.js','eia.js','esmart.js','bastion.js','rielta.js','teko.js','altonika.js','crow.js','kss.js','meanwell.js','wirenboard.js','philips.js','pdfjs/pdf.min.js','pdfjs/pdf.worker.min.js','manifest.webmanifest','apple-touch-icon.png','icon-192.png','icon-512.png'];
+const SHELL=['./','index.html','bolid.js','argus.js','rubezh.js','trassir.js','hikvision.js','smartec.js','delta.js','eia.js','esmart.js','bastion.js','rielta.js','teko.js','altonika.js','crow.js','kss.js','meanwell.js','wirenboard.js','philips.js','jsqr.js','pdfjs/pdf.min.js','pdfjs/pdf.worker.min.js','manifest.webmanifest','apple-touch-icon.png','icon-192.png','icon-512.png'];
 self.addEventListener('install',e=>{ e.waitUntil(caches.open(V).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting())); });
 self.addEventListener('activate',e=>{ e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==V&&!KEEP.includes(k)).map(k=>caches.delete(k)))).then(()=>self.clients.claim())); });
 function netFirst(req){
