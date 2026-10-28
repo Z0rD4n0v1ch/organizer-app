@@ -154,7 +154,7 @@ final class Store {
             }
             o.put("loc", loc(c));
             File files = c.getFilesDir();
-            long photos = size(new File(files, "photos")), objdocs = size(new File(files, "docs"));
+            long photos = size(new File(files, "photos")) + size(new File(files, "videos")), objdocs = size(new File(files, "docs"));
             long catPhone = size(new File(files, "catdocs")), catSd = sd == null ? 0 : size(new File(sd, "catdocs"));
             File dataDir = files.getParentFile();
             long all = size(dataDir) + size(c.getExternalFilesDir(null)) + (sd == null ? 0 : size(sd)) + size(c.getExternalCacheDir());

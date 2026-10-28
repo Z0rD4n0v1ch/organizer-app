@@ -57,6 +57,10 @@ public class MainActivity extends Activity {
     private static final int REQ_CAMERA = 3;
     private static final int REQ_NOTIF = 4;
     private static final int REQ_GEO = 5;
+    private static final int REQ_MEDIA = 6;
+    private static final int REQ_VIDEO = 7;
+    private String mediaCb;
+    private Uri videoOut;
     private String geoPending;
 
     private WebView web;
@@ -165,6 +169,105 @@ public class MainActivity extends Activity {
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
         handleShare(intent);
+    }
+
+    /* ---------- фото и видео объекта ---------- */
+    static File videoDir(Context c) {
+        File d = new File(c.getFilesDir(), "videos");
+        if (!d.exists()) //noinspection ResultOfMethodCallIgnored
+            d.mkdirs();
+        return d;
+    }
+
+    static File videoFile(Context c, String id) {
+        String s = Store.clean(id);
+        File[] fs = videoDir(c).listFiles((d, n) -> n.startsWith(s + ".") && !n.endsWith(".part"));
+        if (fs != null && fs.length > 0) return fs[0];
+        return new File(videoDir(c), s + ".mp4");
+    }
+
+    private static String videoExt(String mime, String name) {
+        String m = mime == null ? "" : mime.toLowerCase();
+        if (m.contains("3gp")) return "3gp";
+        if (m.contains("webm")) return "webm";
+        if (m.contains("matroska")) return "mkv";
+        if (m.contains("quicktime")) return "mov";
+        String n = name == null ? "" : name.toLowerCase();
+        for (String e : new String[]{"3gp", "webm", "mkv", "mov"}) if (n.endsWith("." + e)) return e;
+        return "mp4";
+    }
+
+    private File photoDirFile(String id) {
+        File dir = new File(getFilesDir(), "photos");
+        if (!dir.exists()) //noinspection ResultOfMethodCallIgnored
+            dir.mkdirs();
+        return new File(dir, Store.clean(id) + ".jpg");
+    }
+
+    private static Bitmap scaleTo(Bitmap bm, int max) {
+        float k = Math.min(1f, (float) max / Math.max(bm.getWidth(), bm.getHeight()));
+        if (k >= 1f) return bm;
+        Bitmap sc = Bitmap.createScaledBitmap(bm, Math.round(bm.getWidth() * k), Math.round(bm.getHeight() * k), true);
+        if (sc != bm) bm.recycle();
+        return sc;
+    }
+
+    /** Фото уменьшается до 1600 px, видео копируется как есть + кадр-обложка. */
+    private JSONObject importMedia(Uri uri, boolean forceVideo) throws Exception {
+        String type = null;
+        try { type = getContentResolver().getType(uri); } catch (Exception ignored) { }
+        String name = "";
+        try (Cursor c = getContentResolver().query(uri, new String[]{OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+            if (c != null && c.moveToFirst()) name = c.getString(0);
+        } catch (Exception ignored) { }
+        if (name == null) name = "";
+        boolean video = forceVideo || (type != null && type.startsWith("video")) || name.toLowerCase().matches(".*\\.(mp4|3gp|webm|mkv|mov)$");
+        String id = Long.toString(System.currentTimeMillis(), 36) + Integer.toHexString((int) (Math.random() * 0xfffff));
+        JSONObject j = new JSONObject();
+        j.put("id", id);
+        if (!video) {
+            BitmapFactory.Options o = new BitmapFactory.Options();
+            o.inJustDecodeBounds = true;
+            try (InputStream in = getContentResolver().openInputStream(uri)) { BitmapFactory.decodeStream(in, null, o); }
+            if (o.outWidth <= 0) throw new Exception("не удалось прочитать фото");
+            int max = Math.max(o.outWidth, o.outHeight), sample = 1;
+            while (max / (sample * 2) >= 1600) sample *= 2;
+            BitmapFactory.Options o2 = new BitmapFactory.Options();
+            o2.inSampleSize = sample;
+            Bitmap bm;
+            try (InputStream in = getContentResolver().openInputStream(uri)) { bm = BitmapFactory.decodeStream(in, null, o2); }
+            if (bm == null) throw new Exception("не удалось прочитать фото");
+            bm = scaleTo(bm, 1600);
+            try (FileOutputStream out = new FileOutputStream(photoDirFile(id))) { bm.compress(Bitmap.CompressFormat.JPEG, 82, out); }
+            bm.recycle();
+            j.put("type", "photo");
+            return j;
+        }
+        String ext = videoExt(type, name);
+        File dst = new File(videoDir(this), id + "." + ext), part = new File(dst.getPath() + ".part");
+        long n = 0;
+        try (InputStream in = getContentResolver().openInputStream(uri); FileOutputStream out = new FileOutputStream(part)) {
+            byte[] buf = new byte[262144]; int k;
+            while ((k = in.read(buf)) > 0) { out.write(buf, 0, k); n += k; }
+        } catch (Exception e) { part.delete(); throw new Exception("не хватило места или видео недоступно"); }
+        if (n == 0 || !part.renameTo(dst)) { part.delete(); throw new Exception("видео пустое"); }
+        j.put("type", "video"); j.put("ext", ext); j.put("size", n);
+        android.media.MediaMetadataRetriever r = new android.media.MediaMetadataRetriever();
+        try {
+            r.setDataSource(dst.getPath());
+            String d = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION);
+            if (d != null) j.put("dur", Math.round(Long.parseLong(d) / 1000.0));
+            Bitmap fr = r.getFrameAtTime(1000000, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC);
+            if (fr == null) fr = r.getFrameAtTime();
+            if (fr != null) {
+                fr = scaleTo(fr, 640);
+                try (FileOutputStream out = new FileOutputStream(photoDirFile(id + "t"))) { fr.compress(Bitmap.CompressFormat.JPEG, 80, out); }
+                fr.recycle();
+                j.put("thumb", id + "t");
+            }
+        } catch (Exception ignored) {
+        } finally { try { r.release(); } catch (Exception ignored) { } }
+        return j;
     }
 
     /* ---------- «Поделиться» в органайзер: PDF-чек или фото чека ---------- */
@@ -866,6 +969,86 @@ public class MainActivity extends Activity {
         }
 
         /** Принятый через «Поделиться» файл (JSON) — один раз, затем очищается. */
+        /** Фото и видео из галереи (несколько). Результат — window.onMedia(cb, json). */
+        @JavascriptInterface
+        public void mediaPick(final String cb) {
+            runOnUiThread(() -> {
+                mediaCb = cb;
+                Intent i = new Intent(Intent.ACTION_GET_CONTENT);
+                i.addCategory(Intent.CATEGORY_OPENABLE);
+                i.setType("*/*");
+                i.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"image/*", "video/*"});
+                i.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+                try { startActivityForResult(i, REQ_MEDIA); }
+                catch (Exception e) { mediaCb = null; Toast.makeText(MainActivity.this, "Не удалось открыть галерею", Toast.LENGTH_SHORT).show(); callJs("window.onMedia && window.onMedia(" + JSONObject.quote(cb) + ",\"[]\")"); }
+            });
+        }
+
+        /** Снять видео камерой. */
+        @JavascriptInterface
+        public void videoCapture(final String cb) {
+            runOnUiThread(() -> {
+                mediaCb = cb;
+                Intent i = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
+                i.putExtra(MediaStore.EXTRA_VIDEO_QUALITY, 1);
+                try {
+                    if (Build.VERSION.SDK_INT >= 29) {
+                        ContentValues v = new ContentValues();
+                        v.put(MediaStore.Video.Media.DISPLAY_NAME, "object_" + System.currentTimeMillis() + ".mp4");
+                        v.put(MediaStore.Video.Media.MIME_TYPE, "video/mp4");
+                        v.put(MediaStore.Video.Media.RELATIVE_PATH, "Movies/Органайзер");
+                        videoOut = getContentResolver().insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, v);
+                        if (videoOut != null) {
+                            i.putExtra(MediaStore.EXTRA_OUTPUT, videoOut);
+                            i.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                        }
+                    }
+                    startActivityForResult(i, REQ_VIDEO);
+                } catch (Exception e) {
+                    if (videoOut != null) { try { getContentResolver().delete(videoOut, null, null); } catch (Exception ignored) { } videoOut = null; }
+                    mediaCb = null;
+                    Toast.makeText(MainActivity.this, "Не удалось открыть камеру", Toast.LENGTH_SHORT).show();
+                    callJs("window.onMedia && window.onMedia(" + JSONObject.quote(cb) + ",\"[]\")");
+                }
+            });
+        }
+
+        @JavascriptInterface
+        public String videoUrl(String id) { return Uri.fromFile(videoFile(MainActivity.this, id)).toString(); }
+
+        @JavascriptInterface
+        public void videoDelete(String id) { //noinspection ResultOfMethodCallIgnored
+            videoFile(MainActivity.this, id).delete(); }
+
+        @JavascriptInterface
+        public double videoSize(String id) { File f = videoFile(MainActivity.this, id); return f.exists() ? f.length() : -1; }
+
+        @JavascriptInterface
+        public String videoRead(String id, double off, int len) {
+            try (java.io.RandomAccessFile r = new java.io.RandomAccessFile(videoFile(MainActivity.this, id), "r")) {
+                long o = (long) off;
+                int n = (int) Math.max(0, Math.min(len, r.length() - o));
+                byte[] b = new byte[n];
+                r.seek(o);
+                r.readFully(b);
+                return Base64.encodeToString(b, Base64.NO_WRAP);
+            } catch (Exception e) {
+                return null;
+            }
+        }
+
+        @JavascriptInterface
+        public boolean videoWrite(String id, String ext, String base64, boolean append) {
+            String e = ext == null || !ext.matches("[a-z0-9]{2,5}") ? "mp4" : ext;
+            File f = append ? videoFile(MainActivity.this, id) : new File(videoDir(MainActivity.this), Store.clean(id) + "." + e);
+            try (FileOutputStream out = new FileOutputStream(f, append)) {
+                out.write(Base64.decode(base64, Base64.DEFAULT));
+                return true;
+            } catch (Exception ex) {
+                return false;
+            }
+        }
+
         /** Фото целиком в base64 (для упаковки объекта в файл). */
         @JavascriptInterface
         public String photoB64(String id) {
@@ -1228,6 +1411,30 @@ public class MainActivity extends Activity {
                 fileCallback = null;
             }
             cameraUri = null;
+        } else if (requestCode == REQ_MEDIA || requestCode == REQ_VIDEO) {
+            final String cb = mediaCb;
+            mediaCb = null;
+            final java.util.List<Uri> uris = new java.util.ArrayList<>();
+            final Uri tmp = videoOut;
+            videoOut = null;
+            if (resultCode == RESULT_OK) {
+                if (requestCode == REQ_VIDEO) {
+                    if (tmp != null) uris.add(tmp);
+                    else if (uri != null) uris.add(uri);
+                } else if (data != null && data.getClipData() != null) {
+                    for (int i = 0; i < data.getClipData().getItemCount(); i++) uris.add(data.getClipData().getItemAt(i).getUri());
+                } else if (uri != null) uris.add(uri);
+            }
+            if (uris.isEmpty() && tmp != null) { try { getContentResolver().delete(tmp, null, null); } catch (Exception ignored) { } }
+            new Thread(() -> {
+                JSONArray out = new JSONArray();
+                for (Uri u : uris) {
+                    try { out.put(importMedia(u, requestCode == REQ_VIDEO)); }
+                    catch (Throwable e) { JSONObject j = new JSONObject(); try { j.put("error", String.valueOf(e.getMessage())); } catch (Exception ignored) { } out.put(j); }
+                }
+                if (tmp != null) { try { getContentResolver().delete(tmp, null, null); } catch (Exception ignored) { } }   // копия уже в органайзере
+                if (cb != null) callJs("window.onMedia && window.onMedia(" + JSONObject.quote(cb) + "," + JSONObject.quote(out.toString()) + ")");
+            }).start();
         } else if (requestCode == REQ_SAVE) {
             if (uri != null && pendingBackup != null) {
                 try (OutputStream out = getContentResolver().openOutputStream(uri)) {
