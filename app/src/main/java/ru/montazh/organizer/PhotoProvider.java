@@ -31,12 +31,40 @@ public class PhotoProvider extends ContentProvider {
 
     public static Uri docUri(String id, String name) { return docUri(id, name, "pdf"); }
 
+    /** Видео объекта: content://…/video/<id>/<имя файла>. */
+    public static Uri videoUri(String id, String name) {
+        return new Uri.Builder().scheme("content").authority(AUTH).appendPath("video")
+                .appendPath(Store.clean(id)).appendPath(name).build();
+    }
+
+    private static boolean isVideo(Uri uri) {
+        java.util.List<String> s = uri.getPathSegments();
+        return s.size() == 3 && "video".equals(s.get(0));
+    }
+
+    static String videoMime(String ext) {
+        switch (ext) {
+            case "3gp": return "video/3gpp";
+            case "webm": return "video/webm";
+            case "mkv": return "video/x-matroska";
+            case "mov": return "video/quicktime";
+            default: return "video/mp4";
+        }
+    }
+
     private static boolean isDoc(Uri uri) {
         java.util.List<String> s = uri.getPathSegments();
         return s.size() == 3 && "doc".equals(s.get(0));
     }
 
     private File fileFor(Uri uri) throws FileNotFoundException {
+        if (isVideo(uri)) {
+            String id = uri.getPathSegments().get(1);
+            if (!id.matches("[A-Za-z0-9_-]+")) throw new FileNotFoundException();
+            File f = MainActivity.videoFile(getContext(), id);
+            if (!f.exists()) throw new FileNotFoundException();
+            return f;
+        }
         if (isDoc(uri)) {
             String id = uri.getPathSegments().get(1);
             if (!id.matches("[A-Za-z0-9_-]+")) throw new FileNotFoundException();
@@ -53,7 +81,7 @@ public class PhotoProvider extends ContentProvider {
 
     @Override public boolean onCreate() { return true; }
 
-    @Override public String getType(Uri uri) { if (!isDoc(uri)) return "image/jpeg"; try { return Store.mime(Store.ext(fileFor(uri))); } catch (FileNotFoundException e) { return "application/octet-stream"; } }
+    @Override public String getType(Uri uri) { if (isVideo(uri)) { try { return videoMime(Store.ext(fileFor(uri))); } catch (FileNotFoundException e) { return "video/mp4"; } } if (!isDoc(uri)) return "image/jpeg"; try { return Store.mime(Store.ext(fileFor(uri))); } catch (FileNotFoundException e) { return "application/octet-stream"; } }
 
     @Override
     public ParcelFileDescriptor openFile(Uri uri, String mode) throws FileNotFoundException {
@@ -68,7 +96,7 @@ public class PhotoProvider extends ContentProvider {
         MatrixCursor c = new MatrixCursor(cols);
         Object[] row = new Object[cols.length];
         for (int i = 0; i < cols.length; i++) {
-            if (OpenableColumns.DISPLAY_NAME.equals(cols[i])) row[i] = isDoc(uri) ? uri.getLastPathSegment() : "probeg.jpg";
+            if (OpenableColumns.DISPLAY_NAME.equals(cols[i])) row[i] = isDoc(uri) || isVideo(uri) ? uri.getLastPathSegment() : "probeg.jpg";
             else if (OpenableColumns.SIZE.equals(cols[i])) row[i] = f.length();
         }
         c.addRow(row);

@@ -1013,6 +1013,23 @@ public class MainActivity extends Activity {
             });
         }
 
+        /** Открыть видео объекта в другом приложении (плеер, галерея). */
+        @JavascriptInterface
+        public void videoOpenExt(final String id, final String name) {
+            runOnUiThread(() -> {
+                File f = videoFile(MainActivity.this, id);
+                if (!f.exists()) { Toast.makeText(MainActivity.this, "Видео не найдено на телефоне", Toast.LENGTH_SHORT).show(); return; }
+                String ext = Store.ext(f);
+                String nm = (name == null || name.trim().isEmpty() ? "video" : name.replaceAll("[\\\\/:*?\"<>|]", "_").trim()) + "." + ext;
+                Uri u = PhotoProvider.videoUri(id, nm);
+                Intent i = new Intent(Intent.ACTION_VIEW);
+                i.setDataAndType(u, PhotoProvider.videoMime(ext));
+                i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                try { startActivity(Intent.createChooser(i, "Открыть видео")); }
+                catch (Exception e) { Toast.makeText(MainActivity.this, "Нет приложения, чтобы открыть видео", Toast.LENGTH_SHORT).show(); }
+            });
+        }
+
         @JavascriptInterface
         public String videoUrl(String id) { return Uri.fromFile(videoFile(MainActivity.this, id)).toString(); }
 

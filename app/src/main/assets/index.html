@@ -336,6 +336,10 @@ nav .nl{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;whit
 .viewer .vbar{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 16px calc(14px + env(safe-area-inset-bottom,0px));color:#fff}
 .viewer .vbar button{border:0;border-radius:12px;padding:10px 14px;background:#2a2833;color:#fff;font-weight:500}
 .viewer .vbar .del{color:#F07470}
+.viewer .vbar{flex-wrap:wrap}
+.viewer .vbar #vDate{order:-1;flex-basis:100%;font-size:13px;text-align:center;opacity:.85}
+.viewer .vbar #vExt{flex:1}
+.viewer .vbar button[hidden]{display:none}
 .runbar{display:flex;align-items:center;gap:12px;background:var(--ink);color:var(--bg);border-radius:18px;padding:12px 14px;margin:8px 0 6px;border:0;width:100%;text-align:left}
 .runbar[hidden]{display:none}
 .runbar span{flex:1;min-width:0;font-size:14px}
@@ -784,7 +788,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
 <div class="viewer" id="viewer" hidden>
   <img id="vImg" alt="Фото объекта">
   <video id="vVid" controls playsinline preload="metadata" hidden></video>
-  <div class="vbar"><button class="del" id="vDel">Удалить</button><span id="vDate"></span><button id="vClose">Закрыть</button></div>
+  <div class="vbar"><button class="del" id="vDel">Удалить</button><span id="vDate"></span><button id="vExt" hidden>Открыть в…</button><button id="vClose">Закрыть</button></div>
 </div>
 <div class="pdfv" id="pdfv" hidden>
   <div class="pvbar">
@@ -1851,19 +1855,26 @@ $('#oVidInput').onchange=e=>{addPhotos([...e.target.files]); e.target.value='';}
 $('#oGalInput').onchange=e=>{addPhotos([...e.target.files]); e.target.value='';};
 let vCur=null;
 function showPhoto(id,caption,onDel){
-  vCur={onDel}; $('#vVid').hidden=true; $('#vImg').hidden=false; $('#vImg').src=PH.url(id)+'?'+Date.now();
+  vCur={onDel}; $('#vExt').hidden=true; $('#vVid').hidden=true; $('#vImg').hidden=false; $('#vImg').src=PH.url(id)+'?'+Date.now();
   $('#vDate').textContent=caption||''; $('#vDel').style.visibility=onDel?'visible':'hidden'; $('#viewer').hidden=false;
 }
 function openViewer(o,p){
   const d=new Date(p.ts), cap=fmtDate(iso(d))+', '+hm(d), del=()=>{ o.photos=o.photos.filter(x=>x!==p); mediaDel(p); save(); renderObject(); };
   if(!isVid(p)){ showPhoto(p.id,cap,del); return; }
-  vCur={onDel:del,video:true}; $('#vImg').hidden=true; $('#vImg').removeAttribute('src'); const v=$('#vVid'); v.hidden=false;
+  vCur={onDel:del,video:true,p,name:'Видео '+o.name+' '+dateRu(iso(d))}; $('#vExt').hidden=!(APP?Android.videoOpenExt:VID.ok); $('#vExt').textContent=APP?'Открыть в…':'Скачать'; $('#vImg').hidden=true; $('#vImg').removeAttribute('src'); const v=$('#vVid'); v.hidden=false;
   if(p.thumb) v.poster=PH.url(p.thumb);
   $('#vDate').textContent=cap+(p.size?' · '+fmtSize(p.size):''); $('#vDel').style.visibility='visible'; $('#viewer').hidden=false;
   VID.src(p.id).then(u=>{ if(!vCur||!vCur.video) return; if(!u){ $('#vDate').textContent='Видео не найдено на этом телефоне'; return; } v.src=u; v.play().catch(()=>{}); });
 }
 function closeViewer(){ $('#viewer').hidden=true; $('#vImg').removeAttribute('src'); const v=$('#vVid'); try{ v.pause(); }catch(e){} v.removeAttribute('src'); v.removeAttribute('poster'); try{ v.load(); }catch(e){} v.hidden=true; vCur=null; }
 $('#vClose').onclick=closeViewer;
+$('#vExt').onclick=async()=>{
+  const c=vCur; if(!c||!c.video) return; const p=c.p, nm=String(c.name).replace(/[\\/:*?"<>|]+/g,' ').trim();
+  try{ $('#vVid').pause(); }catch(e){}
+  if(APP){ Android.videoOpenExt(p.id,nm); return; }
+  const u=await VID.load(p.id); if(!u){ alert('Видео не найдено'); return; }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([u],{type:'video/'+(p.ext==='webm'?'webm':'mp4')})); a.download=nm+'.'+(p.ext||'mp4'); document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000);
+};
 $('#vDel').onclick=()=>{
   if(!vCur||!vCur.onDel||!confirm(vCur.video?'Удалить это видео?':'Удалить это фото?')) return;
   const f=vCur.onDel; closeViewer(); f();
