@@ -127,7 +127,42 @@ h2{font:500 16px/1.2 "Unbounded",system-ui,sans-serif;margin:26px 0 10px;display
 .pvt small{color:#a9a6b5;font-size:12px}
 .pvscroll{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;touch-action:pan-x pan-y}
 .pvpages{padding:8px;min-width:100%;box-sizing:border-box}
-.pvp{background:#fff;margin:0 auto 8px;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.pvp{background:#fff;margin:0 auto 8px;box-shadow:0 1px 4px rgba(0,0,0,.4);position:relative}
+.pvimgw{position:relative;display:inline-block;margin:0 auto}
+.pvimgw img{display:block}
+.mkp{position:absolute;transform:translate(-50%,-50%);width:28px;height:28px;border-radius:50%;border:2.5px solid #fff;background:var(--c,#2d6cdf);color:#fff;padding:0;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.5);z-index:2}
+.mkp b{font:700 12px/1 system-ui,sans-serif}
+.mkp.st-done{border-color:#18a34a}.mkp.st-issue{border-color:#ff3b6b;box-shadow:0 0 0 3px rgba(255,59,107,.35)}
+.pvbar #pvMark.on{background:#3a5bff}
+.pvhint{background:#3a5bff;color:#fff;font-size:13px;padding:8px 12px;text-align:center}
+.pvhint[hidden],#pvMark[hidden]{display:none}
+.mkkinds{margin-top:4px}
+.mkc{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:5px 10px}
+.mkc i{font-style:normal;width:18px;height:18px;border-radius:50%;background:var(--c);color:#fff;font:700 11px/18px system-ui,sans-serif;text-align:center}
+.mkc.on{background:var(--c);border-color:var(--c);color:#fff}.mkc.on i{background:#fff;color:var(--c)}
+.mkser{position:relative}.mkser .field{padding-right:44px}
+.mkscan{position:absolute;right:4px;top:4px;bottom:4px;width:38px;border:0;border-radius:10px;background:var(--bg);display:flex;align-items:center;justify-content:center}
+.mkscan svg{width:22px;height:22px;fill:none;stroke:var(--accent);stroke-width:1.8}
+.ctsr{position:relative}.ctsr .search{padding-right:52px}.ctsr .mkscan{right:6px;top:6px;bottom:6px;width:42px;background:var(--surface)}
+.scanv{position:fixed;inset:0;z-index:60;background:#000;display:flex;flex-direction:column}
+.scanv[hidden]{display:none}
+.scanv video{flex:1;min-height:0;width:100%;object-fit:cover}
+.scanframe{position:absolute;left:12%;right:12%;top:30%;height:26%;border:3px solid rgba(255,255,255,.9);border-radius:18px;box-shadow:0 0 0 2000px rgba(0,0,0,.35);pointer-events:none}
+.scanbar{position:absolute;left:0;right:0;bottom:0;padding:14px 16px calc(16px + env(safe-area-inset-bottom,0px));color:#fff;text-align:center;font-size:14px;background:linear-gradient(transparent,rgba(0,0,0,.7))}
+.scanbar div{display:flex;gap:8px;justify-content:center;margin-top:10px}
+.scanbar button{border:0;border-radius:12px;padding:10px 16px;background:#2a2833;color:#fff;font-weight:500}
+.cbrow{display:grid;grid-template-columns:1fr 52px 64px 64px 32px;gap:6px;align-items:center;margin-bottom:6px}
+.cbrow .field{margin:0;padding:10px 8px;font-size:14px}
+.cbh{margin-bottom:4px}.cbh span{font-size:12px;color:var(--muted)}
+#fCalc label{display:block}#fCalc label .lbl{display:block}
+#calcObj[hidden],#calcTabs[hidden]{display:none}
+.mkph{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px}.mkph:empty{display:none}
+.mkph button{border:0;padding:0;width:64px;height:64px;border-radius:10px;overflow:hidden;background:var(--line)}.mkph img{width:100%;height:100%;object-fit:cover}
+.mksum{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--surface);border-radius:14px;padding:10px 14px;margin-top:8px}
+.mksum small{display:block;color:var(--muted);font-size:13px}
+.mlrow{display:flex;align-items:center;gap:12px;width:100%;border:0;background:var(--bg);border-radius:14px;padding:10px 12px;margin:0 0 6px;text-align:left;color:var(--ink)}
+.mlrow .mkp{flex:none}.mlt{min-width:0}.mlt small{display:block;color:var(--muted);font-size:12.5px}
+#sheet.over{z-index:47}#scrim.over{z-index:46}
 .pvp canvas{width:100%;height:100%;display:block}
 .pvmsg{margin:40px 20px;text-align:center;color:#d7d4e0;line-height:1.5}
 .pvfoot{display:flex;gap:8px;padding:8px 8px calc(10px + env(safe-area-inset-bottom,0px));background:#121117}
@@ -613,6 +648,8 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     </div>
     <h2 class="fold" data-sec="eq"><span class="ft"><i class="chev"></i><span>Оборудование</span><small class="fb" id="ofb_eq"></small></span><button class="link" id="oAddEq">Добавить</button></h2>
     <div class="secb"><ul class="list" id="oEquip"></ul></div>
+    <h2 class="fold" data-sec="calcs"><span class="ft"><i class="chev"></i><span>Расчёты</span><small class="fb" id="ofb_calcs"></small></span><button class="link" id="oAddCalc">Новый</button></h2>
+    <div class="secb"><ul class="list" id="oCalcs"></ul></div>
     <h2 class="fold" data-sec="tasks"><span class="ft"><i class="chev"></i><span>Работы</span><small class="fb" id="ofb_tasks"></small></span><button class="link" id="oAddTask">Добавить</button></h2>
     <div class="secb"><ul class="list" id="oTasks"></ul></div>
     <h2 class="fold" data-sec="mats"><span class="ft"><i class="chev"></i><span>Материалы</span><small class="fb" id="ofb_mats"></small></span></h2>
@@ -621,7 +658,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <form class="addrow" id="oMatForm"><input id="oMatInput" placeholder="Например: ИП 212-45, 12 шт" maxlength="160"><button>Добавить</button></form>
     </div>
     <h2 class="fold" data-sec="docs"><span class="ft"><i class="chev"></i><span>Документация</span><small class="fb" id="ofb_docs"></small></span><button class="link" id="oDocSec">Раздел</button></h2>
-    <div class="secb"><div id="oDocs"></div><input type="file" id="docPdfInput" accept="application/pdf,.pdf" multiple hidden><input type="file" id="docImgInput" accept="image/*" multiple hidden><input type="file" id="docCamInput" accept="image/*" capture="environment" hidden></div>
+    <div class="secb"><div id="oDocs"></div><div id="oMarks"></div><input type="file" id="docPdfInput" accept="application/pdf,.pdf" multiple hidden><input type="file" id="docImgInput" accept="image/*" multiple hidden><input type="file" id="docCamInput" accept="image/*" capture="environment" hidden></div>
     <div id="oPhotoBlock">
       <h2 class="fold" data-sec="photos"><span class="ft"><i class="chev"></i><span>Фото и видео</span><small class="fb" id="ofb_photos"></small></span></h2>
       <div class="secb">
@@ -715,9 +752,9 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
   <section class="view" id="v-catalog">
     <h1>Справочник</h1>
     <div class="makers" id="ctMakers"></div>
-    <div class="catupd"><span id="ctStatus"></span><span class="catbtns"><button class="link" id="ctDocs">Скачать документацию</button><button class="link" id="ctUpd">Обновить каталоги</button></span></div>
+    <div class="catupd"><span id="ctStatus"></span><span class="catbtns"><button class="link" id="ctCalc">Калькуляторы</button><button class="link" id="ctDocs">Скачать документацию</button><button class="link" id="ctUpd">Обновить каталоги</button></span></div>
     <p class="sub" id="ctSub"></p>
-    <input class="search" id="ctSearch" type="search" placeholder="Поиск по модели или назначению">
+    <div class="ctsr"><input class="search" id="ctSearch" type="search" placeholder="Поиск по модели или назначению"><button type="button" class="mkscan" id="ctScan" aria-label="Найти по коду"><svg viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M7 12h10"/></svg></button></div>
     <div class="chips" id="ctCats" style="margin-top:0"></div>
     <ul class="list" id="ctList"></ul>
   </section>
@@ -794,11 +831,15 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
   <div class="pvbar">
     <button id="pvClose" aria-label="Закрыть"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
     <div class="pvt"><b id="pvTitle"></b><small id="pvNum"></small></div>
+    <button id="pvMark" aria-label="Отметки на схеме" title="Отметки на схеме" hidden><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.4-6-10.2A6 6 0 0118 10.8C18 15.6 12 21 12 21z"/><circle cx="12" cy="10.5" r="2.2"/></svg></button>
     <button id="pvOut" aria-label="Уменьшить">−</button><button id="pvIn" aria-label="Увеличить">+</button>
   </div>
+  <div class="pvhint" id="pvHint" hidden></div>
   <div class="pvscroll" id="pvScroll"><p class="pvmsg" id="pvMsg" hidden></p><div class="pvpages" id="pvPages"></div></div>
   <div class="pvfoot"><button class="del" id="pvDel">Удалить</button><button id="pvParse" hidden>Заполнить разделы</button><button id="pvSave" hidden>В Загрузки</button><button id="pvShare">Поделиться</button></div>
 </div>
+<div class="scanv" id="scanv" hidden><video id="scanVid" playsinline muted></video><div class="scanframe"></div><div class="scanbar"><span id="scanMsg"></span><div><button id="scanPh">С фото</button><button id="scanClose">Закрыть</button></div></div></div>
+<input type="file" id="scanPhotoInput" accept="image/*" capture="environment" hidden>
 <div class="upd" id="upd" hidden><span id="updText"></span><button id="updBtn">Обновить</button><button class="updx" id="updX" aria-label="Позже">×</button></div>
 <div class="scrim" id="scrim"></div>
 <div class="sheet" id="sheet" role="dialog" aria-modal="true">
@@ -938,7 +979,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <div class="row" style="margin-top:-4px"><button class="seg" id="eqPick" type="button">Выбрать из справочника</button><button class="link" id="eqDevLink" type="button" hidden></button></div>
     <input class="field" id="eq_place" placeholder="Где стоит: щитовая, 1 этаж" maxlength="120">
     <div class="two">
-      <input class="field" id="eq_serial" placeholder="Серийный номер" maxlength="60">
+      <div class="mkser"><input class="field" id="eq_serial" placeholder="Серийный номер" maxlength="60"><button type="button" class="mkscan" id="eqScan" aria-label="Сканировать код"><svg viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M7 12h10"/></svg></button></div>
       <input class="field" id="eq_ip" placeholder="IP-адрес" maxlength="60" inputmode="decimal">
     </div>
     <div class="two">
@@ -946,6 +987,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
       <div class="pwrow"><input class="field" id="eq_pass" type="password" placeholder="Пароль" maxlength="60" autocomplete="off"><button class="seg" id="eqShow" type="button">Показать</button></div>
     </div>
     <input class="field" id="eq_note" placeholder="Примечание: адрес в линии, версия ПО" maxlength="200">
+    <p class="hint" id="eqScanMsg" style="margin:-6px 0 10px"></p>
     <div class="actions"><button class="btn ghost" id="eqDel" hidden>Удалить</button><button class="btn" id="eqSave">Сохранить</button></div>
   </div>
 
@@ -1176,6 +1218,38 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <button class="btn" id="oimUpd" style="width:100%;margin-bottom:8px">Обновить</button>
     <button class="btn ghost" id="oimAdd" style="width:100%;margin-bottom:8px">Только добавить новое</button>
     <button class="btn ghost plain" id="oimCopy" style="width:100%">Сохранить как отдельную копию</button>
+  </div>
+
+  <div class="form" id="fMark" hidden>
+    <h3 id="mkTitle">Отметка</h3>
+    <div class="chips mkkinds" id="mkKinds"></div>
+    <input class="field" id="mkModel" list="mkModels" placeholder="Модель (например, ДИП-34А-04)" autocomplete="off">
+    <datalist id="mkModels"></datalist>
+    <p class="hint" id="mkCat" style="margin:-6px 0 10px"></p>
+    <div class="two"><input class="field" id="mkAddr" placeholder="Адрес / шлейф / IP" autocomplete="off"><div class="mkser"><input class="field" id="mkSerial" placeholder="Заводской №" autocomplete="off"><button type="button" class="mkscan" id="mkScan" aria-label="Сканировать код"><svg viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M7 12h10"/></svg></button></div></div>
+    <div class="chips" id="mkSt" style="margin-top:2px"><button type="button" class="chip" data-s="plan">По проекту</button><button type="button" class="chip" data-s="done">Смонтировано</button><button type="button" class="chip" data-s="issue">Замечание</button></div>
+    <textarea class="field" id="mkNote" rows="2" style="min-height:0;height:60px" placeholder="Примечание: высота, место, что не так"></textarea>
+    <div class="mkph" id="mkPh"></div>
+    <div class="pbtns" style="margin:0 0 12px"><button type="button" id="mkCam"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Фото</button><button type="button" id="mkGal"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>Из галереи</button></div>
+    <input type="file" id="mkCamInput" accept="image/*" capture="environment" hidden><input type="file" id="mkGalInput" accept="image/*" multiple hidden>
+    <label class="setrow" style="background:var(--bg);border-radius:14px;margin-bottom:12px"><span>Добавить в оборудование объекта</span><input type="checkbox" class="tgl" id="mkEq"></label>
+    <div class="actions"><button class="btn ghost" id="mkDel">Удалить</button><button class="btn ghost" id="mkMove">Переставить</button><button class="btn" id="mkSave">Сохранить</button></div>
+  </div>
+
+  <div class="form" id="fMarkList" hidden>
+    <h3>Отметки на схемах</h3>
+    <div id="mlBody"></div>
+  </div>
+
+  <div class="form" id="fCalc" hidden>
+    <h3 id="fCalcH">Калькуляторы</h3>
+    <div class="chips" id="calcTabs"><button type="button" class="chip" data-k="bat">АКБ для РИП</button><button type="button" class="chip" data-k="drop">Падение напряжения</button><button type="button" class="chip" data-k="det">Число извещателей</button></div>
+    <div id="calcForm"></div>
+    <div class="bytot" id="calcRes"></div>
+    <p class="hint" id="calcNote" style="margin:-6px 0 12px"></p>
+    <input class="field" id="calcTitle" placeholder="Название расчёта, например: РИП-12 в щитовой" maxlength="80">
+    <select class="field" id="calcObj"></select>
+    <div class="actions"><button class="btn ghost" id="calcDel" hidden>Удалить</button><button class="btn ghost" id="calcShare">Поделиться</button><button class="btn" id="calcSave">Сохранить в объект</button></div>
   </div>
 
   <div class="form" id="fDay" hidden>
@@ -1695,7 +1769,7 @@ function renderObject(){
     return li;
   });
   if(document.activeElement!==$('#oNote')) $('#oNote').value=o.note||'';
-  renderPhotos(o); renderSvc(o); try{renderDocs(o)}catch(e){} objBadges(o);
+  renderPhotos(o); renderSvc(o); try{renderDocs(o)}catch(e){} try{renderMarks(o)}catch(e){} try{renderCalcs(o)}catch(e){} objBadges(o);
 }
 let noteTimer=null;
 $('#oNote').oninput=e=>{const o=objById(openObjId); if(!o)return; o.note=e.target.value; clearTimeout(noteTimer); noteTimer=setTimeout(save,500);};
@@ -2642,7 +2716,7 @@ async function tgOut(photo,text,title,p){
 }
 
 /* ---------- объект: спойлеры разделов ---------- */
-const OBJ_FOLD_DEF={eq:1,docs:0,photos:1};
+const OBJ_FOLD_DEF={eq:1,docs:0,photos:1,calcs:1};
 let objFold={}; try{ objFold=JSON.parse(localStorage.getItem('obj-fold')||'{}')||{}; }catch(e){}
 $$('#v-object h2.fold').forEach(h=>{
   const k=h.dataset.sec; h.classList.toggle('closed',k in objFold?!!objFold[k]:!!OBJ_FOLD_DEF[k]);
@@ -2957,14 +3031,15 @@ function renderDocs(o){
       const li=document.createElement('li'), b=document.createElement('button'); b.className='dfile';
       const par=d.kind==='ref'?o.docs.find(x=>x.id===d.of):null;
       const meta=d.kind==='ref'?(d.to>d.page?'стр. '+d.page+'–'+d.to:'стр. '+d.page)+(par?' · '+par.name:' · проект удалён'):d.kind==='link'?'документация с сайта'+(d.maker?' · '+d.maker:''):fmtDate(iso(new Date(d.ts)))+(d.size?', '+fmtSize(d.size):'');
-      b.innerHTML=(d.kind==='img'?'<img class="dthumb" loading="lazy" alt="" src="'+esc(PH.url(d.id))+'">':d.kind==='ref'?'<span class="pdfic ref">стр</span>':d.kind==='link'?'<span class="pdfic link">PDF</span>':'<span class="pdfic">PDF</span>')+'<span class="tbody"><span class="ttl">'+esc(d.name)+'</span><span class="meta">'+esc(meta)+'</span></span>';
+      const nmk=(o.marks||[]).filter(m=>d.kind==='ref'?(par&&m.doc===par.id&&m.page>=d.page&&m.page<=(d.to||d.page)):m.doc===d.id).length;
+      b.innerHTML=(d.kind==='img'?'<img class="dthumb" loading="lazy" alt="" src="'+esc(PH.url(d.id))+'">':d.kind==='ref'?'<span class="pdfic ref">стр</span>':d.kind==='link'?'<span class="pdfic link">PDF</span>':'<span class="pdfic">PDF</span>')+'<span class="tbody"><span class="ttl">'+esc(d.name)+'</span><span class="meta">'+esc(meta+(nmk?' · отметок: '+nmk:''))+'</span></span>';
       const drop=()=>{ o.docs=o.docs.filter(x=>x!==d); save(); renderObject(); };
-      if(d.kind==='ref'){ b.onclick=()=>{ if(!par){ if(confirm('Проект, на который ссылается «'+d.name+'», удалён. Убрать ссылку?')) drop(); return; } openPdf({id:par.id,name:d.name,page:d.page,onDel:drop,delLabel:'Убрать'}); }; li.appendChild(b); ul.appendChild(li); return; }
+      if(d.kind==='ref'){ b.onclick=()=>{ if(!par){ if(confirm('Проект, на который ссылается «'+d.name+'», удалён. Убрать ссылку?')) drop(); return; } openPdf({obj:o,id:par.id,name:d.name,page:d.page,onDel:drop,delLabel:'Убрать'}); }; li.appendChild(b); ul.appendChild(li); return; }
       if(d.kind==='link'){ b.onclick=()=>openRemotePdf(d.url,d.name,drop); li.appendChild(b); ul.appendChild(li); return; }
       const isPrj=d.kind!=='img'&&!d.gen&&/проект/i.test(sec);
       const delMsg=()=>{ const ne=o.equip.filter(x=>x.src===d.id).length, nm=o.mats.filter(x=>x.src===d.id).length, nd=o.docs.filter(x=>x.from===d.id).length;
         return 'Удалить «'+d.name+'»?'+(ne||nm||nd?'\n\nВместе с ним удалится всё, что из него разобрано:'+(nd?'\n• записей в документации: '+nd:'')+(ne?'\n• оборудование: '+ne:'')+(nm?'\n• материалы: '+nm:''):''); };
-      b.onclick=()=>openPdf({delMsg,onParse:isPrj?(bytes=>{ closePdf(); prjStart(o,d,bytes); }):null,id:d.id,name:d.name,img:d.kind==='img',onRename:nm=>{ d.name=nm; save(); renderObject(); },onDel:()=>{ if(d.kind==='img'){try{PH.del(d.id)}catch(e){}} else DOC.del(d.id); o.docs.filter(x=>x.from===d.id&&x.gen).forEach(x=>DOC.del(x.id)); o.docs=o.docs.filter(x=>x!==d&&x.from!==d.id&&!(x.kind==='ref'&&x.of===d.id)); o.equip=o.equip.filter(x=>x.src!==d.id); o.mats=o.mats.filter(x=>x.src!==d.id); save(); renderObject(); }});
+      b.onclick=()=>openPdf({obj:o,delMsg,onParse:isPrj?(bytes=>{ closePdf(); prjStart(o,d,bytes); }):null,id:d.id,name:d.name,img:d.kind==='img',onRename:nm=>{ d.name=nm; save(); renderObject(); },onDel:()=>{ o.marks=(o.marks||[]).filter(m=>m.doc!==d.id); if(d.kind==='img'){try{PH.del(d.id)}catch(e){}} else DOC.del(d.id); o.docs.filter(x=>x.from===d.id&&x.gen).forEach(x=>DOC.del(x.id)); o.docs=o.docs.filter(x=>x!==d&&x.from!==d.id&&!(x.kind==='ref'&&x.of===d.id)); o.equip=o.equip.filter(x=>x.src!==d.id); o.mats=o.mats.filter(x=>x.src!==d.id); save(); renderObject(); }});
       li.appendChild(b); ul.appendChild(li);
     });
     w.appendChild(ul); box.appendChild(w);
@@ -3132,8 +3207,8 @@ function pdfFromJpegs(pgs){ // pgs: [{jpg:Uint8Array,w,h}]
   obj(1,'<< /Type /Catalog /Pages 2 0 R >>');
   obj(2,'<< /Type /Pages /Kids ['+kids.join(' ')+'] /Count '+n+' >>');
   pgs.forEach((p,i)=>{
-    const po=3+i*3, co=po+1, io=po+2, cs='q 595.28 0 0 841.89 0 0 cm /Im0 Do Q';
-    obj(po,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /XObject << /Im0 '+io+' 0 R >> >> /Contents '+co+' 0 R >>');
+    const po=3+i*3, co=po+1, io=po+2, pw=(p.pw||595.28).toFixed(2), ph=(p.ph||841.89).toFixed(2), cs='q '+pw+' 0 0 '+ph+' 0 0 cm /Im0 Do Q';
+    obj(po,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+pw+' '+ph+'] /Resources << /XObject << /Im0 '+io+' 0 R >> >> /Contents '+co+' 0 R >>');
     obj(co,'<< /Length '+cs.length+' >>',enc.encode(cs));
     obj(io,'<< /Type /XObject /Subtype /Image /Width '+p.w+' /Height '+p.h+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+p.jpg.length+' >>',p.jpg);
   });
@@ -3636,7 +3711,8 @@ async function getPdfLib(){
 const PV={doc:null,cur:null,z:1,pages:[],io:null,task:0};
 function pvMsg(t){ const m=$('#pvMsg'); m.textContent=t||''; m.hidden=!t; }
 async function openPdf(o){
-  PV.cur=o; PV.z=1; PV.base=null; PV.img=null; $('#pvParse').hidden=!o.onParse; $('#pvSave').hidden=!(APP&&o.saveDl); $('#pvDel').textContent=o.delLabel||'Удалить'; $('#pvTitle').textContent=o.name||'Документ'; $('#pvTitle').title=o.onRename?'Нажмите, чтобы переименовать':''; $('#pvDel').hidden=!o.onDel; $('#pvPages').innerHTML=''; $('#pvNum').textContent='';
+  mkMode=null;
+  PV.cur=o; try{ mkBar(); }catch(e){} PV.z=1; PV.base=null; PV.img=null; $('#pvParse').hidden=!o.onParse; $('#pvSave').hidden=!(APP&&o.saveDl); $('#pvDel').textContent=o.delLabel||'Удалить'; $('#pvTitle').textContent=o.name||'Документ'; $('#pvTitle').title=o.onRename?'Нажмите, чтобы переименовать':''; $('#pvDel').hidden=!o.onDel; $('#pvPages').innerHTML=''; $('#pvNum').textContent='';
   $('#pdfv').hidden=false; pvMsg('Открываю…');
   const my=++PV.task;
   if(o.img){
@@ -3686,7 +3762,7 @@ async function pvLayout(keep){
   if(keep===true){ const r=sc.getBoundingClientRect(); keep=pvAnchor(r.left+r.width/2,r.top+r.height/2); }
   if(PV.img){
     const fit=Math.min(W,(sc.clientHeight-16)*PV.base.w/PV.base.h), w=Math.round(Math.max(fit,Math.min(W,PV.base.w))*PV.z);
-    box.innerHTML=''; PV.img.className='pvimg'; PV.img.style.width=w+'px'; box.appendChild(PV.img); box.style.width=Math.max(w+16,sc.clientWidth)+'px';
+    box.innerHTML=''; PV.img.className='pvimg'; PV.img.style.width=w+'px'; const wr=document.createElement('div'); wr.className='pvimgw'; wr.appendChild(PV.img); box.appendChild(wr); box.style.width=Math.max(w+16,sc.clientWidth)+'px'; try{ mkDraw(wr,1); }catch(e){}
     if(keep) pvApplyAnchor(keep); else { sc.scrollTop=0; sc.scrollLeft=0; }
     $('#pvNum').textContent=Math.round(PV.z*100)+'%'; return;
   }
@@ -3714,7 +3790,7 @@ async function pvRender(d){
     const vp=pg.getViewport({scale:sc}), c=document.createElement('canvas');
     c.width=Math.floor(vp.width); c.height=Math.floor(vp.height);
     await pg.render({canvasContext:c.getContext('2d'),viewport:vp}).promise;
-    if(d.dataset.r==='1'&&doc===PV.doc){ d.innerHTML=''; d.appendChild(c); }
+    if(d.dataset.r==='1'&&doc===PV.doc){ d.innerHTML=''; d.appendChild(c); try{ mkDraw(d,n); }catch(e){} }
   }catch(e){ d.dataset.r=''; }
 }
 function pvNum(){
@@ -3886,9 +3962,10 @@ let editing=null;
 function openSheet(id){
   $$('.form').forEach(f=>f.hidden=f.id!==id);
   $('#scrim').classList.add('on'); $('#sheet').classList.add('on'); $('#sheet').scrollTop=0;
-  const first=(id==='fSet'||id==='fHours'||id==='fHrSend'||id==='fDay'||id==='fTrRep'||id==='fBuy'||id==='fTrp'||id==='fMnRep'||id==='fObjShare'||id==='fObjImp')?null:$('#'+id+' input, #'+id+' textarea'); if(first) setTimeout(()=>first.focus({preventScroll:true}),260);
+  const first=(id==='fSet'||id==='fHours'||id==='fHrSend'||id==='fDay'||id==='fTrRep'||id==='fBuy'||id==='fTrp'||id==='fMnRep'||id==='fObjShare'||id==='fObjImp'||id==='fCalc'||id==='fMark'||id==='fMarkList')?null:$('#'+id+' input, #'+id+' textarea'); if(first) setTimeout(()=>first.focus({preventScroll:true}),260);
 }
-function closeSheet(){try{kmPick.discard();lgPick.discard()}catch(e){}try{dsPick.discard();dePick.discard()}catch(e){}try{byPick.discard();byPdf.discard()}catch(e){}$('#scrim').classList.remove('on');$('#sheet').classList.remove('on');document.activeElement&&document.activeElement.blur();}
+function openSheetOver(id){ openSheet(id); $('#sheet').classList.add('over'); $('#scrim').classList.add('over'); }
+function closeSheet(){try{kmPick.discard();lgPick.discard()}catch(e){}try{dsPick.discard();dePick.discard()}catch(e){}try{byPick.discard();byPdf.discard()}catch(e){}$('#scrim').classList.remove('on','over');$('#sheet').classList.remove('on','over');document.activeElement&&document.activeElement.blur();}
 $('#scrim').onclick=closeSheet;
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
 function segGroup(sel,attr,get,set){
@@ -5085,7 +5162,7 @@ async function objImportBytes(u){
     oimp={man,Z}; openObjImport();
   }catch(e){ logErr('share','приём объекта: '+(e.message||e)); alert('Не удалось открыть файл объекта: '+(e.message||e)); }
 }
-const ARR=['equip','mats','checks','photos','docs'];
+const ARR=['equip','mats','checks','photos','docs','marks'];
 function oimpDiff(cur,inc,tasks){
   let add=0, chg=0; const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
   ARR.forEach(a=>(inc[a]||[]).forEach(x=>{ const y=(cur[a]||[]).find(z=>z.id===x.id); if(!y) add++; else if(!same(x,y)) chg++; }));
@@ -5119,7 +5196,7 @@ async function oimpApply(mode){
   ARR.forEach(a=>{ if(!Array.isArray(inc[a])) inc[a]=[]; }); if(!Array.isArray(inc.systems)) inc.systems=[];
   if(mode==='copy'||!cur){
     const map={}, nid=id=>map[id]||(map[id]=mode==='copy'?'i'+uid().replace(/[^A-Za-z0-9_-]/g,''):id);
-    const o=inc; if(mode==='copy'){ o.id=uid(); o.name=o.name+' (копия)'; ARR.forEach(a=>o[a].forEach(x=>{ x.id=nid(x.id); if(x.thumb) x.thumb=nid(x.thumb); })); o.docs.forEach(d=>{ if(d.from) d.from=nid(d.from); if(d.of) d.of=nid(d.of); }); o.equip.forEach(e=>{ if(e.src) e.src=nid(e.src); }); o.mats.forEach(m=>{ if(m.src) m.src=nid(m.src); }); }
+    const o=inc; if(mode==='copy'){ o.id=uid(); o.name=o.name+' (копия)'; ARR.forEach(a=>o[a].forEach(x=>{ x.id=nid(x.id); if(x.thumb) x.thumb=nid(x.thumb); })); o.marks.forEach(m=>{ m.doc=nid(m.doc); m.photos=(m.photos||[]).map(nid); if(m.eq) m.eq=nid(m.eq); }); o.photos.forEach(p=>{ if(p.mark) p.mark=nid(p.mark); }); o.docs.forEach(d=>{ if(d.from) d.from=nid(d.from); if(d.of) d.of=nid(d.of); }); o.equip.forEach(e=>{ if(e.src) e.src=nid(e.src); }); o.mats.forEach(m=>{ if(m.src) m.src=nid(m.src); }); }
     bad=await oimpFiles(null,mode==='copy'?nid:null);
     state.objects.push(o);
     man.tasks.forEach(t=>{ const x=Object.assign({},t,{objId:o.id}); if(mode==='copy'||!state.tasks.some(z=>z.id===t.id)){ if(mode==='copy') x.id=uid(); state.tasks.push(x); } });
@@ -5142,7 +5219,352 @@ $('#oimAdd').onclick=()=>oimpApply('add');
 $('#oimCopy').onclick=()=>oimpApply('copy');
 $('#objImport').onclick=()=>$('#objImportInput').click();
 $('#objImportInput').onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return; objImportBytes(new Uint8Array(await f.arrayBuffer())); };
-window.__osh={ZIP,oshBuild,objImportBytes,st:()=>state,showObject:id=>showObject(id),PH,DOC};
+/* ---------- отметки на схемах: точки на PDF/картинке документации объекта ---------- */
+const MK_KINDS=[
+  ['smoke','Извещатель дымовой','Д','#e0532b'],['heat','Извещатель тепловой','Т','#e08a2b'],['manual','Извещатель ручной','Р','#c0392b'],
+  ['secur','Извещатель охранный','О','#7b4bd6'],['sounder','Оповещатель','З','#d4a400'],['sign','Табло','В','#2e9e57'],
+  ['device','Прибор, блок','П','#2d6cdf'],['camera','Камера','К','#1f8fb3'],['reader','Считыватель','С','#178f7a'],
+  ['lock','Замок, кнопка','Z','#5b6b7a'],['box','Коробка, щит','Б','#8a6d3b'],['issue','Замечание','!','#d6336c'],['other','Другое','•','#666']
+];
+const MK=Object.fromEntries(MK_KINDS.map(k=>[k[0],{name:k[1],ch:k[2],col:k[3]}]));
+const MK_ST={plan:'По проекту',done:'Смонтировано',issue:'Есть замечание'};
+let mkMode=null, mkEdit=null;   // mkMode: null | 'add' | {move: mark}
+function mkCtx(){ const c=PV.cur; return c&&c.obj?{o:c.obj,doc:c.id}:null; }
+function mkList(o,doc){ return (o.marks||[]).filter(m=>!doc||m.doc===doc); }
+function mkBtnHtml(m){ const k=MK[m.kind]||MK.other; return '<button type="button" class="mkp st-'+(m.state||'plan')+'" data-id="'+esc(m.id)+'" style="left:'+(m.x*100)+'%;top:'+(m.y*100)+'%;--c:'+k.col+'"><b>'+esc(String(m.n))+'</b></button>'; }
+/* нарисовать отметки на странице (div.pvp) или на картинке */
+function mkDraw(holder,page){
+  const C=mkCtx(); if(!C||!holder) return;
+  holder.querySelectorAll('.mkp').forEach(x=>x.remove());
+  mkList(C.o,C.doc).filter(m=>(m.page||1)===page).forEach(m=>holder.insertAdjacentHTML('beforeend',mkBtnHtml(m)));
+  holder.querySelectorAll('.mkp').forEach(b=>b.onclick=e=>{ e.stopPropagation(); const m=(C.o.marks||[]).find(x=>x.id===b.dataset.id); if(m) mkOpen(m); });
+}
+function mkRedraw(){ if(PV.img){ const w=$('#pvPages .pvimgw'); if(w) mkDraw(w,1); } else PV.pages.forEach(d=>{ if(d.dataset.r==='1') mkDraw(d,+d.dataset.n); }); mkBar(); }
+function mkBar(){
+  const C=mkCtx(), b=$('#pvMark'); if(!b) return; b.hidden=!C;
+  b.classList.toggle('on',!!mkMode);
+  const h=$('#pvHint'); h.hidden=!mkMode; h.textContent=mkMode&&mkMode.move?'Нажмите, куда переставить отметку №'+mkMode.move.n:'Нажмите на схему, чтобы поставить отметку. Чтобы закончить, снова нажмите значок отметок';
+}
+$('#pvMark').onclick=()=>{ mkMode=mkMode?null:'add'; mkBar(); };
+$('#pvPages').addEventListener('click',e=>{
+  if(!mkMode||e.target.closest('.mkp')) return; const C=mkCtx(); if(!C) return;
+  const holder=e.target.closest('.pvp,.pvimgw'); if(!holder) return;
+  const r=holder.getBoundingClientRect(), x=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)), y=Math.max(0,Math.min(1,(e.clientY-r.top)/r.height));
+  const page=holder.classList.contains('pvimgw')?1:+holder.dataset.n;
+  if(mkMode.move){ const m=mkMode.move; Object.assign(m,{x,y,page,doc:C.doc}); mkMode=null; save(); mkRedraw(); mkOpen(m); return; }
+  const o=C.o; if(!Array.isArray(o.marks)) o.marks=[];
+  const last=o.marks.slice(-1)[0];
+  const m={id:uid(),doc:C.doc,page,x,y,n:o.marks.reduce((s,x)=>Math.max(s,x.n||0),0)+1,kind:last?last.kind:'smoke',model:last&&last.kind!=='issue'?last.model||'':'',addr:'',serial:'',note:'',state:'plan',photos:[],ts:Date.now(),neu:true};
+  mkOpen(m);
+});
+/* редактор отметки */
+let mkModelsReady=false;
+function mkModels(){ if(mkModelsReady) return; mkModelsReady=true; const s=new Set(); MAKERS.forEach(k=>CATS[k].items.forEach(d=>{ if(d.m&&d.m.length<60) s.add(d.m); })); $('#mkModels').innerHTML=[...s].slice(0,4000).map(x=>'<option value="'+esc(x)+'">').join(''); }
+function mkOpen(m){
+  mkEdit=m; mkModels();
+  $('#mkTitle').textContent=(m.neu?'Новая отметка №':'Отметка №')+m.n+(m.page>1?' · лист '+m.page:'');
+  $('#mkKinds').innerHTML=MK_KINDS.map(k=>'<button type="button" class="chip mkc'+(k[0]===m.kind?' on':'')+'" data-k="'+k[0]+'" style="--c:'+k[3]+'"><i>'+esc(k[2])+'</i>'+esc(k[1])+'</button>').join('');
+  $$('#mkKinds .chip').forEach(c=>c.onclick=()=>{ $$('#mkKinds .chip').forEach(x=>x.classList.toggle('on',x===c)); if(c.dataset.k==='issue'){ $('#mkEq').checked=false; mkSetSt('issue'); if(mkEdit&&mkEdit.neu&&$('#mkModel').value===mkEdit.model){ $('#mkModel').value=''; mkMatch(); } } });
+  $('#mkModel').value=m.model||''; $('#mkAddr').value=m.addr||''; $('#mkSerial').value=m.serial||''; $('#mkNote').value=m.note||'';
+  const o=mkCtx()?mkCtx().o:objById(openObjId);
+  $('#mkEq').checked=m.neu?m.kind!=='issue':!!(m.eq&&o&&o.equip.some(e=>e.id===m.eq));
+  mkSetSt(m.state||'plan'); mkMatch(); mkPhotos(); $('#mkDel').hidden=!!m.neu; $('#mkMove').hidden=!!m.neu;
+  openSheetOver('fMark');
+}
+function mkSetSt(s){ $$('#mkSt .chip').forEach(c=>c.classList.toggle('on',c.dataset.s===s)); }
+function mkMatch(){ const v=$('#mkModel').value.trim(), d=v?prjMatch({model:v}):null; $('#mkCat').textContent=d?'В справочнике: '+CATS[d._mk].name+' · '+d.m:''; $('#mkCat').dataset.ref=d?devRef(d):''; }
+$('#mkModel').addEventListener('input',mkMatch);
+$$('#mkSt .chip').forEach(c=>c.onclick=()=>mkSetSt(c.dataset.s));
+function mkPhotos(){
+  const m=mkEdit, box=$('#mkPh'); box.innerHTML='';
+  (m.photos||[]).forEach(id=>{ const b=document.createElement('button'); b.type='button'; b.innerHTML='<img alt="" src="'+PH.url(id)+'">'; b.onclick=()=>showPhoto(id,'Отметка №'+m.n,()=>{ m.photos=m.photos.filter(x=>x!==id); const o=mkCtx()?mkCtx().o:null; if(o) o.photos=(o.photos||[]).filter(p=>p.id!==id); try{PH.del(id)}catch(e){} save(); mkPhotos(); }); box.appendChild(b); });
+}
+async function mkAddPh(files){
+  const m=mkEdit, C=mkCtx(); if(!m||!C) return; let fail=0;
+  for(const f of files){ try{ const b64=await shrink(f), id=uid(); if(PH.save(id,b64)){ (m.photos=m.photos||[]).push(id); (C.o.photos=C.o.photos||[]).push({id,ts:Date.now(),mark:m.id}); } else fail++; }catch(e){ fail++; } }
+  if(!m.neu) save(); mkPhotos(); if(fail) alert('Не удалось добавить фото: '+fail);
+}
+$('#mkCam').onclick=()=>$('#mkCamInput').click(); $('#mkGal').onclick=()=>$('#mkGalInput').click();
+$('#mkCamInput').onchange=e=>{ mkAddPh([...e.target.files]); e.target.value=''; };
+$('#mkGalInput').onchange=e=>{ mkAddPh([...e.target.files]); e.target.value=''; };
+function mkEqSync(o,m){
+  const want=$('#mkEq').checked&&m.kind!=='issue';
+  let e=m.eq?o.equip.find(x=>x.id===m.eq):null;
+  if(!want){ return; }
+  const k=MK[m.kind]||MK.other, place='Отметка №'+m.n+(m.page>1?', лист '+m.page:'');
+  if(!e){ e={id:uid(),name:'',place:'',serial:'',ip:'',login:'',pass:'',note:'',dev:'',bolid:''}; o.equip.push(e); m.eq=e.id; }
+  e.name=m.model||k.name; e.place=e.place&&!/^Отметка №/.test(e.place)?e.place:place; if(m.serial) e.serial=m.serial;
+  if(/^\d{1,3}(\.\d{1,3}){3}$/.test(m.addr||'')) e.ip=m.addr; else if(m.addr) e.note=(e.note||'').replace(/Адрес: [^·]*(· )?/,'').trim()+(e.note?' · ':'')+'Адрес: '+m.addr;
+  const ref=$('#mkCat').dataset.ref; if(ref&&!e.dev) e.dev=ref;
+}
+$('#mkSave').onclick=()=>{
+  const m=mkEdit, C=mkCtx(); if(!m||!C) return; const o=C.o;
+  m.kind=($('#mkKinds .chip.on')||{dataset:{k:'other'}}).dataset.k; m.model=$('#mkModel').value.trim(); m.addr=$('#mkAddr').value.trim(); m.serial=$('#mkSerial').value.trim(); m.note=$('#mkNote').value.trim();
+  m.state=($('#mkSt .chip.on')||{dataset:{s:'plan'}}).dataset.s; m.upd=Date.now();
+  if(m.neu){ delete m.neu; (o.marks=o.marks||[]).push(m); }
+  mkEqSync(o,m); save(); closeSheet(); mkRedraw(); if(view==='object') renderObject();
+};
+$('#mkDel').onclick=()=>{ const m=mkEdit, C=mkCtx(); if(!m||!C||!confirm('Удалить отметку №'+m.n+'?'+(m.eq?'\nЗапись в оборудовании останется.':''))) return;
+  C.o.marks=(C.o.marks||[]).filter(x=>x!==m); save(); closeSheet(); mkRedraw(); if(view==='object') renderObject(); };
+$('#mkMove').onclick=()=>{ const m=mkEdit; if(!m) return; closeSheet(); mkMode={move:m}; mkBar(); };
+$('#mkScan').onclick=()=>scanCode(t=>{ $('#mkSerial').value=t.serial||t.text; if(t.model&&!$('#mkModel').value.trim()){ $('#mkModel').value=t.model; mkMatch(); } });
+
+/* блок в объекте: сводка и сборка исполнительной схемы */
+function renderMarks(o){
+  const box=$('#oMarks'); if(!box) return; const L=o.marks||[];
+  if(!L.length){ box.innerHTML='<p class="hint" style="margin:4px 2px 0">Отметки на схемах: откройте план или схему из документации и нажмите значок отметки вверху, чтобы ставить точки оборудования и замечаний.</p>'; return; }
+  const done=L.filter(m=>m.state==='done').length, iss=L.filter(m=>m.state==='issue').length;
+  box.innerHTML='<div class="mksum"><span><b>Отметки на схемах: '+L.length+'</b><small>смонтировано '+done+(iss?' · замечаний '+iss:'')+'</small></span><button class="link" id="mkListB">Список</button></div><button class="seg" id="mkBuild" style="margin:6px 0 2px">Собрать исполнительную схему (PDF)</button>';
+  $('#mkListB').onclick=()=>openMarkList(o); $('#mkBuild').onclick=()=>mkBuild(o);
+}
+function mkDocOf(o,id){ return (o.docs||[]).find(d=>d.id===id); }
+function openMarkList(o){
+  const L=(o.marks||[]).slice().sort((a,b)=>a.n-b.n);
+  $('#mlBody').innerHTML=L.map(m=>{ const k=MK[m.kind]||MK.other, d=mkDocOf(o,m.doc);
+    return '<button class="mlrow" data-id="'+esc(m.id)+'"><span class="mkp st-'+(m.state||'plan')+'" style="--c:'+k.col+';position:static;transform:none"><b>'+m.n+'</b></span><span class="mlt"><b>'+esc(m.model||k.name)+'</b><small>'+esc([k.name,m.addr,MK_ST[m.state||'plan'],(d?d.name:'документ удалён')+(m.page>1?', лист '+m.page:'')].filter(Boolean).join(' · '))+'</small></span></button>'; }).join('');
+  $$('#mlBody .mlrow').forEach(b=>b.onclick=()=>{ const m=L.find(x=>x.id===b.dataset.id), d=mkDocOf(o,m.doc); if(!d){ alert('Документ с этой отметкой удалён'); return; } closeSheet(); openPdf({id:d.id,name:d.name,img:d.kind==='img',page:m.page,obj:o}); });
+  openSheet('fMarkList');
+}
+/* исполнительная схема: листы с отметками + ведомость */
+async function mkBuild(o){
+  const L=(o.marks||[]).slice().sort((a,b)=>a.n-b.n); if(!L.length) return;
+  const btn=$('#mkBuild'); btn.disabled=true; const say=t=>btn.textContent=t;
+  try{
+    const pages=[], byDoc={};
+    L.forEach(m=>{ (byDoc[m.doc]=byDoc[m.doc]||{})[m.page||1]=1; });
+    const jpg=c=>{ const s=c.toDataURL('image/jpeg',0.85).split(',')[1], b=atob(s), u=new Uint8Array(b.length); for(let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; };
+    const draw=(ctx,W,H,ms)=>{ const r=Math.max(14,Math.round(Math.min(W,H)*0.016)); ms.forEach(m=>{ const k=MK[m.kind]||MK.other, x=m.x*W, y=m.y*H;
+      ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.fillStyle=k.col; ctx.fill(); ctx.lineWidth=Math.max(2,r*0.22); ctx.strokeStyle=m.state==='issue'?'#d6336c':m.state==='done'?'#0a7d32':'#fff'; ctx.stroke();
+      ctx.fillStyle='#fff'; ctx.font='bold '+Math.round(r*1.05)+'px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.fillText(String(m.n),x,y+1); }); };
+    let L2=null;
+    for(const id of Object.keys(byDoc)){
+      const d=mkDocOf(o,id); if(!d) continue; const ms=L.filter(m=>m.doc===id);
+      if(d.kind==='img'){
+        say('Схема «'+d.name+'»…');
+        const im=await new Promise(res=>{ const i=new Image(); i.onload=()=>res(i); i.onerror=()=>res(null); i.src=PH.url(d.id); }); if(!im) continue;
+        const k=Math.min(1,2400/Math.max(im.naturalWidth,im.naturalHeight)), c=document.createElement('canvas'); c.width=Math.round(im.naturalWidth*k); c.height=Math.round(im.naturalHeight*k);
+        const ctx=c.getContext('2d'); ctx.drawImage(im,0,0,c.width,c.height); draw(ctx,c.width,c.height,ms);
+        const land=c.width>c.height; pages.push({jpg:jpg(c),w:c.width,h:c.height,pw:land?841.89:595.28,ph:land?595.28:841.89}); continue;
+      }
+      const bytes=await DOC.load(d.id); if(!bytes) continue;
+      L2=L2||await getPdfLib(); const doc=await L2.getDocument({data:bytes.slice(),isEvalSupported:false,useSystemFonts:true}).promise;
+      try{
+        for(const pn of Object.keys(byDoc[id]).map(Number).sort((a,b)=>a-b)){
+          if(pn>doc.numPages) continue; say('Лист '+pn+' «'+d.name+'»…');
+          const pg=await doc.getPage(pn), v1=pg.getViewport({scale:1}); let sc=2400/Math.max(v1.width,v1.height); if(v1.width*v1.height*sc*sc>12e6) sc=Math.sqrt(12e6/(v1.width*v1.height));
+          const vp=pg.getViewport({scale:sc}), c=document.createElement('canvas'); c.width=Math.floor(vp.width); c.height=Math.floor(vp.height);
+          const ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); await pg.render({canvasContext:ctx,viewport:vp}).promise;
+          draw(ctx,c.width,c.height,ms.filter(m=>(m.page||1)===pn));
+          pages.push({jpg:jpg(c),w:c.width,h:c.height,pw:v1.width,ph:v1.height});
+        }
+      } finally { try{ doc.destroy(); }catch(e){} }
+    }
+    say('Ведомость…');
+    // ведомость отметок, А4 книжный
+    const W=1240, H=1754, M=70, cols=[['№',50],['Тип',170],['Модель',200],['Адрес',120],['Зав. №',130],['Состояние',140],['Лист',110],['Примечание',W-2*M-920]];
+    let c, ctx, y; const leg=[];
+    const np=(first)=>{ c=document.createElement('canvas'); c.width=W; c.height=H; ctx=c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H); ctx.fillStyle='#000'; y=M; leg.push(c);
+      if(first){ ctx.font='bold 34px sans-serif'; ctx.fillText('Ведомость отметок на схемах',M,y+30); y+=56; ctx.font='24px sans-serif'; ctx.fillText(o.name+(o.addr?', '+o.addr:''),M,y+20); y+=34; ctx.fillStyle='#555'; ctx.fillText('Составлено '+dateRu(todayISO())+' · отметок: '+L.length+' · смонтировано: '+L.filter(m=>m.state==='done').length,M,y+20); ctx.fillStyle='#000'; y+=50; }
+      ctx.font='bold 20px sans-serif'; let x=M; cols.forEach(([t,w])=>{ ctx.fillText(t,x+6,y+26); x+=w; }); y+=38; ctx.fillRect(M,y,W-2*M,2); y+=4; };
+    const wrapT=(t,w)=>{ const out=[]; let line=''; String(t||'').split(/\s+/).forEach(p=>{ const s=line?line+' '+p:p; if(ctx.measureText(s).width>w-12&&line){ out.push(line); line=p; } else line=s; }); out.push(line); return out; };
+    np(true);
+    L.forEach(m=>{ const k=MK[m.kind]||MK.other, d=mkDocOf(o,m.doc);
+      ctx.font='19px sans-serif';
+      const vals=[String(m.n),k.name,m.model||'',m.addr||'',m.serial||'',MK_ST[m.state||'plan'],(m.page||1)+(d?' · '+d.name:''),m.note||''];
+      const lines=vals.map((v,i)=>wrapT(v,cols[i][1])), h=Math.max(...lines.map(l=>l.length))*24+12;
+      if(y+h>H-M) np(false);
+      let x=M; lines.forEach((ls,i)=>{ ls.forEach((t,j)=>ctx.fillText(t,x+6,y+24+j*24)); x+=cols[i][1]; });
+      y+=h; ctx.fillStyle='#ccc'; ctx.fillRect(M,y,W-2*M,1); ctx.fillStyle='#000'; });
+    leg.forEach(c=>pages.push({jpg:jpg(c),w:W,h:H}));
+    const pdf=pdfFromJpegs(pages), id='d'+uid().replace(/[^A-Za-z0-9_-]/g,'');
+    if(!(await DOC.save(id,pdf))) throw new Error('не хватило места');
+    const old=(o.docs||[]).filter(d=>d.marksGen); old.forEach(d=>DOC.del(d.id)); o.docs=(o.docs||[]).filter(d=>!d.marksGen);
+    const ent={id,sec:'Исполнительная документация',name:'Исполнительная схема (отметки) '+dateRu(todayISO()),size:pdf.length,ts:Date.now(),gen:1,marksGen:1}; o.docs.push(ent);
+    docOpenSec[o.id+'|Исполнительная документация']=true; save(); renderObject();
+    openPdf({id,name:ent.name,obj:o});
+  }catch(e){ logErr('marks','исполнительная схема: '+(e.message||e)); alert('Не удалось собрать схему: '+(e.message||e)); }
+  btn.disabled=false; btn.textContent='Собрать исполнительную схему (PDF)';
+}
+/* ---------- сканер штрихкодов и QR ---------- */
+/* разбор кода: заводской номер и, если получится, прибор из справочника */
+function scanParse(text){
+  const t=String(text||'').trim(), out={text:t,serial:'',model:'',dev:null};
+  if(/^https?:\/\//i.test(t)){ const u=t.replace(/[?#].*$/,'').replace(/\/+$/,'').toLowerCase();
+    MAKERS.some(k=>CATS[k].items.some(d=>{ if(d.url&&d.url.replace(/\/+$/,'').toLowerCase()===u){ out.dev=d; return true; } return false; })); }
+  const sn=t.match(/(?:s\/?n|sn|serial|зав(?:одской)?\.?\s*№?|№)\s*[:=#]?\s*([A-Za-z0-9\-\/]{4,})/i);
+  if(sn) out.serial=sn[1];
+  else if(!/^https?:/i.test(t)&&t.length<=40&&!/\s{2,}/.test(t)) out.serial=t.replace(/\s+/g,'');
+  if(!out.dev){
+    const q=bnorm(t).replace(/\s/g,''); let best=null;
+    if(q.length>=4) MAKERS.forEach(k=>CATS[k].items.forEach(d=>{ const m=bnorm(d.m).replace(/\s/g,''); if(m.length>=5&&q.includes(m)&&(!best||m.length>best.l)) best={d,l:m.length}; }));
+    if(best) out.dev=best.d;
+  }
+  if(out.dev) out.model=out.dev.m;
+  return out;
+}
+let scanSeq=0; const scanCbs={};
+window.onScan=function(id,status,text){ const f=scanCbs[id]; delete scanCbs[id]; if(f) f(status,text); };
+function scanCode(cb){
+  const done=t=>{ const r=scanParse(t); try{ navigator.vibrate&&navigator.vibrate(40); }catch(e){} cb(r); };
+  if(APP&&Android.scanCode){
+    const id='s'+(++scanSeq);
+    scanCbs[id]=(st,text)=>{ if(st==='ok'&&text) done(text); else if(st==='error'){ logErr('scan',text||''); if(confirm('Сканер камеры недоступен'+(text?' ('+text+')':'')+'.\nСфотографировать код и распознать с фото?')) scanPhoto(done); } };
+    Android.scanCode(id); return;
+  }
+  scanLive(done);
+}
+async function scanLib(){ if(!window.jsQR) await loadScript('jsqr.js'); return window.jsQR; }
+async function scanDecodeCanvas(c){
+  if('BarcodeDetector' in window){ try{ const r=await new BarcodeDetector().detect(c); if(r&&r.length) return r[0].rawValue; }catch(e){} }
+  const J=await scanLib(), ctx=c.getContext('2d'), im=ctx.getImageData(0,0,c.width,c.height), r=J(im.data,c.width,c.height,{inversionAttempts:'attemptBoth'});
+  return r?r.data:'';
+}
+function scanPhoto(done){
+  const inp=$('#scanPhotoInput'); inp.onchange=async e=>{ const f=e.target.files[0]; e.target.value=''; if(!f) return;
+    const url=URL.createObjectURL(f), im=new Image(); im.onload=async()=>{ const k=Math.min(1,1600/Math.max(im.naturalWidth,im.naturalHeight)), c=document.createElement('canvas'); c.width=Math.round(im.naturalWidth*k); c.height=Math.round(im.naturalHeight*k); c.getContext('2d').drawImage(im,0,0,c.width,c.height); URL.revokeObjectURL(url);
+      const t=await scanDecodeCanvas(c); if(t) done(t); else alert('Код на фото не распознан. Снимите ближе и ровнее'+(!('BarcodeDetector' in window)?' (с фото распознаются только QR-коды)':'')+'.'); }; im.onerror=()=>URL.revokeObjectURL(url); im.src=url; };
+  inp.click();
+}
+let scanSt=null;
+async function scanLive(done){
+  const box=$('#scanv'), v=$('#scanVid'); $('#scanMsg').textContent='Наведите камеру на штрихкод или QR-код';
+  if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia)){ scanPhoto(done); return; }
+  let stream=null;
+  try{ stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}},audio:false}); }
+  catch(e){ if(confirm('Нет доступа к камере. Распознать код с фото?')) scanPhoto(done); return; }
+  box.hidden=false; v.srcObject=stream; await v.play().catch(()=>{});
+  const BD=('BarcodeDetector' in window)?new BarcodeDetector():null; if(!BD) await scanLib();
+  const c=document.createElement('canvas'); let busy=false;
+  scanSt={stream,timer:setInterval(async()=>{
+    if(busy||!v.videoWidth) return; busy=true;
+    try{ let t='';
+      if(BD){ const r=await BD.detect(v); if(r&&r.length) t=r[0].rawValue; }
+      else { const k=Math.min(1,800/v.videoWidth); c.width=Math.round(v.videoWidth*k); c.height=Math.round(v.videoHeight*k); const ctx=c.getContext('2d'); ctx.drawImage(v,0,0,c.width,c.height); const im=ctx.getImageData(0,0,c.width,c.height), r=window.jsQR(im.data,c.width,c.height,{inversionAttempts:'dontInvert'}); if(r) t=r.data; }
+      if(t){ scanStop(); done(t); }
+    }catch(e){} busy=false; },220),done};
+  $('#scanMsg').textContent=BD?'Наведите камеру на штрихкод или QR-код':'Наведите камеру на QR-код (штрихкоды в этом браузере не распознаются)';
+}
+function scanStop(){ if(!scanSt) return; clearInterval(scanSt.timer); try{ scanSt.stream.getTracks().forEach(t=>t.stop()); }catch(e){} $('#scanVid').srcObject=null; $('#scanv').hidden=true; scanSt=null; }
+$('#scanClose').onclick=scanStop;
+$('#scanPh').onclick=()=>{ const d=scanSt&&scanSt.done; scanStop(); if(d) scanPhoto(d); };
+/* где сканируем: оборудование объекта и поиск в справочнике */
+$('#eqScan').onclick=()=>scanCode(r=>{
+  if(r.serial) $('#eq_serial').value=r.serial;
+  if(r.dev){ if(!$('#eq_name').value.trim()) $('#eq_name').value=r.dev.m; eqDev=devRef(r.dev); syncEqDev(); }
+  if(!r.serial&&!r.dev) $('#eq_note').value=($('#eq_note').value?$('#eq_note').value+' · ':'')+r.text.slice(0,120);
+  $('#eqScanMsg').textContent=r.dev?'В справочнике: '+CATS[r.dev._mk].name+' · '+r.dev.m:r.serial?'Заводской номер считан':'Код считан: '+r.text.slice(0,60);
+});
+$('#ctScan').onclick=()=>scanCode(r=>{
+  if(r.dev){ mk=r.dev._mk; catCat=''; $('#ctSearch').value=r.dev.m; renderCatalog(); showDev(r.dev); return; }
+  $('#ctSearch').value=r.serial||r.text.slice(0,60); renderCatalogList();
+});
+/* ---------- калькуляторы монтажника ---------- */
+const CALC_T={bat:'АКБ для РИП',drop:'Падение напряжения',det:'Число извещателей'};
+const nf=(v,d)=>{ const x=parseFloat(String(v==null?'':v).replace(',','.')); return isFinite(x)?x:(d==null?0:d); };
+const fx=(x,n)=>(Math.round(x*Math.pow(10,n||0))/Math.pow(10,n||0)).toLocaleString('ru-RU',{maximumFractionDigits:n||0});
+let calcK='bat', calcRec=null, calcObj=null;
+const BAT_STD=[1.2,2.3,4.5,7,12,17,18,26,40,65,100];
+const WIRES=[['0.196','КСПВ, жила ⌀0,5 мм (0,196 мм²)'],['0.503','КСПВ, жила ⌀0,8 мм (0,503 мм²)'],['0.739','КСПВ, жила ⌀0,97 мм (0,739 мм²)'],['0.5','0,5 мм²'],['0.75','0,75 мм²'],['1','1,0 мм²'],['1.5','1,5 мм²'],['2.5','2,5 мм²']];
+/* поля каждого калькулятора */
+function calcForm(k,v){
+  v=v||{};
+  if(k==='bat') return '<p class="lbl">Потребители (ток одного устройства)</p><div class="cbrow cbh"><span>Устройство</span><span>шт</span><span>деж., мА</span><span>трев., мА</span><span></span></div><div id="cbRows"></div><button type="button" class="seg" id="cbAdd" style="margin:0 0 12px">+ Добавить строку</button>'+
+    '<div class="two"><label><span class="lbl">Дежурный режим, ч</span><input class="field ci" data-k="td" inputmode="decimal" value="'+esc(v.td!=null?v.td:24)+'"></label><label><span class="lbl">Режим тревоги, ч</span><input class="field ci" data-k="ta" inputmode="decimal" value="'+esc(v.ta!=null?v.ta:1)+'"></label></div>'+
+    '<div class="two"><label><span class="lbl">Запас на старение</span><input class="field ci" data-k="kz" inputmode="decimal" value="'+esc(v.kz!=null?v.kz:1.25)+'"></label><label><span class="lbl">Свой ток РИП, мА</span><input class="field ci" data-k="own" inputmode="decimal" value="'+esc(v.own!=null?v.own:0)+'"></label></div>'+
+    '<p class="hint" style="margin:-4px 0 10px">Для пожарной сигнализации и оповещения обычно требуется 24 ч дежурного режима и 1 ч тревоги — точные значения смотрите в проекте.</p>';
+  if(k==='drop') return '<div class="two"><label><span class="lbl">Напряжение источника, В</span><input class="field ci" data-k="u" inputmode="decimal" value="'+esc(v.u!=null?v.u:13.6)+'"></label><label><span class="lbl">Минимум для устройства, В</span><input class="field ci" data-k="umin" inputmode="decimal" value="'+esc(v.umin!=null?v.umin:10.2)+'"></label></div>'+
+    '<div class="two"><label><span class="lbl">Ток нагрузки, мА</span><input class="field ci" data-k="i" inputmode="decimal" value="'+esc(v.i!=null?v.i:500)+'"></label><label><span class="lbl">Длина линии, м</span><input class="field ci" data-k="l" inputmode="decimal" value="'+esc(v.l!=null?v.l:100)+'"></label></div>'+
+    '<p class="lbl">Провод (одна жила)</p><select class="field ci" data-k="s">'+WIRES.map(w=>'<option value="'+w[0]+'"'+(String(v.s||'0.503')===w[0]?' selected':'')+'>'+esc(w[1])+'</option>').join('')+'</select>'+
+    '<div class="two"><label><span class="lbl">Жил на один провод</span><input class="field ci" data-k="n" inputmode="numeric" value="'+esc(v.n||1)+'"></label><label><span class="lbl">Нагрузка</span><select class="field ci" data-k="dist"><option value="end"'+(v.dist!=='even'?' selected':'')+'>в конце линии</option><option value="even"'+(v.dist==='even'?' selected':'')+'>равномерно по линии</option></select></label></div>'+
+    '<div class="two"><label><span class="lbl">Материал</span><select class="field ci" data-k="mat"><option value="cu"'+(v.mat!=='al'?' selected':'')+'>медь</option><option value="al"'+(v.mat==='al'?' selected':'')+'>алюминий</option></select></label><span></span></div>';
+  return '<div class="chips" id="cdType"><button type="button" class="chip'+(v.type!=='heat'?' on':'')+'" data-t="smoke">Дымовые точечные</button><button type="button" class="chip'+(v.type==='heat'?' on':'')+'" data-t="heat">Тепловые точечные</button></div>'+
+    '<div class="two"><label><span class="lbl">Длина помещения, м</span><input class="field ci" data-k="a" inputmode="decimal" value="'+esc(v.a!=null?v.a:12)+'"></label><label><span class="lbl">Ширина, м</span><input class="field ci" data-k="b" inputmode="decimal" value="'+esc(v.b!=null?v.b:6)+'"></label></div>'+
+    '<div class="two"><label><span class="lbl">Высота потолка, м</span><input class="field ci" data-k="h" inputmode="decimal" value="'+esc(v.h!=null?v.h:3)+'"></label><label><span class="lbl">Контроль каждой точки</span><select class="field ci" data-k="dbl"><option value="1"'+(v.dbl!=='2'?' selected':'')+'>одним (адресные, A/B)</option><option value="2"'+(v.dbl==='2'?' selected':'')+'>двумя (безадресные или C)</option></select></label></div>';
+}
+function calcVals(){ const v={}; $$('#calcForm .ci').forEach(x=>v[x.dataset.k]=x.value); if(calcK==='det'){ const t=$('#cdType .chip.on'); v.type=t?t.dataset.t:'smoke'; } if(calcK==='bat') v.rows=[...$$('#cbRows .cbrow')].map(r=>({name:r.querySelector('.cbn').value.trim(),q:r.querySelector('.cbq').value,id:r.querySelector('.cbd').value,ia:r.querySelector('.cba').value})); return v; }
+function cbRow(r){ r=r||{}; const d=document.createElement('div'); d.className='cbrow';
+  d.innerHTML='<input class="field cbn" placeholder="Устройство" value="'+esc(r.name||'')+'"><input class="field cbq" inputmode="numeric" placeholder="шт" value="'+esc(r.q!=null?r.q:1)+'"><input class="field cbd" inputmode="decimal" placeholder="деж." value="'+esc(r.id||'')+'"><input class="field cba" inputmode="decimal" placeholder="трев." value="'+esc(r.ia||'')+'"><button type="button" class="byx" aria-label="Убрать">×</button>';
+  d.querySelectorAll('input').forEach(x=>x.addEventListener('input',calcRun)); d.querySelector('.byx').onclick=()=>{ d.remove(); calcRun(); };
+  $('#cbRows').appendChild(d); }
+/* расчёты; возвращают {html, text} */
+function calcBat(v){
+  const rows=(v.rows||[]).filter(r=>nf(r.q)>0&&(nf(r.id)>0||nf(r.ia)>0));
+  const Id=rows.reduce((s,r)=>s+nf(r.q)*nf(r.id),0)+nf(v.own), Ia=rows.reduce((s,r)=>s+nf(r.q)*Math.max(nf(r.ia),nf(r.id)),0)+nf(v.own);
+  const td=nf(v.td,24), ta=nf(v.ta,1), kz=nf(v.kz,1.25), C=(Id*td+Ia*ta)/1000*kz, pick=BAT_STD.find(x=>x>=C);
+  const two=BAT_STD.find(x=>x*2>=C);
+  const lines=[['Ток в дежурном режиме',fx(Id,1)+' мА'],['Ток в режиме тревоги',fx(Ia,1)+' мА'],['Ёмкость с запасом ×'+fx(kz,2),fx(C,1)+' А·ч'],['Подойдёт',pick?'1 АКБ '+fx(pick,1)+' А·ч'+(two&&two<pick?' или 2 × '+fx(two,1)+' А·ч':''):'больше 100 А·ч — разделите нагрузку на несколько РИП']];
+  return {lines,text:'Расчёт АКБ: '+lines.map(l=>l[0]+' — '+l[1]).join('; ')+'. Формула: (Iдеж·'+fx(td,1)+' ч + Iтрев·'+fx(ta,1)+' ч) × '+fx(kz,2)+'.',big:fx(C,1)+' А·ч',ok:!!pick};
+}
+function calcDrop(v){
+  const U=nf(v.u,13.6), Umin=nf(v.umin,10.2), I=nf(v.i)/1000, L=nf(v.l), S=nf(v.s,0.5), n=Math.max(1,Math.round(nf(v.n,1))), rho=v.mat==='al'?0.028:0.0175, k=v.dist==='even'?0.5:1;
+  const R=2*L*rho/(S*n), dU=R*I*k, Ue=U-dU, ok=Ue>=Umin, Lmax=I>0?(U-Umin)*S*n/(2*rho*I*k):Infinity, Smin=U>Umin?2*L*rho*I*k/((U-Umin)*n):Infinity;
+  const lines=[['Сопротивление линии (туда и обратно)',fx(R,2)+' Ом'],['Падение напряжения',fx(dU,2)+' В'],['Напряжение у устройства',fx(Ue,2)+' В'+(ok?' — достаточно':' — меньше '+fx(Umin,1)+' В')],['Наибольшая длина при этом проводе',isFinite(Lmax)?fx(Lmax,0)+' м':'—'],['Нужное сечение жилы',isFinite(Smin)?'от '+fx(Smin,3)+' мм²':'—']];
+  return {lines,text:'Падение напряжения: '+fx(L,0)+' м, '+fx(I*1000,0)+' мА, жила '+fx(S,3)+' мм²×'+n+': '+lines.map(l=>l[0]+' — '+l[1]).join('; ')+'.',big:fx(Ue,2)+' В',ok};
+}
+const DET_T={smoke:[[3.5,6.40],[6,6.05],[10,5.70],[12,5.35]],heat:[[3.5,3.55],[6,3.20],[9,2.85]]};
+function detGrid(a,b,R,need){   // равномерная сетка nx×ny, отступ от стен — половина шага; проверка каждой точки помещения
+  const ok=(nx,ny)=>{ const sx=a/nx, sy=b/ny, st=0.25, R2=R*R+1e-9;
+    for(let x=0;x<=a+1e-9;x+=Math.min(st,a)) for(let y=0;y<=b+1e-9;y+=Math.min(st,b)){
+      const ix=Math.floor(x/sx), iy=Math.floor(y/sy); let c=0;
+      for(let i=Math.max(0,ix-2);i<=Math.min(nx-1,ix+2);i++) for(let j=Math.max(0,iy-2);j<=Math.min(ny-1,iy+2);j++){ const dx=(i+0.5)*sx-x, dy=(j+0.5)*sy-y; if(dx*dx+dy*dy<=R2) c++; }
+      if(c<need) return false; }
+    return true; };
+  let best=null; const sq=c=>Math.abs(a/c.nx-b/c.ny);
+  for(let nx=1;nx<=200;nx++){ if(best&&nx>best.n) break; for(let ny=1;ny<=200;ny++){ if(best&&nx*ny>best.n) break; if(ok(nx,ny)){ const c={nx,ny,n:nx*ny}; if(!best||c.n<best.n||(c.n===best.n&&sq(c)<sq(best))) best=c; break; } } }
+  return best;
+}
+function calcDet(v){
+  const a=Math.max(nf(v.a),nf(v.b)), b=Math.min(nf(v.a),nf(v.b)), h=nf(v.h), need=v.dbl==='2'?2:1, tb=DET_T[v.type==='heat'?'heat':'smoke'];
+  const row=tb.find(r=>h<=r[0]);
+  if(!(a>0&&b>0)) return {lines:[['Укажите размеры помещения','']],text:'',big:'—',ok:false};
+  if(!row) return {lines:[['Высота '+fx(h,1)+' м','больше допустимой для точечных '+(v.type==='heat'?'тепловых':'дымовых')+' извещателей ('+tb[tb.length-1][0]+' м) — нужны линейные или аспирационные']],text:'',big:'—',ok:false};
+  const R=row[1], g=detGrid(a,b,R,need); if(!g) return {lines:[['Слишком большое помещение для расчёта','']],text:'',big:'—',ok:false};
+  let n=g.n; const min=need===2?2:1; if(n<min) n=min;
+  const sx=a/g.nx, sy=b/g.ny;
+  const lines=[['Радиус зоны контроля R',fx(R,2)+' м (высота до '+fx(row[0],1)+' м)'],['Расстановка',g.nx+' × '+g.ny+(n>g.n?' (минимум '+min+')':'')],['Шаг по длине / ширине',fx(sx,2)+' / '+fx(sy,2)+' м'],['От стен',fx(sx/2,2)+' / '+fx(sy/2,2)+' м'],['Площадь',fx(a*b,1)+' м²']];
+  return {lines,text:'Число извещателей ('+(v.type==='heat'?'тепловые':'дымовые')+', помещение '+fx(a,1)+'×'+fx(b,1)+' м, h='+fx(h,1)+' м, контроль '+(need===2?'двойной':'одинарный')+'): '+n+' шт. '+lines.map(l=>l[0]+' — '+l[1]).join('; ')+'. По табл. '+(v.type==='heat'?'2':'1')+' СП 484.1311500.2020, ровный потолок.',big:n+' шт.',ok:true};
+}
+function calcRun(){
+  const v=calcVals(), R=calcK==='bat'?calcBat(v):calcK==='drop'?calcDrop(v):calcDet(v);
+  $('#calcRes').innerHTML='<div class="byline big"><span>'+esc(calcK==='bat'?'Нужная ёмкость':calcK==='drop'?'У устройства':'Извещателей')+'</span><b class="'+(R.ok?'':'neg')+'">'+esc(R.big)+'</b></div>'+R.lines.map(l=>'<div class="byline"><span>'+esc(l[0])+'</span><b>'+esc(l[1])+'</b></div>').join('');
+  $('#calcNote').textContent=calcK==='det'?'Ориентировочно, по табл. '+(v.type==='heat'?'2':'1')+' СП 484.1311500.2020 для ровного потолка. Балки, стеллажи, перегородки и наклонный потолок учитываются в проекте.':calcK==='drop'?'Сопротивление меди 0,0175, алюминия 0,028 Ом·мм²/м (при 20 °C). У КСПВ в маркировке указан диаметр жилы, у КПС и ПУГВ — сечение.':'';
+  return {v,R};
+}
+function openCalc(k,rec,o){
+  calcRec=rec||null; calcObj=o||null; calcK=k||(rec&&rec.kind)||calcK;
+  $$('#calcTabs .chip').forEach(c=>c.classList.toggle('on',c.dataset.k===calcK)); $('#calcTabs').hidden=!!rec;
+  const v=rec?rec.inputs:null; $('#calcForm').innerHTML=calcForm(calcK,v);
+  if(calcK==='bat'){ ((v&&v.rows&&v.rows.length)?v.rows:[{name:'Извещатели',q:10,id:0.1,ia:0.1},{name:'Оповещатели',q:4,id:0,ia:20},{name:'Прибор',q:1,id:60,ia:120}]).forEach(cbRow); $('#cbAdd').onclick=()=>{ cbRow(); calcRun(); }; }
+  if(calcK==='det') $$('#cdType .chip').forEach(c=>c.onclick=()=>{ $$('#cdType .chip').forEach(x=>x.classList.toggle('on',x===c)); calcRun(); });
+  $$('#calcForm .ci').forEach(x=>{ x.addEventListener('input',calcRun); x.addEventListener('change',calcRun); });
+  const objs=state.objects.filter(x=>x.status!=='done'||x===o);
+  $('#calcObj').innerHTML='<option value="">— в какой объект сохранить —</option>'+objs.map(x=>'<option value="'+esc(x.id)+'"'+(o&&x.id===o.id?' selected':'')+'>'+esc(x.name)+'</option>').join('');
+  $('#calcObj').hidden=!!o; $('#calcTitle').value=rec?rec.title||'':'';
+  $('#calcDel').hidden=!rec; $('#calcSave').textContent=rec?'Сохранить':'Сохранить в объект';
+  $('#fCalcH').textContent=rec?CALC_T[calcK]:'Калькуляторы';
+  calcRun(); openSheet('fCalc');
+}
+$$('#calcTabs .chip').forEach(c=>c.onclick=()=>openCalc(c.dataset.k,null,calcObj));
+$('#calcSave').onclick=()=>{
+  const o=calcObj||objById($('#calcObj').value); if(!o){ $('#calcObj').focus(); alert('Выберите объект'); return; }
+  const {v,R}=calcRun(); if(!Array.isArray(o.calcs)) o.calcs=[];
+  const title=$('#calcTitle').value.trim()||CALC_T[calcK];
+  if(calcRec) Object.assign(calcRec,{inputs:v,result:R.text,big:R.big,title,ts:Date.now()}); else o.calcs.push({id:uid(),kind:calcK,title,inputs:v,result:R.text,big:R.big,ts:Date.now()});
+  save(); closeSheet(); if(view==='object') renderObject(); else if(confirm('Расчёт сохранён в «'+o.name+'». Открыть объект?')) showObject(o.id);
+};
+$('#calcShare').onclick=()=>{ const {R}=calcRun(); shareText(CALC_T[calcK],($('#calcTitle').value.trim()?$('#calcTitle').value.trim()+'\n':'')+R.text); };
+$('#calcDel').onclick=()=>{ const o=calcObj; if(!o||!calcRec||!confirm('Удалить расчёт?')) return; o.calcs=o.calcs.filter(x=>x!==calcRec); save(); closeSheet(); renderObject(); };
+function renderCalcs(o){
+  const ul=$('#oCalcs'); if(!ul) return; ul.innerHTML=''; const L=(o.calcs||[]).slice().sort((a,b)=>b.ts-a.ts);
+  ofb('calcs',L.length?String(L.length):'');
+  if(!L.length){ ul.appendChild(emptyEl('АКБ для РИП, падение напряжения в линии, число извещателей')); return; }
+  L.forEach(c=>{ const li=document.createElement('li'), b=document.createElement('button'); b.className='log';
+    b.innerHTML='<span class="ic"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M16 11h0M8 15h2M12 15h2M8 18h2M12 18h2"/></svg></span><span class="tbody"><span class="ttl">'+esc(c.title||CALC_T[c.kind])+'</span><span class="meta">'+esc(CALC_T[c.kind]+' · '+fmtDate(iso(new Date(c.ts))))+'</span></span><span class="sum">'+esc(c.big||'')+'</span>';
+    b.onclick=()=>openCalc(c.kind,c,o); li.appendChild(b); ul.appendChild(li); });
+}
+$('#oAddCalc').onclick=()=>{ const o=objById(openObjId); if(o) openCalc(null,null,o); };
+$('#ctCalc').onclick=()=>openCalc(null,null,null);
+window.__osh={scanParse,ZIP,oshBuild,objImportBytes,st:()=>state,showObject:id=>showObject(id),PH,DOC};
 applyNav();
 save(); render(); connect();
 })();

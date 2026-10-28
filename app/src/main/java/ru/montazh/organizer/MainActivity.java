@@ -969,6 +969,29 @@ public class MainActivity extends Activity {
         }
 
         /** Принятый через «Поделиться» файл (JSON) — один раз, затем очищается. */
+        /** Сканер штрихкодов и QR (Google code scanner). Результат — window.onScan(id, "ok"|"cancel"|"error", текст). */
+        @JavascriptInterface
+        public void scanCode(final String id) {
+            runOnUiThread(() -> {
+                try {
+                    com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions opts = new com.google.mlkit.vision.codescanner.GmsBarcodeScannerOptions.Builder()
+                            .setBarcodeFormats(com.google.mlkit.vision.barcode.common.Barcode.FORMAT_ALL_FORMATS)
+                            .enableAutoZoom()
+                            .build();
+                    com.google.mlkit.vision.codescanner.GmsBarcodeScanning.getClient(MainActivity.this, opts).startScan()
+                            .addOnSuccessListener(b -> {
+                                String v = b.getRawValue();
+                                if (v == null) v = b.getDisplayValue();
+                                callJs("window.onScan && window.onScan(" + JSONObject.quote(id) + ",\"ok\"," + JSONObject.quote(v == null ? "" : v) + ")");
+                            })
+                            .addOnCanceledListener(() -> callJs("window.onScan && window.onScan(" + JSONObject.quote(id) + ",\"cancel\",\"\")"))
+                            .addOnFailureListener(e -> callJs("window.onScan && window.onScan(" + JSONObject.quote(id) + ",\"error\"," + JSONObject.quote(String.valueOf(e.getMessage())) + ")"));
+                } catch (Throwable e) {
+                    callJs("window.onScan && window.onScan(" + JSONObject.quote(id) + ",\"error\"," + JSONObject.quote(String.valueOf(e.getMessage())) + ")");
+                }
+            });
+        }
+
         /** Фото и видео из галереи (несколько). Результат — window.onMedia(cb, json). */
         @JavascriptInterface
         public void mediaPick(final String cb) {
