@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/w_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="12dp"
+    android:background="@drawable/widget_bg">
+
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:gravity="center_vertical">
+        <TextView android:id="@+id/w_title" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:text="Сегодня" android:textColor="#16151C" android:textSize="16sp" android:textStyle="bold" android:maxLines="1" android:ellipsize="end" />
+        <TextView android:id="@+id/w_count" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="#6B6977" android:textSize="12sp" />
+    </LinearLayout>
+
+    <LinearLayout android:id="@+id/w_run" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp"
+        android:orientation="horizontal" android:gravity="center_vertical" android:paddingStart="10dp" android:paddingEnd="10dp" android:paddingTop="6dp" android:paddingBottom="6dp"
+        android:background="@drawable/widget_run_bg" android:visibility="gone">
+        <TextView android:id="@+id/w_run_obj" android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+            android:textColor="#FFFFFF" android:textSize="13sp" android:maxLines="1" android:ellipsize="end" />
+        <Chronometer android:id="@+id/w_chrono" android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="#FFFFFF" android:textSize="15sp" android:textStyle="bold" />
+    </LinearLayout>
+
+    <TextView android:id="@+id/w_t1" style="@style/WidgetTask" />
+    <TextView android:id="@+id/w_t2" style="@style/WidgetTask" />
+    <TextView android:id="@+id/w_t3" style="@style/WidgetTask" />
+    <TextView android:id="@+id/w_t4" style="@style/WidgetTask" />
+    <TextView android:id="@+id/w_t5" style="@style/WidgetTask" />
+    <TextView android:id="@+id/w_more" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="2dp"
+        android:textColor="#6B6977" android:textSize="12sp" android:visibility="gone" />
+    <TextView android:id="@+id/w_empty" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp"
+        android:text="На сегодня задач нет" android:textColor="#6B6977" android:textSize="13sp" android:visibility="gone" />
+</LinearLayout>

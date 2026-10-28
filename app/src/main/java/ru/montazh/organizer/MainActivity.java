@@ -59,6 +59,8 @@ public class MainActivity extends Activity {
     private static final int REQ_GEO = 5;
     private static final int REQ_MEDIA = 6;
     private static final int REQ_VIDEO = 7;
+    private static final int REQ_SPEECH = 8;
+    private String speechCb;
     private String mediaCb;
     private Uri videoOut;
     private String geoPending;
@@ -969,6 +971,30 @@ public class MainActivity extends Activity {
         }
 
         /** Принятый через «Поделиться» файл (JSON) — один раз, затем очищается. */
+        /** Данные для виджета «Сегодня» (задачи на 2 дня вперёд и таймер). */
+        @JavascriptInterface
+        public void widgetUpdate(String json) {
+            try {
+                getSharedPreferences(TodayWidget.PREF, Context.MODE_PRIVATE).edit().putString("data", json == null ? "{}" : json).apply();
+                TodayWidget.refresh(MainActivity.this);
+            } catch (Exception ignored) { }
+        }
+
+        /** Голосовой ввод: системное распознавание речи (Google). Результат — window.onDictate(id, текст, ошибка). */
+        @JavascriptInterface
+        public void dictate(final String id) {
+            runOnUiThread(() -> {
+                Intent i = new Intent(android.speech.RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+                i.putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE_MODEL, android.speech.RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+                i.putExtra(android.speech.RecognizerIntent.EXTRA_LANGUAGE, "ru-RU");
+                i.putExtra(android.speech.RecognizerIntent.EXTRA_PROMPT, "Говорите");
+                speechCb = id;
+                try { startActivityForResult(i, REQ_SPEECH); }
+                catch (Exception e) { speechCb = null; callJs("window.onDictate && window.onDictate(" + JSONObject.quote(id) + ",\"\",\"нет приложения для распознавания речи\")");
+                    Toast.makeText(MainActivity.this, "Нет распознавания речи: установите приложение Google", Toast.LENGTH_LONG).show(); }
+            });
+        }
+
         /** Сканер штрихкодов и QR (Google code scanner). Результат — window.onScan(id, "ok"|"cancel"|"error", текст). */
         @JavascriptInterface
         public void scanCode(final String id) {
@@ -1451,6 +1477,14 @@ public class MainActivity extends Activity {
                 fileCallback = null;
             }
             cameraUri = null;
+        } else if (requestCode == REQ_SPEECH) {
+            String cb = speechCb; speechCb = null;
+            String text = "";
+            if (resultCode == RESULT_OK && data != null) {
+                java.util.ArrayList<String> r = data.getStringArrayListExtra(android.speech.RecognizerIntent.EXTRA_RESULTS);
+                if (r != null && !r.isEmpty() && r.get(0) != null) text = r.get(0);
+            }
+            if (cb != null) callJs("window.onDictate && window.onDictate(" + JSONObject.quote(cb) + "," + JSONObject.quote(text) + "," + JSONObject.quote(resultCode == RESULT_OK ? "" : "cancel") + ")");
         } else if (requestCode == REQ_MEDIA || requestCode == REQ_VIDEO) {
             final String cb = mediaCb;
             mediaCb = null;

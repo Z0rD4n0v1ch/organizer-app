@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Органайзер</string>
+    <string name="widget_desc">Задачи на сегодня и идущий таймер рабочего времени</string>
 </resources>

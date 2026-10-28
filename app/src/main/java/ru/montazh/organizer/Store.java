@@ -58,6 +58,12 @@ final class Store {
             if (fs != null && fs.length > 0) return fs[0];
             return new File(dir, s + ".pdf");
         }
+        if (s.startsWith("x_")) {   // выгрузка в Excel для «Поделиться»
+            File dir = new File(c.getCacheDir(), "share");
+            if (!dir.exists()) //noinspection ResultOfMethodCallIgnored
+                dir.mkdirs();
+            return new File(dir, s + ".xlsx");
+        }
         if (s.startsWith("z_")) {   // файл объекта для «Поделиться» / принятый архив объекта
             File dir = new File(c.getCacheDir(), "share");
             if (!dir.exists()) //noinspection ResultOfMethodCallIgnored
