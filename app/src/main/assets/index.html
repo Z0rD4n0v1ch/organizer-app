@@ -199,6 +199,11 @@ h2{font:500 16px/1.2 "Unbounded",system-ui,sans-serif;margin:26px 0 10px;display
 .omlist{flex:1;min-height:0;overflow:auto;padding:8px 10px calc(10px + env(safe-area-inset-bottom,0px))}
 .omrow{display:flex;justify-content:space-between;gap:10px;width:100%;border:0;background:var(--surface);border-radius:12px;padding:10px 12px;margin:0 0 6px;text-align:left;color:var(--ink)}
 .omrow small{display:block;color:var(--muted);font-size:12.5px}.omrow em{font-style:normal;color:var(--accent);font-weight:600;white-space:nowrap}
+.mused{display:block;font-size:12px;color:var(--accent);margin-top:2px}.mused.over{color:var(--red)}
+#matPlan[hidden],#matFact[hidden]{display:none}
+#matTabs .chip small{opacity:.7;margin-left:2px}
+.odoth{position:relative}.odoth .phn{position:absolute;right:2px;bottom:2px;font-style:normal;font-size:10px;background:rgba(0,0,0,.6);color:#fff;border-radius:6px;padding:0 4px}
+.mfb{border:0;background:var(--bg);color:var(--accent);border-radius:8px;padding:5px 8px;font-size:12px;font-weight:600;flex:none}
 .skrow{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
 .skops{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 12px}
 .skops button{flex:1 1 30%;border:0;border-radius:12px;background:var(--bg);padding:11px 6px;font-weight:500;color:var(--accent)}
@@ -725,8 +730,15 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <div class="secb"><ul class="list" id="oStock"></ul></div>
     <h2 class="fold" data-sec="mats"><span class="ft"><i class="chev"></i><span>Материалы</span><small class="fb" id="ofb_mats"></small></span></h2>
     <div class="secb">
+    <div class="chips" id="matTabs" style="margin:2px 0 8px"><button type="button" class="chip on" data-t="plan">По проекту <small></small></button><button type="button" class="chip" data-t="fact">По факту <small></small></button></div>
+    <div id="matPlan">
     <ul class="list" id="oMats"></ul>
     <form class="addrow" id="oMatForm"><input id="oMatInput" placeholder="Например: ИП 212-45, 12 шт" maxlength="160"><button>Добавить</button></form>
+    </div>
+    <div id="matFact" hidden>
+    <ul class="list" id="oUsed"></ul>
+    <div class="pbtns"><button type="button" id="oUsedAdd"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Добавить использованное</button><button type="button" id="oMatXls"><svg viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8l8 8M16 8l-8 8"/></svg>Проект и факт в Excel</button></div>
+    </div>
     </div>
     <h2 class="fold" data-sec="docs"><span class="ft"><i class="chev"></i><span>Документация</span><small class="fb" id="ofb_docs"></small></span><button class="link" id="oDocSec">Раздел</button></h2>
     <div class="secb"><div id="oDocs"></div><div id="oMarks"></div><input type="file" id="docPdfInput" accept="application/pdf,.pdf" multiple hidden><input type="file" id="docImgInput" accept="image/*" multiple hidden><input type="file" id="docCamInput" accept="image/*" capture="environment" hidden></div>
@@ -1480,6 +1492,19 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <div id="spList"></div>
   </div>
 
+  <div class="form" id="fUsed" hidden>
+    <h3 id="usTitle">Использовано</h3>
+    <input class="field" id="usName" list="usNames" placeholder="Что: КСПВ 4х0,5, гофра 16 мм" maxlength="120" autocomplete="off"><datalist id="usNames"></datalist>
+    <div class="two"><div><p class="lbl">Сколько</p><input class="field" id="usQty" inputmode="decimal" placeholder="0"></div><div><p class="lbl">Единица</p><select class="field" id="usUnit"></select></div></div>
+    <div class="two"><div><p class="lbl">Дата</p><input class="field" type="date" id="usDate"></div><div><p class="lbl">Позиция проекта</p><select class="field" id="usPlan"></select></div></div>
+    <p class="lbl">Фото этикеток</p>
+    <div class="mkph" id="usPh"></div>
+    <div class="pbtns" style="margin:0 0 12px"><button type="button" id="usCam"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Сфотографировать</button><button type="button" id="usGal"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>Из галереи</button></div>
+    <input type="file" id="usCamInput" accept="image/*" capture="environment" hidden><input type="file" id="usGalInput" accept="image/*" multiple hidden>
+    <input class="field" id="usNote" placeholder="Где проложен, номер бухты, партия" maxlength="160">
+    <div class="actions"><button class="btn ghost" id="usDel" hidden>Удалить</button><button class="btn" id="usSave">Сохранить</button></div>
+  </div>
+
   <div class="form" id="fDay" hidden>
     <h3 id="fDayTitle">Пробег за день</h3>
     <input class="field" type="date" id="dyDate" aria-label="Дата">
@@ -2002,15 +2027,16 @@ function renderObject(){
   ts.forEach(t=>tl.appendChild(taskEl(t,{showObj:false})));
   const ml=$('#oMats'); ml.innerHTML='';
   sysGroups(o,ml,o.mats,'mat',(m,grouped)=>{
-    const li=document.createElement('li'); li.className='mat'+(m.done?' done':'');
+    const li=document.createElement('li'); li.className='mat'+(m.done?' done':''); li.dataset.id=m.id;
     const pt=!grouped&&m.src&&prjDocs(o).length>1?prjTag(o,m.src):'';
     li.innerHTML='<button class="chk" aria-label="Есть в наличии">'+check+'</button><span class="ttl">'+(pt?'<span class="eqtag prj">'+esc(pt)+'</span> ':'')+esc(m.text)+'</span><button class="x" aria-label="Удалить">×</button>';
     li.querySelector('.chk').onclick=()=>{m.done=!m.done;save();renderObject();renderObjects();};
     li.querySelector('.x').onclick=()=>{o.mats=o.mats.filter(x=>x!==m);save();renderObject();renderObjects();};
+    li.querySelector('.x').insertAdjacentHTML('beforebegin','<button class="mfb" aria-label="Отметить факт">факт</button>'); li.querySelector('.mfb').onclick=()=>openUsed(o,null,m);
     return li;
   });
   if(document.activeElement!==$('#oNote')) $('#oNote').value=o.note||'';
-  renderPhotos(o); renderSvc(o); try{renderDocs(o)}catch(e){} try{renderMarks(o)}catch(e){} try{renderCalcs(o)}catch(e){} try{renderDefects(o)}catch(e){} try{renderObjStock(o)}catch(e){} objBadges(o);
+  renderPhotos(o); renderSvc(o); try{renderDocs(o)}catch(e){} try{renderMarks(o)}catch(e){} try{renderCalcs(o)}catch(e){} try{renderDefects(o)}catch(e){} try{renderObjStock(o)}catch(e){} try{renderMatTabs(o)}catch(e){} objBadges(o);
 }
 let noteTimer=null;
 $('#oNote').oninput=e=>{const o=objById(openObjId); if(!o)return; o.note=e.target.value; clearTimeout(noteTimer); noteTimer=setTimeout(save,500);};
@@ -4267,7 +4293,7 @@ let editing=null;
 function openSheet(id){
   $$('.form').forEach(f=>f.hidden=f.id!==id);
   $('#scrim').classList.add('on'); $('#sheet').classList.add('on'); $('#sheet').scrollTop=0;
-  const first=(id==='fSet'||id==='fHours'||id==='fHrSend'||id==='fDay'||id==='fTrRep'||id==='fBuy'||id==='fTrp'||id==='fStk'||id==='fMnRep'||id==='fObjShare'||id==='fObjImp'||id==='fCalc'||id==='fMark'||id==='fMarkList'||id==='fPhRep'||id==='fXls'||id==='fPhCap')?null:$('#'+id+' input, #'+id+' textarea'); if(first) setTimeout(()=>first.focus({preventScroll:true}),260);
+  const first=(id==='fSet'||id==='fHours'||id==='fHrSend'||id==='fDay'||id==='fTrRep'||id==='fBuy'||id==='fTrp'||id==='fStk'||id==='fUsed'||id==='fMnRep'||id==='fObjShare'||id==='fObjImp'||id==='fCalc'||id==='fMark'||id==='fMarkList'||id==='fPhRep'||id==='fXls'||id==='fPhCap')?null:$('#'+id+' input, #'+id+' textarea'); if(first) setTimeout(()=>first.focus({preventScroll:true}),260);
 }
 function openSheetOver(id){ openSheet(id); $('#sheet').classList.add('over'); $('#scrim').classList.add('over'); }
 function closeSheet(){try{kmPick.discard();lgPick.discard()}catch(e){}try{dsPick.discard();dePick.discard()}catch(e){}try{byPick.discard();byPdf.discard()}catch(e){}try{pmPick.discard();tlPick.discard();skPick.discard()}catch(e){}$('#scrim').classList.remove('on','over');$('#sheet').classList.remove('on','over');document.activeElement&&document.activeElement.blur();}
@@ -5427,6 +5453,7 @@ async function oshBuild(o,withPh,withDocs,withTasks,withVid){
   const fileOf=async(kind,id)=>{ const u=kind==='pdf'?await DOC.load(id):await photoBytes(id); if(!u){ miss.push(id); return; } files.push({name:'files/'+id+(kind==='pdf'?'.pdf':'.jpg'),data:u,id,kind}); };
   if(withPh) for(const p of P.photos) await fileOf('photo',p.id);
   for(const d of (o.defects||[])) for(const id of (d.photos||[])) await fileOf('photo',id);
+  for(const u of (o.matsUsed||[])) for(const id of (u.photos||[])) await fileOf('photo',id);
   if(withVid) for(const v of P.videos){ const u=await VID.load(v.id); if(!u){ miss.push(v.id); continue; } files.push({name:'files/'+v.id+'.'+(v.ext||'mp4'),data:u,id:v.id,kind:'video',ext:v.ext||'mp4'}); if(v.thumb) await fileOf('photo',v.thumb); }
   if(withDocs) for(const d of P.docsF) await fileOf(d.kind==='img'?'photo':'pdf',d.id);
   else obj.docs=(obj.docs||[]).filter(d=>d.kind==='ref'||d.kind==='link');
@@ -5469,7 +5496,7 @@ async function objImportBytes(u){
     oimp={man,Z}; openObjImport();
   }catch(e){ logErr('share','приём объекта: '+(e.message||e)); alert('Не удалось открыть файл объекта: '+(e.message||e)); }
 }
-const ARR=['equip','mats','checks','photos','docs','marks','defects'];
+const ARR=['equip','mats','checks','photos','docs','marks','defects','matsUsed'];
 function oimpDiff(cur,inc,tasks){
   let add=0, chg=0; const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
   ARR.forEach(a=>(inc[a]||[]).forEach(x=>{ const y=(cur[a]||[]).find(z=>z.id===x.id); if(!y) add++; else if(!same(x,y)) chg++; }));
@@ -5503,7 +5530,7 @@ async function oimpApply(mode){
   ARR.forEach(a=>{ if(!Array.isArray(inc[a])) inc[a]=[]; }); if(!Array.isArray(inc.systems)) inc.systems=[];
   if(mode==='copy'||!cur){
     const map={}, nid=id=>map[id]||(map[id]=mode==='copy'?'i'+uid().replace(/[^A-Za-z0-9_-]/g,''):id);
-    const o=inc; if(mode==='copy'){ o.id=uid(); o.name=o.name+' (копия)'; ARR.forEach(a=>o[a].forEach(x=>{ x.id=nid(x.id); if(x.thumb) x.thumb=nid(x.thumb); })); o.marks.forEach(m=>{ m.doc=nid(m.doc); m.photos=(m.photos||[]).map(nid); if(m.eq) m.eq=nid(m.eq); }); o.photos.forEach(p=>{ if(p.mark) p.mark=nid(p.mark); }); o.defects.forEach(d=>{ d.photos=(d.photos||[]).map(nid); }); o.docs.forEach(d=>{ if(d.from) d.from=nid(d.from); if(d.of) d.of=nid(d.of); }); o.equip.forEach(e=>{ if(e.src) e.src=nid(e.src); }); o.mats.forEach(m=>{ if(m.src) m.src=nid(m.src); }); }
+    const o=inc; if(mode==='copy'){ o.id=uid(); o.name=o.name+' (копия)'; ARR.forEach(a=>o[a].forEach(x=>{ x.id=nid(x.id); if(x.thumb) x.thumb=nid(x.thumb); })); o.marks.forEach(m=>{ m.doc=nid(m.doc); m.photos=(m.photos||[]).map(nid); if(m.eq) m.eq=nid(m.eq); }); o.photos.forEach(p=>{ if(p.mark) p.mark=nid(p.mark); }); o.defects.forEach(d=>{ d.photos=(d.photos||[]).map(nid); }); o.matsUsed.forEach(u=>{ u.photos=(u.photos||[]).map(nid); if(u.plan) u.plan=nid(u.plan); }); o.docs.forEach(d=>{ if(d.from) d.from=nid(d.from); if(d.of) d.of=nid(d.of); }); o.equip.forEach(e=>{ if(e.src) e.src=nid(e.src); }); o.mats.forEach(m=>{ if(m.src) m.src=nid(m.src); }); }
     bad=await oimpFiles(null,mode==='copy'?nid:null);
     state.objects.push(o);
     man.tasks.forEach(t=>{ const x=Object.assign({},t,{objId:o.id}); if(mode==='copy'||!state.tasks.some(z=>z.id===t.id)){ if(mode==='copy') x.id=uid(); state.tasks.push(x); } });
@@ -6346,6 +6373,67 @@ $('#skXls').onclick=async()=>{ ensureStock(); if(!state.stock.length){ alert('С
     const objs=Object.keys(on).filter(k=>on[k]>1e-9).map(k=>{ const o=objById(k); return (o?o.name:'объект удалён')+': '+fq(on[k]); }).join('; ');
     return [n+1,STK_C[i.cat]||'',i.name,fq(i.qty),i.unit,i.min?fq(i.min):'',i.place||'',i.code||'',objs,i.note||'']; }));
   try{ await shareXlsx(xlsxBuild('Остатки '+dateRu(todayISO()),rows,[5,16,34,10,7,10,18,16,40,30]),'Склад, остатки '+dateRu(todayISO())+'.xlsx'); }catch(e){ alert('Не получилось: '+(e.message||e)); }
+};
+/* ---------- материалы: по проекту и по факту (с фото этикеток) ---------- */
+function matParse(t){ const m=String(t||'').match(/^(.*?),\s*([\d][\d\s]*(?:[.,]\d+)?)\s*([A-Za-zА-Яа-яё.²]*)\.?\s*$/); if(!m) return {name:String(t||'').trim(),qty:0,unit:''}; return {name:m[1].trim(),qty:nq(m[2].replace(/\s/g,'')),unit:m[3].replace(/\.$/,'').toLowerCase()}; }
+const unitN=u=>String(u||'').toLowerCase().replace(/\.$/,'').replace(/^метр.*$/,'м').replace(/^штук.*$/,'шт');
+function usedFor(o,planId){ return (o.matsUsed||[]).filter(u=>u.plan===planId); }
+let matTab='plan'; try{ matTab=localStorage.getItem('mat-tab')||'plan'; }catch(e){}
+function renderMatTabs(o){
+  const nu=(o.matsUsed||[]).length;
+  $$('#matTabs .chip').forEach(c=>{ c.classList.toggle('on',c.dataset.t===matTab); c.querySelector('small').textContent=c.dataset.t==='plan'?(o.mats.length||''):(nu||''); });
+  $('#matPlan').hidden=matTab!=='plan'; $('#matFact').hidden=matTab!=='fact';
+  // факт к позициям проекта
+  $$('#oMats .mused').forEach(x=>x.remove());
+  $$('#oMats li.mat').forEach(li=>{ const m=o.mats.find(x=>x.id===li.dataset.id); if(!m) return; const U=usedFor(o,m.id); if(!U.length) return; const P=matParse(m.text), sum=U.reduce((s,u)=>s+(unitN(u.unit)===unitN(P.unit)||!P.unit?u.qty:0),0);
+    li.querySelector('.ttl').insertAdjacentHTML('beforeend','<small class="mused'+(P.qty&&sum>P.qty?' over':'')+'">факт: '+fq(sum)+(P.qty?' из '+fq(P.qty):'')+' '+esc(P.unit||U[0].unit||'')+'</small>'); });
+  const ul=$('#oUsed'); ul.innerHTML='';
+  const L=(o.matsUsed||[]).slice().sort((a,b)=>cmp(b.date||'',a.date||'')||b.ts-a.ts);
+  if(!L.length){ ul.appendChild(emptyEl('Что фактически ушло на объект: кабель по бухтам и этикеткам, гофра, крепёж. «Добавить» — с фото этикетки')); return; }
+  L.forEach(u=>{ const li=document.createElement('li'), b=document.createElement('button'); b.className='log'; const pm=u.plan&&o.mats.find(x=>x.id===u.plan);
+    b.innerHTML=(u.photos&&u.photos[0]&&PHOTO?'<span class="odoth"><img loading="lazy" alt="" src="'+PH.url(u.photos[0])+'">'+(u.photos.length>1?'<em class="phn">'+u.photos.length+'</em>':'')+'</span>':'<span class="ic">'+stkIcon(/кабел|кспв|кпс|utp|ftp|ввг|пугв|шввп/i.test(u.name)?'cable':/гофр|труб|канал/i.test(u.name)?'pipe':'mat')+'</span>')+
+      '<span class="tbody"><span class="ttl">'+esc(u.name)+'</span><span class="meta">'+esc([u.date?fmtDate(u.date):'',pm?(matParse(pm.text).name===u.name?'по проекту':'по проекту: '+matParse(pm.text).name):'не по проекту',u.note||''].filter(Boolean).join(' · '))+'</span></span><span class="sum">'+fq(u.qty)+' '+esc(u.unit||'')+'</span>';
+    b.onclick=()=>openUsed(o,u); li.appendChild(b); ul.appendChild(li); });
+}
+$$('#matTabs .chip').forEach(c=>c.onclick=()=>{ matTab=c.dataset.t; try{ localStorage.setItem('mat-tab',matTab); }catch(e){} const o=objById(openObjId); if(o) renderMatTabs(o); });
+/* запись «использовано» */
+let usEdit=null, usPh=[];
+function openUsed(o,u,plan){
+  usEdit={o,u:u||null}; usPh=u?(u.photos||[]).slice():[];
+  $('#usTitle').textContent=u?'Использовано':'Добавить использованное';
+  const P=plan?matParse(plan.text):null;
+  $('#usName').value=u?u.name:(P?P.name:''); $('#usQty').value=u?fq(u.qty):''; $('#usDate').value=u?u.date||todayISO():todayISO(); $('#usNote').value=u?u.note||'':'';
+  const units=[...new Set(STK_UNITS.concat(o.mats.map(m=>matParse(m.text).unit).filter(Boolean)))];
+  const un=u?u.unit:(P&&P.unit?P.unit:'м'); $('#usUnit').innerHTML=units.concat(units.includes(un)?[]:[un]).map(x=>'<option'+(x===un?' selected':'')+'>'+esc(x)+'</option>').join('');
+  $('#usPlan').innerHTML='<option value="">— не связано с проектом —</option>'+o.mats.map(m=>'<option value="'+esc(m.id)+'"'+((u?u.plan:plan&&plan.id)===m.id?' selected':'')+'>'+esc(m.text.slice(0,70))+'</option>').join('');
+  ensureStock(); $('#usNames').innerHTML=[...new Set(o.mats.map(m=>matParse(m.text).name).concat(state.stock.filter(i=>i.cat!=='equip').map(i=>i.name)))].map(x=>'<option value="'+esc(x)+'">').join('');
+  usPhotos(); $('#usDel').hidden=!u; openSheet('fUsed');
+}
+function usPhotos(){ const box=$('#usPh'); box.innerHTML=''; usPh.forEach(id=>{ const b=document.createElement('button'); b.type='button'; b.innerHTML='<img alt="" src="'+PH.url(id)+'">'; b.onclick=()=>showPhoto(id,'Этикетка',()=>{ usPh=usPh.filter(x=>x!==id); try{PH.del(id)}catch(e){} usPhotos(); }); box.appendChild(b); }); }
+async function usAdd(files){ for(const f of files){ try{ const b64=await shrink(f,2000,0.86), id=uid(); if(PH.save(id,b64)) usPh.push(id); }catch(e){} } usPhotos(); }
+$('#usCam').onclick=()=>$('#usCamInput').click(); $('#usGal').onclick=()=>$('#usGalInput').click();
+$('#usCamInput').onchange=e=>{ usAdd([...e.target.files]); e.target.value=''; }; $('#usGalInput').onchange=e=>{ usAdd([...e.target.files]); e.target.value=''; };
+function matGuess(o,name){ const toks=bnorm(name).split(/[\s,]+/).filter(t=>t.length>=2); if(!toks.length) return null;
+  const sc=m=>{ const a=bnorm(matParse(m.text).name); let k=0; for(const t of toks){ const q=/\d/.test(t)?t.replace(/[^\dх.]/g,''):t.slice(0,4); if(q&&a.includes(q)) k++; else return 0; } return k; };
+  let best=null, bs=0; o.mats.forEach(m=>{ const v=sc(m); if(v>bs){ bs=v; best=m; } }); return best; }
+$('#usName').addEventListener('change',()=>{ const E=usEdit; if(!E||$('#usPlan').value) return; const m=matGuess(E.o,$('#usName').value); if(m){ $('#usPlan').value=m.id; const P=matParse(m.text); if(P.unit&&[...$('#usUnit').options].some(x=>x.value===P.unit)) $('#usUnit').value=P.unit; } });
+$('#usSave').onclick=()=>{
+  const E=usEdit; if(!E) return; const name=$('#usName').value.trim(); if(!name){ $('#usName').focus(); return; }
+  const qty=nq($('#usQty').value); if(!(qty>0)&&!usPh.length){ $('#usQty').focus(); return; }
+  const u=E.u||{id:uid(),ts:Date.now()}; const was=(u.photos||[]); was.filter(id=>!usPh.includes(id)).forEach(id=>{ try{PH.del(id)}catch(e){} });
+  Object.assign(u,{name,qty,unit:$('#usUnit').value,date:$('#usDate').value||todayISO(),plan:$('#usPlan').value,note:$('#usNote').value.trim(),photos:usPh.slice()});
+  if(!E.u) (E.o.matsUsed=E.o.matsUsed||[]).push(u); save(); closeSheet(); renderObject();
+};
+$('#usDel').onclick=()=>{ const E=usEdit; if(!E||!E.u||!confirm('Удалить запись вместе с фото этикеток?')) return; (E.u.photos||[]).forEach(id=>{ try{PH.del(id)}catch(e){} }); E.o.matsUsed=E.o.matsUsed.filter(x=>x!==E.u); save(); closeSheet(); renderObject(); };
+$('#oUsedAdd').onclick=()=>{ const o=objById(openObjId); if(o) openUsed(o,null); };
+/* сравнение «проект / факт» в Excel */
+$('#oMatXls').onclick=async()=>{
+  const o=objById(openObjId); if(!o) return; const U=o.matsUsed||[];
+  const rows=[['№','Материал по проекту','По проекту','Ед.','Фактически','Разница','Записи факта (дата — кол-во — примечание)']];
+  o.mats.forEach((m,i)=>{ const P=matParse(m.text), L=usedFor(o,m.id), f=L.reduce((s,u)=>s+u.qty,0);
+    rows.push([i+1,P.name,P.qty?fq(P.qty):'',P.unit,L.length?fq(f):'',P.qty&&L.length?fq(f-P.qty):'',L.map(u=>fmtD(u.date)+' — '+fq(u.qty)+' '+u.unit+(u.note?' — '+u.note:'')+(u.photos&&u.photos.length?' (фото: '+u.photos.length+')':'')).join('; ')]); });
+  U.filter(u=>!u.plan||!o.mats.some(m=>m.id===u.plan)).forEach(u=>rows.push([rows.length,u.name+' (не по проекту)','','',fq(u.qty)+' '+u.unit,'',fmtD(u.date)+(u.note?' — '+u.note:'')]));
+  try{ await shareXlsx(xlsxBuild('Проект и факт',rows,[5,44,12,7,12,10,60]),('Материалы '+o.name).replace(/[\\/:*?"<>|]+/g,' ').trim().slice(0,60)+'.xlsx'); }catch(e){ alert('Не получилось: '+(e.message||e)); }
 };
 window.__osh={scanParse,ZIP,oshBuild,objImportBytes,st:()=>state,showObject:id=>showObject(id),PH,DOC};
 applyNav();
