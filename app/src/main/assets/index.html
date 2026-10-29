@@ -224,6 +224,19 @@ h2{font:500 16px/1.2 "Unbounded",system-ui,sans-serif;margin:26px 0 10px;display
 .dfile{width:100%;border:0;background:var(--bg);border-radius:12px;display:flex;align-items:center;gap:10px;padding:10px 12px;margin-top:6px;text-align:left;color:var(--ink)}
 .dfile .tbody{min-width:0;flex:1}.dfile .ttl{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .eqtag.prj{background:var(--accent);color:var(--accent-ink);margin-left:0;margin-right:4px}
+.dsub{list-style:none;margin-top:6px;border-radius:12px;background:var(--bg)}
+.dsub .dsub{background:var(--surface)}
+.dsubh{display:flex;align-items:center;gap:4px;padding:0 4px 0 10px}
+.dsubh .dst{padding:9px 0;font-size:14px}
+.dsub.lv1>.dsubh .dst span{color:var(--accent)}
+.dsec.open .dsub>.dsubh .dst .chev{transform:rotate(-45deg);margin:0 4px 0 0}
+.dsec.open .dsub.open>.dsubh .dst .chev{transform:rotate(45deg);margin:0 4px 4px 0}
+.dsadd.sm{padding:6px 10px;font-size:15px;background:transparent}
+.dfiles2{list-style:none;margin:0;padding:0 6px 6px;display:none}
+.dsub.open>.dfiles2{display:block}
+.dfiles2 .dfile{background:var(--surface)}
+.dsub .dsub .dfile{background:var(--bg)}
+.dempty{list-style:none;font-size:12.5px;color:var(--muted);padding:6px 6px 4px}
 .dgrp{list-style:none;font:600 12px "Golos Text",sans-serif;color:var(--accent);text-transform:none;margin:10px 4px 0;letter-spacing:.01em}
 .dgrp:first-child{margin-top:4px}
 .sysg{list-style:none}
@@ -1138,7 +1151,18 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
       <button data-k="pdf"><span class="rtic" style="background:#E5484D;font-size:11px">PDF</span><span><b>PDF-файл</b><small>Проект, паспорт, акт</small></span></button>
       <button data-k="img"><span class="rtic" style="background:#3E63DD">🖼</span><span><b>Фото или скриншот</b><small>Из галереи, можно несколько</small></span></button>
       <button data-k="cam"><span class="rtic" style="background:#2E9E5B">📷</span><span><b>Сфотографировать</b><small>Схема на щите, чертёж на месте</small></span></button>
+      <button id="daSub" type="button"><span class="rtic" style="background:#8a6d3b">📁</span><span><b>Новый подраздел</b><small>Папка внутри раздела: система, этаж, корпус</small></span></button>
     </div>
+  </div>
+
+  <div class="form" id="fDocMove" hidden>
+    <h3>Перенести документ</h3>
+    <p class="meta" id="dmName" style="margin:-6px 0 12px"></p>
+    <p class="lbl">Раздел</p>
+    <select class="field" id="dmSec"></select>
+    <p class="lbl">Подраздел</p>
+    <div class="chips" id="dmSubs" style="flex-wrap:wrap;margin-top:0"></div>
+    <div class="actions"><button class="btn" id="dmSave">Перенести</button></div>
   </div>
 
   <div class="form" id="fUpdNotes" hidden>
@@ -3169,42 +3193,103 @@ function sysGroups(o,ul,items,kind,one){
 function prjDocs(o){ return (o.docs||[]).filter(d=>d.code); }
 function prjLabel(o,id){ const d=(o.docs||[]).find(x=>x.id===id); if(!d) return 'Удалённый проект'; return (d.code||d.name)+(d.code&&d.name&&!d.name.includes(d.code)?' · '+d.name:''); }
 function prjTag(o,id){ const d=(o.docs||[]).find(x=>x.id===id); if(!d||!d.code) return ''; return (d.code.match(/-([А-ЯA-Z]{2,6})$/)||[])[1]||d.code; }
+/* подразделы документации: папки внутри раздела (вручную), паспорта — по производителю, несколько проектов — по проектам */
+try{ docOpenSec=JSON.parse(localStorage.getItem('doc-open')||'{}')||{}; }catch(e){ docOpenSec={}; }
+function docOpenSave(){ try{ localStorage.setItem('doc-open',JSON.stringify(docOpenSec)); }catch(e){} }
+let docSubPick='';
+function docSubOf(d,sec){ if(d.sub!==undefined) return d.sub||''; return /паспорт/i.test(sec)&&d.maker?d.maker:''; }
+function docSubsList(o,sec){ const L=((o.docSubs||{})[sec]||[]).slice(); (o.docs||[]).filter(d=>d.sec===sec).forEach(d=>{ const s=docSubOf(d,sec); if(s&&!L.includes(s)) L.push(s); }); return L; }
 function renderDocs(o){
   const box=$('#oDocs'); box.innerHTML='';
   if(!DOC.ok){ box.appendChild(emptyEl('PDF-файлы можно хранить в приложении на Android и в веб-версии, открытой с сайта')); return; }
   if(!Array.isArray(o.docs)) o.docs=[];
-  docSecs(o).forEach(sec=>{
-    const files=o.docs.filter(d=>d.sec===sec).sort((a,b)=>b.ts-a.ts);
-    const w=document.createElement('div'); w.className='dsec'+(files.length&&docOpenSec[o.id+'|'+sec]!==false?' open':'');
-    const h=document.createElement('div'); h.className='dsh';
-    h.innerHTML='<button class="dst"><i class="chev"></i><span>'+esc(sec)+'</span>'+(files.length?'<small>'+files.length+'</small>':'')+'</button><button class="dsadd" aria-label="Добавить">+ Добавить</button>';
-    h.querySelector('.dst').onclick=()=>{ if(!files.length){ if(!DOC_SECS.includes(sec)&&confirm('Удалить пустой раздел «'+sec+'»?')){ o.docSecs=o.docSecs.filter(x=>x!==sec); save(); renderObject(); } return; } const op=!w.classList.contains('open'); docOpenSec[o.id+'|'+sec]=op; w.classList.toggle('open',op); };
-    h.querySelector('.dsadd').onclick=()=>{ docSecPick=sec; $('#daSec').textContent=sec; openSheet('fDocAdd'); };
-    w.appendChild(h);
-    const ul=document.createElement('ul'); ul.className='dfiles';
-    // несколько разобранных проектов: внутри раздела файлы идут по проектам, ручные — отдельно
-    const multi=prjDocs(o).length>1, key=d=>d.from||(d.code?d.id:''), order=[];
-    files.forEach(d=>{ const k=key(d); if(!order.includes(k)) order.push(k); });
-    const seq=multi?order.sort((a,b)=>(a===''?1:0)-(b===''?1:0)).flatMap(k=>files.filter(d=>key(d)===k).map((d,i)=>({d,hd:i===0?k:null}))):files.map(d=>({d,hd:null}));
-    seq.forEach(({d,hd})=>{
-      if(hd!==null){ const hl=document.createElement('li'); hl.className='dgrp'; hl.textContent=hd?prjLabel(o,hd):'Добавлено вручную'; ul.appendChild(hl); }
-      const li=document.createElement('li'), b=document.createElement('button'); b.className='dfile';
+  const fileEl=(d,sec)=>{
+      const li=document.createElement('li'), b=document.createElement('button'); b.className='dfile'; b.dataset.id=d.id;
       const par=d.kind==='ref'?o.docs.find(x=>x.id===d.of):null;
       const meta=d.kind==='ref'?(d.to>d.page?'стр. '+d.page+'–'+d.to:'стр. '+d.page)+(par?' · '+par.name:' · проект удалён'):d.kind==='link'?'документация с сайта'+(d.maker?' · '+d.maker:''):fmtDate(iso(new Date(d.ts)))+(d.size?', '+fmtSize(d.size):'');
       const nmk=(o.marks||[]).filter(m=>d.kind==='ref'?(par&&m.doc===par.id&&m.page>=d.page&&m.page<=(d.to||d.page)):m.doc===d.id).length;
       b.innerHTML=(d.kind==='img'?'<img class="dthumb" loading="lazy" alt="" src="'+esc(PH.url(d.id))+'">':d.kind==='ref'?'<span class="pdfic ref">стр</span>':d.kind==='link'?'<span class="pdfic link">PDF</span>':'<span class="pdfic">PDF</span>')+'<span class="tbody"><span class="ttl">'+esc(d.name)+'</span><span class="meta">'+esc(meta+(nmk?' · отметок: '+nmk:''))+'</span></span>';
       const drop=()=>{ o.docs=o.docs.filter(x=>x!==d); save(); renderObject(); };
-      if(d.kind==='ref'){ b.onclick=()=>{ if(!par){ if(confirm('Проект, на который ссылается «'+d.name+'», удалён. Убрать ссылку?')) drop(); return; } openPdf({obj:o,id:par.id,name:d.name,page:d.page,onDel:drop,delLabel:'Убрать'}); }; li.appendChild(b); ul.appendChild(li); return; }
-      if(d.kind==='link'){ b.onclick=()=>openRemotePdf(d.url,d.name,drop); li.appendChild(b); ul.appendChild(li); return; }
+      if(d.kind==='ref'){ b.onclick=()=>{ if(!par){ if(confirm('Проект, на который ссылается «'+d.name+'», удалён. Убрать ссылку?')) drop(); return; } openPdf({obj:o,id:par.id,name:d.name,page:d.page,onDel:drop,delLabel:'Убрать'}); }; li.appendChild(b); return li; }
+      if(d.kind==='link'){ b.onclick=()=>openRemotePdf(d.url,d.name,drop); li.appendChild(b); return li; }
       const isPrj=d.kind!=='img'&&!d.gen&&/проект/i.test(sec);
       const delMsg=()=>{ const ne=o.equip.filter(x=>x.src===d.id).length, nm=o.mats.filter(x=>x.src===d.id).length, nd=o.docs.filter(x=>x.from===d.id).length;
         return 'Удалить «'+d.name+'»?'+(ne||nm||nd?'\n\nВместе с ним удалится всё, что из него разобрано:'+(nd?'\n• записей в документации: '+nd:'')+(ne?'\n• оборудование: '+ne:'')+(nm?'\n• материалы: '+nm:''):''); };
       b.onclick=()=>openPdf({obj:o,delMsg,onParse:isPrj?(bytes=>{ closePdf(); prjStart(o,d,bytes); }):null,id:d.id,name:d.name,img:d.kind==='img',onRename:nm=>{ d.name=nm; save(); renderObject(); },onDel:()=>{ o.marks=(o.marks||[]).filter(m=>m.doc!==d.id); if(d.kind==='img'){try{PH.del(d.id)}catch(e){}} else DOC.del(d.id); o.docs.filter(x=>x.from===d.id&&x.gen).forEach(x=>DOC.del(x.id)); o.docs=o.docs.filter(x=>x!==d&&x.from!==d.id&&!(x.kind==='ref'&&x.of===d.id)); o.equip=o.equip.filter(x=>x.src!==d.id); o.mats=o.mats.filter(x=>x.src!==d.id); save(); renderObject(); }});
-      li.appendChild(b); ul.appendChild(li);
-    });
+      li.appendChild(b); return li;
+  };
+  /* свёрнутая группа: заголовок + список; key — для запоминания, sub — для «+» и «⋯» */
+  const group=(ul,key,label,cnt,lvl,fill,opt)=>{
+    const li=document.createElement('li'), op=docOpenSec[key]===true; li.className='dsub lv'+lvl+(op?' open':'');
+    li.innerHTML='<div class="dsubh"><button class="dst"><i class="chev"></i><span>'+esc(label)+'</span><small>'+cnt+'</small></button>'+(opt&&opt.sub!=null?'<button class="dsadd sm" aria-label="Добавить в подраздел">+</button><button class="dsadd sm dsm" aria-label="Подраздел">⋯</button>':'')+'</div><ul class="dfiles2"></ul>';
+    li.querySelector('.dst').onclick=()=>{ const v=!li.classList.contains('open'); li.classList.toggle('open',v); docOpenSec[key]=v; docOpenSave(); };
+    if(opt&&opt.sub!=null){
+      li.querySelector('.dsadd:not(.dsm)').onclick=()=>{ docSecPick=opt.sec; docSubPick=opt.sub; $('#daSec').textContent=opt.sec+' → '+opt.sub; openSheet('fDocAdd'); };
+      li.querySelector('.dsm').onclick=()=>docSubMenu(o,opt.sec,opt.sub);
+    }
+    fill(li.querySelector('ul')); ul.appendChild(li);
+  };
+  docSecs(o).forEach(sec=>{
+    const files=o.docs.filter(d=>d.sec===sec).sort((a,b)=>b.ts-a.ts);
+    const w=document.createElement('div'); w.className='dsec'+(files.length&&docOpenSec[o.id+'|'+sec]!==false?' open':'');
+    const h=document.createElement('div'); h.className='dsh';
+    h.innerHTML='<button class="dst"><i class="chev"></i><span>'+esc(sec)+'</span>'+(files.length?'<small>'+files.length+'</small>':'')+'</button><button class="dsadd" aria-label="Добавить">+ Добавить</button>';
+    h.querySelector('.dst').onclick=()=>{ if(!files.length&&!docSubsList(o,sec).length){ if(!DOC_SECS.includes(sec)&&confirm('Удалить пустой раздел «'+sec+'»?')){ o.docSecs=o.docSecs.filter(x=>x!==sec); save(); renderObject(); } return; } const op=!w.classList.contains('open'); docOpenSec[o.id+'|'+sec]=op; docOpenSave(); w.classList.toggle('open',op); };
+    h.querySelector('.dsadd').onclick=()=>{ docSecPick=sec; docSubPick=''; $('#daSec').textContent=sec; openSheet('fDocAdd'); };
+    if(!files.length&&docSubsList(o,sec).length&&docOpenSec[o.id+'|'+sec]!==false) w.classList.add('open');
+    w.appendChild(h);
+    const ul=document.createElement('ul'); ul.className='dfiles';
+    // уровень 2: проекты (если их несколько), уровень 3: подразделы; файлы без подраздела — в конце
+    const subsLevel=(target,arr,keyBase,lvl)=>{
+      const subs=docSubsList(o,sec), inSub=new Set();
+      subs.forEach(sb=>{ const fs=arr.filter(d=>docSubOf(d,sec)===sb); fs.forEach(d=>inSub.add(d)); if(!fs.length&&keyBase!==o.id+'|'+sec) return;
+        group(target,keyBase+'|'+sb,sb,fs.length,lvl,u=>{ if(!fs.length) u.appendChild(Object.assign(document.createElement('li'),{className:'dempty',textContent:'Пусто. «+» — добавить файл, долгое нажатие на файле — перенести сюда'})); fs.forEach(d=>u.appendChild(fileEl(d,sec))); },{sec,sub:sb}); });
+      arr.filter(d=>!inSub.has(d)).forEach(d=>target.appendChild(fileEl(d,sec)));
+    };
+    const key=d=>d.from||(d.code?d.id:''), order=[]; files.forEach(d=>{ const k=key(d); if(!order.includes(k)) order.push(k); });
+    const multi=prjDocs(o).length>1&&!/проект/i.test(sec)&&order.length>1;
+    if(multi){
+      order.sort((a,b)=>(a===''?1:0)-(b===''?1:0)).forEach(k=>{ const fs=files.filter(d=>key(d)===k);
+        group(ul,o.id+'|'+sec+'|p:'+k,k?prjLabel(o,k):'Добавлено вручную',fs.length,1,u=>subsLevel(u,fs,o.id+'|'+sec+'|p:'+k,2)); });
+      // пустые подразделы показываем на уровне раздела
+      docSubsList(o,sec).filter(sb=>!files.some(d=>docSubOf(d,sec)===sb)).forEach(sb=>group(ul,o.id+'|'+sec+'|'+sb,sb,0,1,u=>u.appendChild(Object.assign(document.createElement('li'),{className:'dempty',textContent:'Пусто. «+» — добавить файл, долгое нажатие на файле — перенести сюда'})),{sec,sub:sb}));
+    } else subsLevel(ul,files,o.id+'|'+sec,1);
     w.appendChild(ul); box.appendChild(w);
   });
 }
+/* подраздел: создать, переименовать, удалить (файлы остаются в разделе) */
+function docSubAdd(o,sec,name){ o.docSubs=o.docSubs||{}; const L=o.docSubs[sec]=o.docSubs[sec]||[]; if(!L.includes(name)) L.push(name); }
+function docSubMenu(o,sec,sub){
+  const n=prompt('Подраздел «'+sub+'»\nНовое название (пусто — удалить подраздел, файлы останутся в разделе):',sub); if(n===null) return;
+  const nn=n.trim().slice(0,60), L=(o.docSubs=o.docSubs||{})[sec]=((o.docSubs||{})[sec]||[]).filter(x=>x!==sub);
+  (o.docs||[]).filter(d=>d.sec===sec&&docSubOf(d,sec)===sub).forEach(d=>{ d.sub=nn; });
+  if(nn&&!L.includes(nn)) L.push(nn);
+  save(); renderObject();
+}
+/* долгое нажатие на файле — перенести в раздел/подраздел */
+let dmDoc=null;
+function openDocMove(o,d){
+  dmDoc={o,d}; $('#dmName').textContent=d.name;
+  $('#dmSec').innerHTML=docSecs(o).map(x=>'<option'+(x===d.sec?' selected':'')+'>'+esc(x)+'</option>').join('');
+  dmSubs(docSubOf(d,d.sec)); openSheet('fDocMove');
+}
+function dmSubs(cur){ const E=dmDoc; if(!E) return; const sec=$('#dmSec').value, L=docSubsList(E.o,sec);
+  $('#dmSubs').innerHTML=['<button type="button" class="chip'+(!cur?' on':'')+'" data-s="">Без подраздела</button>'].concat(L.map(x=>'<button type="button" class="chip'+(x===cur?' on':'')+'" data-s="'+esc(x)+'">'+esc(x)+'</button>')).join('')+'<button type="button" class="chip" data-new="1">+ Новый подраздел</button>';
+  $$('#dmSubs .chip').forEach(c=>c.onclick=()=>{ if(c.dataset.new){ const n=(prompt('Название подраздела, например: СПС, Этаж 2, Камеры','')||'').trim().slice(0,60); if(!n) return; docSubAdd(E.o,sec,n); dmSubs(n); return; } $$('#dmSubs .chip').forEach(x=>x.classList.toggle('on',x===c)); }); }
+$('#dmSec').onchange=()=>dmSubs('');
+$('#dmSave').onclick=()=>{ const E=dmDoc; if(!E) return; const sec=$('#dmSec').value, c=$('#dmSubs .chip.on'), sub=c?c.dataset.s:'';
+  E.d.sec=sec; E.d.sub=sub; if(sub) docSubAdd(E.o,sec,sub); docOpenSec[E.o.id+'|'+sec]=true; if(sub) docOpenSec[E.o.id+'|'+sec+'|'+sub]=true; docOpenSave(); save(); closeSheet(); renderObject(); };
+$('#daSub').onclick=()=>{ const o=objById(openObjId); if(!o||!docSecPick) return; const n=(prompt('Название подраздела в «'+docSecPick+'», например: СПС, Этаж 2, Камеры','')||'').trim().slice(0,60); if(!n) return;
+  docSubAdd(o,docSecPick,n); docOpenSec[o.id+'|'+docSecPick]=true; docOpenSec[o.id+'|'+docSecPick+'|'+n]=true; docOpenSave(); save(); closeSheet(); renderObject(); };
+(function(){ // долгое нажатие на файл документации
+  let t=null, moved=false;
+  const box=$('#oDocs');
+  box.addEventListener('touchstart',e=>{ const b=e.target.closest('.dfile'); if(!b) return; moved=false; t=setTimeout(()=>{ t=null; b.dataset.lp='1'; const o=objById(openObjId), d=o&&o.docs.find(x=>x.id===b.dataset.id); if(d){ try{ navigator.vibrate&&navigator.vibrate(30); }catch(_){} openDocMove(o,d); } },550); },{passive:true});
+  box.addEventListener('touchmove',()=>{ moved=true; if(t){ clearTimeout(t); t=null; } },{passive:true});
+  box.addEventListener('touchend',()=>{ if(t){ clearTimeout(t); t=null; } },{passive:true});
+  box.addEventListener('contextmenu',e=>{ const b=e.target.closest('.dfile'); if(!b) return; e.preventDefault(); const o=objById(openObjId), d=o&&o.docs.find(x=>x.id===b.dataset.id); if(d){ b.dataset.lp='1'; openDocMove(o,d); } });
+  box.addEventListener('click',e=>{ const b=e.target.closest('.dfile'); if(b&&b.dataset.lp){ e.stopPropagation(); e.preventDefault(); delete b.dataset.lp; } },true);
+})();
 $('#oDocSec').onclick=()=>{
   const o=objById(openObjId); if(!o) return;
   const n=(prompt('Название раздела документации','')||'').trim().slice(0,60); if(!n) return;
@@ -3221,7 +3306,7 @@ $('#docPdfInput').onchange=async e=>{
       if(String.fromCharCode(u[0],u[1],u[2],u[3])!=='%PDF'){ bad++; continue; }
       const id='d'+uid().replace(/[^A-Za-z0-9_-]/g,'');
       if(!(await DOC.save(id,u))){ alert('Не удалось сохранить «'+f.name+'». Возможно, мало места.'); continue; }
-      const ent={id,sec,name:f.name.replace(/\.pdf$/i,''),size:u.length,ts:Date.now()}; o.docs.push(ent);
+      const ent={id,sec,name:f.name.replace(/\.pdf$/i,''),size:u.length,ts:Date.now()}; if(docSubPick){ ent.sub=docSubPick; docOpenSec[o.id+'|'+sec+'|'+docSubPick]=true; } o.docs.push(ent);
       docOpenSec[o.id+'|'+sec]=true;
       if(/проект/i.test(sec)&&files.length===1) prjAuto={ent,u};
     }catch(err){ bad++; }
@@ -3243,7 +3328,7 @@ async function addDocImages(files){
       const b64=await shrink(f,3200,0.9), id=uid();
       if(!PH.save(id,b64)){ fail++; continue; }
       const nm=(f.name||'').replace(/\.(jpe?g|png|heic|webp|gif)$/i,'');
-      o.docs.push({id,sec,kind:'img',name:(/^(IMG|Screenshot|image|photo|PXL|DSC)[_\-\s]?\d|^\d{6,}|^$/i.test(nm)?sec+' '+(++n):nm),size:Math.round(b64.length*0.75),ts:Date.now()});
+      o.docs.push({id,sec,sub:docSubPick||undefined,kind:'img',name:(/^(IMG|Screenshot|image|photo|PXL|DSC)[_\-\s]?\d|^\d{6,}|^$/i.test(nm)?sec+' '+(++n):nm),size:Math.round(b64.length*0.75),ts:Date.now()});
       docOpenSec[o.id+'|'+sec]=true;
     }catch(e){ fail++; }
   }
