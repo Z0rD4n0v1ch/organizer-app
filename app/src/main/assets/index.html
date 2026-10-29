@@ -199,6 +199,14 @@ h2{font:500 16px/1.2 "Unbounded",system-ui,sans-serif;margin:26px 0 10px;display
 .omlist{flex:1;min-height:0;overflow:auto;padding:8px 10px calc(10px + env(safe-area-inset-bottom,0px))}
 .omrow{display:flex;justify-content:space-between;gap:10px;width:100%;border:0;background:var(--surface);border-radius:12px;padding:10px 12px;margin:0 0 6px;text-align:left;color:var(--ink)}
 .omrow small{display:block;color:var(--muted);font-size:12.5px}.omrow em{font-style:normal;color:var(--accent);font-weight:600;white-space:nowrap}
+.skrow{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+.skops{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 12px}
+.skops button{flex:1 1 30%;border:0;border-radius:12px;background:var(--bg);padding:11px 6px;font-weight:500;color:var(--accent)}
+.skops[hidden]{display:none}
+.squnit{position:relative}.squnit .field{padding-right:52px}.squnit span{position:absolute;right:14px;top:50%;transform:translateY(-60%);color:var(--muted)}
+#soObjRow[hidden],#soWhoRow[hidden]{display:none}
+.omrow em.neg{color:var(--red)}
+.sum.neg{color:var(--red)}
 .mkph{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 8px}.mkph:empty{display:none}
 .mkph button{border:0;padding:0;width:64px;height:64px;border-radius:10px;overflow:hidden;background:var(--line)}.mkph img{width:100%;height:100%;object-fit:cover}
 .mksum{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--surface);border-radius:14px;padding:10px 14px;margin-top:8px}
@@ -655,6 +663,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <ul class="list" id="dayList"></ul>
     <div id="lateBlock" hidden><h2>Просрочено</h2><ul class="list" id="lateList"></ul></div>
     <div id="carAlert" hidden><h2>Машина</h2><ul class="list" id="carAlertList"></ul></div>
+    <div id="skAlert" hidden><h2>Склад: заканчивается</h2><ul class="list" id="skAlertList"></ul></div>
     <div id="pmAlert" hidden><h2>Допуски и поверки</h2><ul class="list" id="pmAlertList"></ul></div>
   </section>
 
@@ -712,6 +721,8 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <div class="secb"><ul class="list" id="oDefs"></ul><button class="seg" id="oDefPdf" style="margin:6px 0 2px">Дефектная ведомость (PDF)</button></div>
     <h2 class="fold" data-sec="tasks"><span class="ft"><i class="chev"></i><span>Работы</span><small class="fb" id="ofb_tasks"></small></span><button class="link" id="oAddTask">Добавить</button></h2>
     <div class="secb"><ul class="list" id="oTasks"></ul></div>
+    <h2 class="fold" data-sec="stk"><span class="ft"><i class="chev"></i><span>Со склада</span><small class="fb" id="ofb_stk"></small></span><button class="link" id="oStkOut">Выдать</button></h2>
+    <div class="secb"><ul class="list" id="oStock"></ul></div>
     <h2 class="fold" data-sec="mats"><span class="ft"><i class="chev"></i><span>Материалы</span><small class="fb" id="ofb_mats"></small></span></h2>
     <div class="secb">
     <ul class="list" id="oMats"></ul>
@@ -861,6 +872,14 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <ul class="list" id="hrTrips"></ul>
   </section>
 
+  <section class="view" id="v-stock">
+    <h1>Склад</h1>
+    <p class="sub skrow"><span id="skSub"></span><button class="link" id="skXls">Остатки в Excel</button></p>
+    <div class="ctsr"><input class="search" id="skSearch" type="search" placeholder="Поиск: название, место, код"><button type="button" class="mkscan" id="skScan" aria-label="Найти по коду"><svg viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M7 12h10"/></svg></button></div>
+    <div class="chips" id="skCats"><button class="chip on" data-c="">Все</button><button class="chip" data-c="equip">Оборудование</button><button class="chip" data-c="cable">Кабель</button><button class="chip" data-c="pipe">Гофра и трубы</button><button class="chip" data-c="mat">Материалы</button><button class="chip" data-c="other">Прочее</button></div>
+    <ul class="list" id="skList"></ul>
+  </section>
+
   <section class="view" id="v-mine">
     <h1>Личное</h1>
     <h2>Допуски и поверки <button class="link" id="pmAdd">Добавить</button></h2>
@@ -888,6 +907,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
   <button data-v="car"><svg viewBox="0 0 24 24"><path d="M3 16v-4l2-5h14l2 5v4z"/><path d="M3 12h18"/><circle cx="7.5" cy="16.5" r="1.8"/><circle cx="16.5" cy="16.5" r="1.8"/></svg>Авто</button>
   <button data-v="money"><svg viewBox="0 0 24 24"><path d="M4 7h14a2 2 0 012 2v9a2 2 0 01-2 2H6a2 2 0 01-2-2z"/><path d="M4 7l11-3v3M16 13.5h.01"/></svg>Расходы</button>
   <button data-v="catalog"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h4M7 14h2M15 10.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3zM8 6V4M16 6V4"/></svg>Справочник</button>
+  <button data-v="stock"><svg viewBox="0 0 24 24"><path d="M3 9l9-5 9 5v11H3z"/><path d="M7 20v-7h10v7M7 16h10"/></svg>Склад</button>
   <button data-v="mine"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="11" r="2"/><path d="M5.5 16c.7-1.6 1.8-2.2 3-2.2s2.3.6 3 2.2M14 10h4M14 13.5h3"/></svg>Личное</button>
   <button data-v="notes"><svg viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5z"/><path d="M15 3v4h4M8 12h8M8 16h5"/></svg>Заметки</button>
 
@@ -1420,6 +1440,46 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <div id="tlHist"></div>
   </div>
 
+  <div class="form" id="fStk" hidden>
+    <h3 id="skTitle">Позиция склада</h3>
+    <div class="chips" id="skCatSel" style="flex-wrap:wrap;margin-top:0"></div>
+    <input class="field" id="skName" list="skModels" placeholder="Название: С2000-КДЛ, КСПВ 4х0,5, гофра 16 мм" maxlength="120" autocomplete="off">
+    <datalist id="skModels"></datalist>
+    <p class="hint" id="skDev" style="margin:-6px 0 10px"></p>
+    <div class="two"><div><p class="lbl" id="skQtyL">Сколько сейчас есть</p><input class="field" id="skQty" inputmode="decimal" placeholder="0"></div><div><p class="lbl">Единица</p><select class="field" id="skUnit"></select></div></div>
+    <div class="two"><div><p class="lbl">Напомнить, если меньше</p><input class="field" id="skMin" inputmode="decimal" placeholder="не напоминать"></div><div><p class="lbl">Где хранится</p><input class="field" id="skPlace" list="skPlaces" placeholder="Склад, машина" maxlength="60"><datalist id="skPlaces"></datalist></div></div>
+    <div class="mkser"><input class="field" id="skCode" placeholder="Штрихкод / артикул" maxlength="80" autocomplete="off"><button type="button" class="mkscan" id="skCodeScan" aria-label="Сканировать код"><svg viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M7 12h10"/></svg></button></div>
+    <input class="field" id="skNote" placeholder="Примечание: бухта 200 м, цвет, поставщик" maxlength="160">
+    <div class="phblock" id="skPhBlock">
+      <p class="lbl">Фото</p>
+      <div class="phprev" id="skPhoto" hidden></div>
+      <div class="pbtns" style="margin:0 0 14px">
+        <button type="button" id="skCam"><svg viewBox="0 0 24 24"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Сфотографировать</button>
+        <button type="button" id="skGal"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/></svg>Из галереи</button>
+      </div>
+      <input type="file" id="skCamInput" accept="image/*" capture="environment" hidden>
+      <input type="file" id="skGalInput" accept="image/*" hidden>
+    </div>
+    <div class="skops" id="skOps"><button type="button" data-op="in">+ Приход</button><button type="button" data-op="out">Выдать на объект</button><button type="button" data-op="back">Возврат</button><button type="button" data-op="off">Списать</button><button type="button" data-op="adj">Пересчёт</button></div>
+    <div class="actions"><button class="btn ghost" id="skDel" hidden>Удалить</button><button class="btn" id="skSave">Сохранить</button></div>
+    <div id="skHist"></div>
+  </div>
+
+  <div class="form" id="fStkOp" hidden>
+    <h3 id="soTitle">Операция</h3>
+    <p class="hint" id="soInfo" style="margin:-6px 0 10px"></p>
+    <div class="two"><div><p class="lbl" id="soQtyL">Количество</p><div class="squnit"><input class="field" id="soQty" inputmode="decimal" placeholder="0"><span id="soUnit"></span></div></div><div><p class="lbl">Дата</p><input class="field" type="date" id="soDate"></div></div>
+    <div id="soObjRow"><p class="lbl">Объект</p><select class="field" id="soObj"></select></div>
+    <div id="soWhoRow"><input class="field" id="soWho" list="soWhos" placeholder="Кому выдано / кто вернул" maxlength="60"><datalist id="soWhos"></datalist></div>
+    <input class="field" id="soNote" maxlength="160">
+    <div class="actions"><button class="btn" id="soSave">Провести</button></div>
+  </div>
+
+  <div class="form" id="fStkPick" hidden>
+    <h3>Выдать со склада</h3>
+    <div id="spList"></div>
+  </div>
+
   <div class="form" id="fDay" hidden>
     <h3 id="fDayTitle">Пробег за день</h3>
     <input class="field" type="date" id="dyDate" aria-label="Дата">
@@ -1950,7 +2010,7 @@ function renderObject(){
     return li;
   });
   if(document.activeElement!==$('#oNote')) $('#oNote').value=o.note||'';
-  renderPhotos(o); renderSvc(o); try{renderDocs(o)}catch(e){} try{renderMarks(o)}catch(e){} try{renderCalcs(o)}catch(e){} try{renderDefects(o)}catch(e){} objBadges(o);
+  renderPhotos(o); renderSvc(o); try{renderDocs(o)}catch(e){} try{renderMarks(o)}catch(e){} try{renderCalcs(o)}catch(e){} try{renderDefects(o)}catch(e){} try{renderObjStock(o)}catch(e){} objBadges(o);
 }
 let noteTimer=null;
 $('#oNote').oninput=e=>{const o=objById(openObjId); if(!o)return; o.note=e.target.value; clearTimeout(noteTimer); noteTimer=setTimeout(save,500);};
@@ -2900,7 +2960,7 @@ async function tgOut(photo,text,title,p){
 }
 
 /* ---------- объект: спойлеры разделов ---------- */
-const OBJ_FOLD_DEF={eq:1,docs:0,photos:1,calcs:1};
+const OBJ_FOLD_DEF={eq:1,docs:0,photos:1,calcs:1,stk:1};
 let objFold={}; try{ objFold=JSON.parse(localStorage.getItem('obj-fold')||'{}')||{}; }catch(e){}
 $$('#v-object h2.fold').forEach(h=>{
   const k=h.dataset.sec; h.classList.toggle('closed',k in objFold?!!objFold[k]:!!OBJ_FOLD_DEF[k]);
@@ -4144,7 +4204,7 @@ function renderNotes(){
     b.onclick=()=>openNote(n); g.appendChild(b);
   });
 }
-function render(){if(ensureSvcTasks())save();renderRunbar();renderToday();renderTasks();renderObjects();renderObject();renderCar();renderNotes();try{renderMoney()}catch(e){}try{renderHoursTab()}catch(e){console.error(e)}try{renderMine();renderPermitAlert()}catch(e){}}
+function render(){if(ensureSvcTasks())save();renderRunbar();renderToday();renderTasks();renderObjects();renderObject();renderCar();renderNotes();try{renderMoney()}catch(e){}try{renderHoursTab()}catch(e){console.error(e)}try{renderMine();renderPermitAlert()}catch(e){}try{renderStock();renderStockAlert()}catch(e){}}
 
 /* ---------- navigation ---------- */
 function showView(v){
@@ -4207,10 +4267,10 @@ let editing=null;
 function openSheet(id){
   $$('.form').forEach(f=>f.hidden=f.id!==id);
   $('#scrim').classList.add('on'); $('#sheet').classList.add('on'); $('#sheet').scrollTop=0;
-  const first=(id==='fSet'||id==='fHours'||id==='fHrSend'||id==='fDay'||id==='fTrRep'||id==='fBuy'||id==='fTrp'||id==='fMnRep'||id==='fObjShare'||id==='fObjImp'||id==='fCalc'||id==='fMark'||id==='fMarkList'||id==='fPhRep'||id==='fXls'||id==='fPhCap')?null:$('#'+id+' input, #'+id+' textarea'); if(first) setTimeout(()=>first.focus({preventScroll:true}),260);
+  const first=(id==='fSet'||id==='fHours'||id==='fHrSend'||id==='fDay'||id==='fTrRep'||id==='fBuy'||id==='fTrp'||id==='fStk'||id==='fMnRep'||id==='fObjShare'||id==='fObjImp'||id==='fCalc'||id==='fMark'||id==='fMarkList'||id==='fPhRep'||id==='fXls'||id==='fPhCap')?null:$('#'+id+' input, #'+id+' textarea'); if(first) setTimeout(()=>first.focus({preventScroll:true}),260);
 }
 function openSheetOver(id){ openSheet(id); $('#sheet').classList.add('over'); $('#scrim').classList.add('over'); }
-function closeSheet(){try{kmPick.discard();lgPick.discard()}catch(e){}try{dsPick.discard();dePick.discard()}catch(e){}try{byPick.discard();byPdf.discard()}catch(e){}try{pmPick.discard();tlPick.discard()}catch(e){}$('#scrim').classList.remove('on','over');$('#sheet').classList.remove('on','over');document.activeElement&&document.activeElement.blur();}
+function closeSheet(){try{kmPick.discard();lgPick.discard()}catch(e){}try{dsPick.discard();dePick.discard()}catch(e){}try{byPick.discard();byPdf.discard()}catch(e){}try{pmPick.discard();tlPick.discard();skPick.discard()}catch(e){}$('#scrim').classList.remove('on','over');$('#sheet').classList.remove('on','over');document.activeElement&&document.activeElement.blur();}
 $('#scrim').onclick=closeSheet;
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
 function segGroup(sel,attr,get,set){
@@ -4731,6 +4791,7 @@ $('#fab').onclick=()=>{
   else if(view==='car') openLog();
   else if(view==='money') openBuy();
   else if(view==='hours') openHours();
+  else if(view==='stock') openStk();
   else if(view==='tpl') openTplForm();
   else openTask();
 };
@@ -6163,6 +6224,129 @@ $('#omYa').onclick=()=>{ const L=mapObjs(); if(!L.length) return; const pt=L.sli
   if(APP) location.href=u; else window.open(u,'_blank'); };
 $('#objMap').onclick=openMap;
 window.addEventListener('resize',()=>{ if(!$('#omap').hidden) mapDraw(); });
+/* ---------- склад: оборудование, кабель, гофра и материалы ---------- */
+const STK_CAT=[['equip','Оборудование'],['cable','Кабель'],['pipe','Гофра и трубы'],['mat','Материалы'],['other','Прочее']];
+const STK_C=Object.fromEntries(STK_CAT);
+const STK_UNITS=['шт','м','уп','бухта','компл','кг','л'];
+const STK_OP={in:'Приход',out:'Выдано',back:'Возврат',off:'Списание',adj:'Пересчёт'};
+function ensureStock(){ if(!Array.isArray(state.stock)) state.stock=[]; }
+ensureStock();
+let stkCat='', stkEdit=null;
+const nq=v=>{ const x=parseFloat(String(v==null?'':v).replace(',','.')); return isFinite(x)?Math.round(x*1000)/1000:0; };
+const fq=x=>(Math.round(x*100)/100).toLocaleString('ru-RU',{maximumFractionDigits:2});
+function stkLow(i){ return i.min>0&&i.qty<=i.min; }
+function renderStock(){
+  ensureStock(); const ul=$('#skList'); if(!ul) return; ul.innerHTML='';
+  const q=($('#skSearch').value||'').trim().toLowerCase(), L=state.stock.filter(i=>(!stkCat||i.cat===stkCat)&&(!q||[i.name,i.place,i.code,i.note].join(' ').toLowerCase().includes(q))).sort((a,b)=>STK_CAT.findIndex(c=>c[0]===a.cat)-STK_CAT.findIndex(c=>c[0]===b.cat)||String(a.name).localeCompare(String(b.name),'ru'));
+  const low=state.stock.filter(stkLow).length;
+  $('#skSub').textContent=state.stock.length?'Позиций: '+state.stock.length+(low?' · заканчивается: '+low:''):'Учёт оборудования, кабеля, гофры и материалов';
+  $$('#skCats .chip').forEach(c=>c.classList.toggle('on',c.dataset.c===stkCat));
+  if(!L.length){ ul.appendChild(emptyEl(state.stock.length?'Ничего не найдено':'Нажмите «+», чтобы поставить на учёт: оборудование, кабель (в метрах), гофру, крепёж')); return; }
+  let last=null;
+  L.forEach(i=>{ if(!stkCat&&i.cat!==last){ last=i.cat; const h=document.createElement('li'); h.className='blh'; h.textContent=STK_C[i.cat]||'Прочее'; ul.appendChild(h); }
+    const li=document.createElement('li'), b=document.createElement('button'); b.className='log';
+    b.innerHTML=(i.photo&&PHOTO?'<span class="odoth"><img loading="lazy" alt="" src="'+PH.url(i.photo)+'"></span>':'<span class="ic">'+stkIcon(i.cat)+'</span>')+
+      '<span class="tbody"><span class="ttl">'+esc(i.name)+'</span><span class="meta">'+esc([i.place,i.code?'код '+i.code:'',stkLow(i)?'мало, минимум '+fq(i.min)+' '+i.unit:''].filter(Boolean).join(' · '))+'</span></span><span class="sum'+(stkLow(i)?' neg':'')+'">'+fq(i.qty)+' '+esc(i.unit)+'</span>';
+    b.onclick=()=>openStk(i); li.appendChild(b); ul.appendChild(li); });
+}
+function stkIcon(c){ return c==='cable'?'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M20 12h2"/></svg>':c==='pipe'?'<svg viewBox="0 0 24 24"><path d="M4 7h16v10H4z"/><path d="M8 7v10M12 7v10M16 7v10"/></svg>':c==='equip'?'<svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="12" cy="12" r="3.5"/></svg>':'<svg viewBox="0 0 24 24"><path d="M3 8l9-5 9 5v8l-9 5-9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/></svg>'; }
+$$('#skCats .chip').forEach(c=>c.onclick=()=>{ stkCat=c.dataset.c; renderStock(); });
+$('#skSearch').oninput=renderStock;
+$('#skScan').onclick=()=>scanCode(r=>{ const t=(r.text||'').trim(); const it=state.stock.find(i=>i.code&&(i.code===t||i.code===r.serial));
+  if(it){ openStk(it); return; } if(confirm('Позиции с кодом «'+t.slice(0,40)+'» на складе нет. Поставить на учёт?')) openStk(null,{code:t,name:r.dev?r.dev.m:'',cat:r.dev?'equip':'other',dev:r.dev?devRef(r.dev):''}); });
+/* карточка позиции */
+let stkModelsReady=false;
+const skPick=photoPicker('sk');
+function openStk(i,preset){
+  ensureStock(); stkEdit=i||null; const v=i||Object.assign({cat:stkCat||'equip',unit:stkCat==='cable'||stkCat==='pipe'?'м':'шт',qty:'',min:''},preset||{});
+  if(!stkModelsReady){ stkModelsReady=true; const s=new Set(); MAKERS.forEach(k=>CATS[k].items.forEach(d=>{ if(d.m&&d.m.length<60) s.add(d.m); })); ['КСПВ 2х0,5','КСПВ 4х0,5','КСПВ 6х0,5','КСПВ 8х0,5','КПСнг(А)-FRLS 1х2х0,5','КПСнг(А)-FRLS 1х2х0,75','КПСнг(А)-FRLS 1х2х1,5','КСВВнг(А)-LS 4х0,5','UTP 4х2х0,5 cat.5e','FTP 4х2х0,5 cat.5e','ШВВП 2х0,75','ВВГнг(А)-LS 3х1,5','Гофра ПВХ 16 мм с зондом','Гофра ПВХ 20 мм с зондом','Гофра ПВХ 25 мм с зондом','Гофра ПНД 16 мм','Труба ПВХ жёсткая 16 мм','Кабель-канал 16х16','Кабель-канал 25х16','Клипса для гофры 16 мм','Стяжка 200 мм','Дюбель-хомут'].forEach(x=>s.add(x)); $('#skModels').innerHTML=[...s].slice(0,5000).map(x=>'<option value="'+esc(x)+'">').join(''); }
+  $('#skTitle').textContent=i?i.name:'Новая позиция';
+  $('#skCatSel').innerHTML=STK_CAT.map(([k,n])=>'<button type="button" class="chip'+(k===v.cat?' on':'')+'" data-c="'+k+'">'+esc(n)+'</button>').join('');
+  $$('#skCatSel .chip').forEach(c=>c.onclick=()=>{ $$('#skCatSel .chip').forEach(x=>x.classList.toggle('on',x===c)); if(!stkEdit&&(c.dataset.c==='cable'||c.dataset.c==='pipe')) $('#skUnit').value='м'; else if(!stkEdit) $('#skUnit').value='шт'; });
+  $('#skName').value=v.name||''; $('#skUnit').innerHTML=STK_UNITS.map(u=>'<option'+(u===v.unit?' selected':'')+'>'+u+'</option>').join('');
+  $('#skQty').value=i?fq(i.qty):(v.qty||''); $('#skQty').disabled=!!i; $('#skQtyL').textContent=i?'Остаток (меняется операциями ниже)':'Сколько сейчас есть';
+  $('#skMin').value=v.min||''; $('#skPlace').value=v.place||''; $('#skCode').value=v.code||''; $('#skNote').value=v.note||'';
+  $('#skPlaces').innerHTML=[...new Set(state.stock.map(x=>x.place).filter(Boolean))].map(x=>'<option value="'+esc(x)+'">').join('');
+  skPick.set(v.photo||null); $('#skDev').dataset.ref=v.dev||''; stkDevLine();
+  $('#skOps').hidden=!i; $('#skDel').hidden=!i; stkHist(i); openSheet('fStk');
+}
+function stkDevLine(){ const n=$('#skName').value.trim(), d=n?prjMatch({model:n}):null; $('#skDev').dataset.ref=d?devRef(d):''; $('#skDev').textContent=d?'В справочнике: '+CATS[d._mk].name+' · '+d.m:''; }
+$('#skName').addEventListener('input',stkDevLine);
+$('#skCodeScan').onclick=()=>scanCode(r=>{ $('#skCode').value=(r.text||'').trim().slice(0,80); if(r.dev&&!$('#skName').value.trim()){ $('#skName').value=r.dev.m; stkDevLine(); } });
+function stkHist(i){
+  const box=$('#skHist'); if(!i||!(i.moves||[]).length){ box.innerHTML=''; return; }
+  box.innerHTML='<p class="lbl" style="margin-top:14px">Движение</p>'+i.moves.slice().reverse().slice(0,30).map(m=>{ const o=m.obj&&objById(m.obj); const sgn=m.type==='in'||m.type==='back'?'+':m.type==='adj'?'=':'−';
+    return '<div class="byline"><span>'+esc(fmtDate(m.date)+' · '+STK_OP[m.type]+(o?' · '+o.name:'')+(m.who?' · '+m.who:'')+(m.note?' · '+m.note:''))+'</span><b class="'+(sgn==='−'?'neg':'')+'">'+sgn+fq(m.qty)+' '+esc(i.unit)+'</b></div>'; }).join('');
+}
+function stkStore(){
+  ensureStock(); const name=$('#skName').value.trim(); if(!name){ $('#skName').focus(); return null; }
+  const cat=($('#skCatSel .chip.on')||{dataset:{c:'other'}}).dataset.c;
+  const d={name,cat,unit:$('#skUnit').value,min:nq($('#skMin').value),place:$('#skPlace').value.trim(),code:$('#skCode').value.trim(),note:$('#skNote').value.trim(),photo:skPick.get()||'',dev:$('#skDev').dataset.ref||''};
+  skPick.commit(); let i=stkEdit;
+  if(i) Object.assign(i,d); else { const q=nq($('#skQty').value); i=Object.assign({id:uid(),qty:q,moves:q?[{id:uid(),type:'in',qty:q,date:todayISO(),note:'начальный остаток'}]:[]},d); state.stock.push(i); stkEdit=i; }
+  save(); return i;
+}
+$('#skSave').onclick=()=>{ if(stkStore()){ closeSheet(); renderStock(); renderObject(); } };
+$('#skDel').onclick=()=>{ const i=stkEdit; if(!i||!confirm('Удалить «'+i.name+'» со склада вместе с историей?')) return; if(i.photo) PH.del(i.photo); state.stock=state.stock.filter(x=>x!==i); save(); closeSheet(); renderStock(); renderObject(); };
+/* операции: приход, выдача на объект, возврат, списание, пересчёт */
+let stkOp=null;
+function openStkOp(type,i,presetObj){
+  stkOp={type,i}; $('#soTitle').textContent={in:'Приход',out:'Выдать на объект',back:'Возврат с объекта',off:'Списать',adj:'Пересчёт'}[type]+': '+i.name;
+  $('#soUnit').textContent=i.unit; $('#soQty').value=''; $('#soDate').value=todayISO(); $('#soNote').value=''; $('#soWho').value='';
+  $('#soQtyL').textContent=type==='adj'?'Фактический остаток':'Количество';
+  const needObj=type==='out'||type==='back'; $('#soObjRow').hidden=!needObj; $('#soWhoRow').hidden=!(type==='out'||type==='back');
+  if(needObj){ const objs=state.objects.filter(o=>o.status!=='done'||o.id===presetObj);
+    $('#soObj').innerHTML='<option value="">— объект —</option>'+objs.map(o=>'<option value="'+esc(o.id)+'"'+(o.id===(presetObj||(type==='back'?stkLastObj(i):''))?' selected':'')+'>'+esc(o.name)+'</option>').join(''); }
+  $('#soWhos').innerHTML=[...new Set(state.stock.flatMap(x=>(x.moves||[]).map(m=>m.who)).filter(Boolean))].map(x=>'<option value="'+esc(x)+'">').join('');
+  $('#soNote').placeholder=type==='in'?'От кого, накладная':type==='off'?'Причина: брак, расход на объекте':'Примечание';
+  $('#soInfo').textContent='Сейчас: '+fq(i.qty)+' '+i.unit+(type==='back'&&$('#soObj').value?' · на объекте: '+fq(stkOnObj(i,$('#soObj').value))+' '+i.unit:'');
+  openSheet('fStkOp'); setTimeout(()=>$('#soQty').focus(),250);
+}
+function stkOnObj(i,oid){ return (i.moves||[]).reduce((s,m)=>s+(m.obj===oid?(m.type==='out'?m.qty:m.type==='back'?-m.qty:0):0),0); }
+function stkLastObj(i){ const m=(i.moves||[]).slice().reverse().find(x=>x.type==='out'&&x.obj); return m?m.obj:''; }
+$('#soObj').onchange=()=>{ const E=stkOp; if(E&&E.type==='back') $('#soInfo').textContent='Сейчас: '+fq(E.i.qty)+' '+E.i.unit+' · на объекте: '+fq(stkOnObj(E.i,$('#soObj').value))+' '+E.i.unit; };
+$('#soSave').onclick=()=>{
+  const E=stkOp; if(!E) return; const i=E.i, q=nq($('#soQty').value);
+  if(!(q>0)&&!(E.type==='adj'&&q===0&&$('#soQty').value.trim()!=='')){ $('#soQty').focus(); return; }
+  const obj=$('#soObjRow').hidden?'':$('#soObj').value; if((E.type==='out'||E.type==='back')&&!obj){ $('#soObj').focus(); alert('Выберите объект'); return; }
+  if((E.type==='out'||E.type==='off')&&q>i.qty&&!confirm('На складе только '+fq(i.qty)+' '+i.unit+'. Всё равно провести? Остаток уйдёт в минус.')) return;
+  const m={id:uid(),type:E.type,qty:E.type==='adj'?Math.round((q-i.qty)*1000)/1000:q,date:$('#soDate').value||todayISO(),obj,who:$('#soWho').value.trim(),note:$('#soNote').value.trim()};
+  if(E.type==='adj'){ m.qty=q; m.diff=Math.round((q-i.qty)*1000)/1000; i.qty=q; }
+  else i.qty=Math.round((i.qty+(E.type==='in'||E.type==='back'?q:-q))*1000)/1000;
+  (i.moves=i.moves||[]).push(m); save(); closeSheet(); renderStock(); renderObject();
+  if(stkLow(i)) setTimeout(()=>alert('«'+i.name+'» заканчивается: осталось '+fq(i.qty)+' '+i.unit+'.'),100);
+};
+$$('#skOps [data-op]').forEach(b=>b.onclick=()=>{ const i=stkStore(); if(!i) return; openStkOp(b.dataset.op,i); });
+function renderStockAlert(){ ensureStock(); const box=$('#skAlert'); if(!box) return; const L=state.stock.filter(stkLow); box.hidden=!L.length; const ul=$('#skAlertList'); ul.innerHTML='';
+  L.forEach(i=>{ const li=document.createElement('li'), b=document.createElement('button'); b.className='log'; b.innerHTML='<span class="ic">'+stkIcon(i.cat)+'</span><span class="tbody"><span class="ttl">'+esc(i.name)+'</span><span class="meta bad">минимум '+fq(i.min)+' '+esc(i.unit)+'</span></span><span class="sum neg">'+fq(i.qty)+' '+esc(i.unit)+'</span>'; b.onclick=()=>{ go('stock'); openStk(i); }; li.appendChild(b); ul.appendChild(li); }); }
+/* в объекте: что выдано со склада */
+function renderObjStock(o){
+  const ul=$('#oStock'); if(!ul) return; ensureStock(); ul.innerHTML='';
+  const L=state.stock.map(i=>({i,q:stkOnObj(i,o.id)})).filter(x=>Math.abs(x.q)>1e-9);
+  ofb('stk',L.length?String(L.length):'');
+  if(!L.length){ ul.appendChild(emptyEl('Со склада на этот объект ничего не выдавали')); return; }
+  L.forEach(({i,q})=>{ const li=document.createElement('li'), b=document.createElement('button'); b.className='log';
+    b.innerHTML='<span class="ic">'+stkIcon(i.cat)+'</span><span class="tbody"><span class="ttl">'+esc(i.name)+'</span><span class="meta">'+esc(STK_C[i.cat]+' · на складе ещё '+fq(i.qty)+' '+i.unit)+'</span></span><span class="sum">'+fq(q)+' '+esc(i.unit)+'</span>';
+    b.onclick=()=>openStk(i); li.appendChild(b); ul.appendChild(li); });
+}
+$('#oStkOut').onclick=()=>{ const o=objById(openObjId); if(!o) return; ensureStock(); if(!state.stock.length){ alert('Склад пуст. Сначала поставьте позиции на учёт во вкладке «Склад».'); return; }
+  $('#spList').innerHTML=state.stock.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),'ru')).map(i=>'<button class="omrow" data-id="'+esc(i.id)+'"><span><b>'+esc(i.name)+'</b><small>'+esc(STK_C[i.cat])+'</small></span><em class="'+(i.qty<=0?'neg':'')+'">'+fq(i.qty)+' '+esc(i.unit)+'</em></button>').join('');
+  $$('#spList .omrow').forEach(b=>b.onclick=()=>{ const i=state.stock.find(x=>x.id===b.dataset.id); closeSheet(); setTimeout(()=>openStkOp('out',i,o.id),60); });
+  openSheet('fStkPick'); };
+/* остатки в Excel */
+async function shareXlsx(xl,name){
+  if(APP){ const id='x_'+uid().replace(/[^A-Za-z0-9_-]/g,''); if(!(await DOC.save(id,xl))) throw new Error('мало места'); Android.docShare(id,name); return; }
+  const f=new File([xl],name,{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  if(navigator.canShare&&navigator.canShare({files:[f]})){ try{ await navigator.share({files:[f],title:name}); return; }catch(e){ if(e&&e.name==='AbortError') return; } }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(f); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},4000);
+}
+$('#skXls').onclick=async()=>{ ensureStock(); if(!state.stock.length){ alert('Склад пуст'); return; }
+  const L=state.stock.slice().sort((a,b)=>STK_CAT.findIndex(c=>c[0]===a.cat)-STK_CAT.findIndex(c=>c[0]===b.cat)||String(a.name).localeCompare(String(b.name),'ru'));
+  const rows=[['№','Категория','Наименование','Остаток','Ед.','Минимум','Где хранится','Код','Выдано на объекты (сейчас там)','Примечание']].concat(L.map((i,n)=>{ const on={}; (i.moves||[]).forEach(m=>{ if(m.obj&&(m.type==='out'||m.type==='back')) on[m.obj]=(on[m.obj]||0)+(m.type==='out'?m.qty:-m.qty); });
+    const objs=Object.keys(on).filter(k=>on[k]>1e-9).map(k=>{ const o=objById(k); return (o?o.name:'объект удалён')+': '+fq(on[k]); }).join('; ');
+    return [n+1,STK_C[i.cat]||'',i.name,fq(i.qty),i.unit,i.min?fq(i.min):'',i.place||'',i.code||'',objs,i.note||'']; }));
+  try{ await shareXlsx(xlsxBuild('Остатки '+dateRu(todayISO()),rows,[5,16,34,10,7,10,18,16,40,30]),'Склад, остатки '+dateRu(todayISO())+'.xlsx'); }catch(e){ alert('Не получилось: '+(e.message||e)); }
+};
 window.__osh={scanParse,ZIP,oshBuild,objImportBytes,st:()=>state,showObject:id=>showObject(id),PH,DOC};
 applyNav();
 save(); render(); connect();
