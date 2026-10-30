@@ -90,6 +90,16 @@ h2{font:500 16px/1.2 "Unbounded",system-ui,sans-serif;margin:26px 0 10px;display
 .chip.on{background:var(--ink);color:var(--bg);border-color:var(--ink)}
 
 /* objects */
+.objli{position:relative}
+.objli .obj-foot{padding-right:40px}
+.ofav{position:absolute;right:8px;bottom:8px;width:38px;height:38px;border:0;border-radius:12px;background:transparent;display:flex;align-items:center;justify-content:center;padding:0}
+.ofav svg{width:22px;height:22px;fill:none;stroke:var(--muted);stroke-width:1.8;stroke-linejoin:round}
+.ofav.on svg{fill:#f5b301;stroke:#f5b301}
+.ohead{display:flex;align-items:flex-start;gap:6px}.ohead h1{flex:1;min-width:0}
+.ofav.big{position:static;margin-top:6px;width:42px;height:42px;flex:none}.ofav.big svg{width:26px;height:26px}
+.favrow{display:flex;gap:8px;overflow-x:auto;margin:10px 0 2px;scrollbar-width:none}.favrow[hidden]{display:none}
+.favchip{flex:none;border:0;border-radius:999px;background:var(--surface);padding:8px 14px;font-size:14px;font-weight:500;color:var(--ink);display:flex;align-items:center;gap:6px}
+.favchip i{font-style:normal;color:#f5b301}
 .obj{display:block;width:100%;text-align:left;border:0;background:var(--surface);border-radius:18px;padding:14px 16px}
 .obj-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
 .obj-name{font-weight:600;font-size:17px;word-wrap:break-word;min-width:0}
@@ -661,6 +671,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <p class="sub" id="dayDate"></p>
     <div class="install" id="iosHint" hidden><span><b>Установите на экран «Домой»</b>Нажмите «Поделиться» <svg viewBox="0 0 24 24"><path d="M12 15V3M8 7l4-4 4 4M5 11v9h14v-9"/></svg> внизу Safari и выберите «На экран „Домой“». Так органайзер работает без интернета, а данные хранятся надёжно.</span><button id="iosHintX" aria-label="Скрыть">×</button></div>
     <button class="runbar" id="runbar" hidden><span><b id="runObj"></b>Идёт работа, нажмите, чтобы открыть «Рабочие часы»</span><i id="runTime"></i></button>
+    <div class="favrow" id="favRow" hidden></div>
     <div class="week" id="week"></div>
     <div class="progress"><i id="bar"></i></div>
     <div class="ptext" id="ptext"></div>
@@ -690,6 +701,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <h1>Объекты</h1>
     <p class="sub" id="objCount"></p>
     <div class="chips" id="objFilter">
+      <button class="chip" data-f="fav">★ Избранное</button>
       <button class="chip on" data-f="active">В работе</button>
       <button class="chip" data-f="service">Обслуживание</button>
       <button class="chip" data-f="done">Сданы</button>
@@ -702,7 +714,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
   <!-- OBJECT DETAIL -->
   <section class="view" id="v-object">
     <button class="back" id="objBack"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>Объекты</button>
-    <h1 id="oName"></h1>
+    <div class="ohead"><h1 id="oName"></h1><button class="ofav big" id="oFav" aria-label="В избранное"><svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/></svg></button></div>
     <span class="badge" id="oStatus"></span>
     <div class="quick">
       <a class="qbtn" id="oCall"><svg viewBox="0 0 24 24"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2"/></svg>Позвонить</a>
@@ -1944,6 +1956,8 @@ function remEl(r){
 
 /* ---------- render: today ---------- */
 function renderToday(){
+  const favs=state.objects.filter(o=>o.fav).sort((a,b)=>(b.favTs||0)-(a.favTs||0)); const fr=$('#favRow'); fr.hidden=!favs.length;
+  fr.innerHTML=favs.map(o=>'<button class="favchip" data-id="'+esc(o.id)+'"><i>★</i>'+esc(o.name)+'</button>').join(''); $$('#favRow .favchip').forEach(b=>b.onclick=()=>showObject(b.dataset.id));
   const now=new Date(), t=todayISO(), sd=new Date(selDay+'T12:00:00');
   $('#dayTitle').textContent=selDay===t?'Сегодня':fmtDate(selDay);
   $('#dayDate').textContent=WDFULL[sd.getDay()]+', '+sd.getDate()+' '+MONTHS[sd.getMonth()];
@@ -1985,13 +1999,13 @@ function renderTasks(){
 /* ---------- render: objects ---------- */
 function sysList(o){return o.systems.concat((o.sysOther||'').split(',').map(s=>s.trim()).filter(Boolean))}
 function renderObjects(){
-  const f={active:o=>['plan','work','pnr'].includes(o.status),service:o=>o.status==='service',done:o=>o.status==='done',all:()=>true}[objFilter];
+  const f={fav:o=>!!o.fav,active:o=>['plan','work','pnr'].includes(o.status),service:o=>o.status==='service',done:o=>o.status==='done',all:()=>true}[objFilter]||(()=>true);
   const order={work:0,pnr:1,plan:2,service:3,done:4};
-  const items=state.objects.filter(f).sort((a,b)=>(order[a.status]-order[b.status])||((a.deadline||'9')<(b.deadline||'9')?-1:1));
+  const items=state.objects.filter(f).sort((a,b)=>((b.fav?1:0)-(a.fav?1:0))||(order[a.status]-order[b.status])||((a.deadline||'9')<(b.deadline||'9')?-1:1));
   const act=state.objects.filter(o=>['plan','work','pnr'].includes(o.status)).length;
   $('#objCount').textContent='В работе: '+act+', всего: '+state.objects.length;
   const ul=$('#objList'); ul.innerHTML='';
-  if(!items.length) ul.appendChild(emptyEl('Здесь пусто. Нажмите «+», чтобы добавить объект'));
+  if(!items.length) ul.appendChild(emptyEl(objFilter==='fav'?'Избранных объектов нет. Нажмите звёздочку на карточке объекта':'Здесь пусто. Нажмите «+», чтобы добавить объект'));
   items.forEach(o=>{
     const li=document.createElement('li'), b=document.createElement('button'); b.className='obj';
     const open=state.tasks.filter(t=>t.objId===o.id&&!t.done).length;
@@ -2002,14 +2016,17 @@ function renderObjects(){
       (sysList(o).length?'<div class="systems">'+sysList(o).map(s=>'<span class="sys">'+esc(s)+'</span>').join('')+'</div>':'')+
       '<div class="obj-foot"><span>Работ: '+open+'</span>'+(matsLeft?'<span>Докупить: '+matsLeft+'</span>':'')+(state.timer&&state.timer.objId===o.id?'<span class="late">Идёт работа</span>':'')+(o.svc&&o.svc.every>0&&o.svc.next&&o.status!=='done'?'<span'+(daysTo(o.svc.next)<=3?' class="late"':'')+'>ТО: '+esc(fmtDate(o.svc.next))+'</span>':'')+dl+'</div>';
     b.onclick=()=>showObject(o.id);
-    li.appendChild(b); ul.appendChild(li);
+    li.className='objli'; li.appendChild(b);
+    const st=document.createElement('button'); st.className='ofav'+(o.fav?' on':''); st.setAttribute('aria-label',o.fav?'Убрать из избранного':'В избранное'); st.innerHTML='<svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/></svg>';
+    st.onclick=e=>{ e.stopPropagation(); objFav(o); }; li.appendChild(st); ul.appendChild(li);
   });
 }
+function objFav(o){ o.fav=!o.fav; if(o.fav) o.favTs=Date.now(); save(); render(); }
 function showObject(id){openObjId=id;showView('object');renderObject();}
 function renderObject(){
   const o=objById(openObjId);
   if(!o){ if(view==='object') go('objects'); return; }
-  $('#oName').textContent=o.name;
+  $('#oName').textContent=o.name; $('#oFav').classList.toggle('on',!!o.fav); $('#oFav').setAttribute('aria-label',o.fav?'Убрать из избранного':'В избранное');
   const st=$('#oStatus'); st.className='badge '+o.status; st.textContent=STATUS[o.status];
   const call=$('#oCall'); if(o.phone){call.href='tel:'+o.phone.replace(/[^\d+]/g,'');call.removeAttribute('aria-disabled')}else{call.removeAttribute('href');call.setAttribute('aria-disabled','true')}
   const route=$('#oRoute'); if(o.addr||o.geo){route.href='#';route.removeAttribute('aria-disabled')}else{route.removeAttribute('href');route.setAttribute('aria-disabled','true')}
@@ -2043,6 +2060,7 @@ $('#oNote').oninput=e=>{const o=objById(openObjId); if(!o)return; o.note=e.targe
 $('#oMatForm').onsubmit=e=>{e.preventDefault(); const o=objById(openObjId), v=$('#oMatInput').value.trim(); if(!o||!v)return;
   o.mats.push({id:uid(),text:v,done:false}); $('#oMatInput').value=''; save(); renderObject(); renderObjects();};
 $('#objBack').onclick=()=>go('objects');
+$('#oFav').onclick=()=>{ const o=objById(openObjId); if(o) objFav(o); };
 $('#oEdit').onclick=()=>openObj(objById(openObjId));
 $('#oAddTask').onclick=()=>openTask(null,openObjId);
 
@@ -4325,7 +4343,7 @@ function openTask(t,presetObj){
   $('#fTaskTitle').textContent=t?'Задача':'Новая задача';
   $('#tTitle').value=t?t.title:'';
   const sel=$('#tObj'); sel.innerHTML='<option value="">Без объекта</option>'+
-    state.objects.filter(o=>o.status!=='done'||(t&&t.objId===o.id)).map(o=>'<option value="'+o.id+'">'+esc(o.name)+'</option>').join('');
+    state.objects.filter(o=>o.status!=='done'||(t&&t.objId===o.id)).sort((a,b)=>(b.fav?1:0)-(a.fav?1:0)).map(o=>'<option value="'+o.id+'">'+esc(o.name)+'</option>').join('');
   sel.value=t?(t.objId||''):(presetObj||'');
   fDate=t?t.date:(view==='today'?selDay:(presetObj?'':'')); fPrio=t?t.prio:1;
   $('#tTime').value=t?(t.time||''):''; fRem=t&&t.remind!=null?t.remind:60;
@@ -4504,7 +4522,7 @@ function trHint(){
 function openTrip(x,presetObj){
   trEdit=x||null; $('#fTripTitle').textContent=x?'Поездка':'Новая поездка';
   const sel=$('#trObj'); sel.innerHTML='<option value="">Без объекта</option>'+
-    state.objects.filter(o=>o.status!=='done'||(x&&x.objId===o.id)).map(o=>'<option value="'+o.id+'">'+esc(o.name)+'</option>').join('');
+    state.objects.filter(o=>o.status!=='done'||(x&&x.objId===o.id)).sort((a,b)=>(b.fav?1:0)-(a.fav?1:0)).map(o=>'<option value="'+o.id+'">'+esc(o.name)+'</option>').join('');
   sel.value=x?(x.objId||''):(presetObj||'');
   $('#trDate').value=x?x.date:todayISO();
   $('#trDist').value=x?(x.dist||''):(lastTripDist(sel.value)||'');
@@ -5429,7 +5447,7 @@ async function photoBytes(id){
   if(APP){ try{ const s=Android.photoB64&&Android.photoB64(id); return s?unb64u(s):null; }catch(e){ return null; } }
   const b=await PH.blob(id); return b?new Uint8Array(await b.arrayBuffer()):null;
 }
-const OSH_LOCAL={brig:1,brigAs:1};
+const OSH_LOCAL={brig:1,brigAs:1,fav:1,favTs:1};
 /* что уйдёт в файл */
 function oshParts(o){
   const docsF=(o.docs||[]).filter(d=>d.kind!=='ref'&&d.kind!=='link'), tasks=state.tasks.filter(t=>t.objId===o.id);
