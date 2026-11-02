@@ -848,7 +848,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
   <section class="view" id="v-catalog">
     <h1>Справочник</h1>
     <div class="makers" id="ctMakers"></div>
-    <div class="catupd"><span id="ctStatus"></span><span class="catbtns"><button class="link" id="ctCalc">Калькуляторы</button><button class="link" id="ctDocs">Скачать документацию</button><button class="link" id="ctUpd">Обновить каталоги</button></span></div>
+    <div class="catupd"><span id="ctStatus"></span><span class="catbtns"><button class="link" id="ctDocs">Скачать документацию</button><button class="link" id="ctUpd">Обновить каталоги</button></span></div>
     <p class="sub" id="ctSub"></p>
     <div class="ctsr"><input class="search" id="ctSearch" type="search" placeholder="Поиск по модели или назначению"><button type="button" class="mkscan" id="ctScan" aria-label="Найти по коду"><svg viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M7 12h10"/></svg></button></div>
     <div class="chips" id="ctCats" style="margin-top:0"></div>
@@ -896,6 +896,14 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
     <ul class="list" id="hrTrips"></ul>
   </section>
 
+  <section class="view" id="v-calc">
+    <h1>Калькулятор</h1>
+    <p class="sub">АКБ для РИП, падение напряжения в линии, число извещателей. Расчёт можно сохранить в объект или отправить.</p>
+    <div id="calcHost"></div>
+    <h2 id="calcSavedH" hidden>Сохранённые расчёты</h2>
+    <ul class="list" id="calcSaved"></ul>
+  </section>
+
   <section class="view" id="v-stock">
     <h1>Склад</h1>
     <p class="sub skrow"><span id="skSub"></span><button class="link" id="skXls">Остатки в Excel</button></p>
@@ -931,6 +939,7 @@ nav button{white-space:nowrap;letter-spacing:-.01em;overflow:visible;min-width:0
   <button data-v="car"><svg viewBox="0 0 24 24"><path d="M3 16v-4l2-5h14l2 5v4z"/><path d="M3 12h18"/><circle cx="7.5" cy="16.5" r="1.8"/><circle cx="16.5" cy="16.5" r="1.8"/></svg>Авто</button>
   <button data-v="money"><svg viewBox="0 0 24 24"><path d="M4 7h14a2 2 0 012 2v9a2 2 0 01-2 2H6a2 2 0 01-2-2z"/><path d="M4 7l11-3v3M16 13.5h.01"/></svg>Расходы</button>
   <button data-v="catalog"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h4M7 14h2M15 10.5a1.5 1.5 0 100 3 1.5 1.5 0 000-3zM8 6V4M16 6V4"/></svg>Справочник</button>
+  <button data-v="calc"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M16 11h0M8 15h2M12 15h2M8 18h2M12 18h2"/></svg>Калькулятор</button>
   <button data-v="stock"><svg viewBox="0 0 24 24"><path d="M3 9l9-5 9 5v11H3z"/><path d="M7 20v-7h10v7M7 16h10"/></svg>Склад</button>
   <button data-v="mine"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="11" r="2"/><path d="M5.5 16c.7-1.6 1.8-2.2 3-2.2s2.3.6 3 2.2M14 10h4M14 13.5h3"/></svg>Личное</button>
   <button data-v="notes"><svg viewBox="0 0 24 24"><path d="M5 3h10l4 4v14H5z"/><path d="M15 3v4h4M8 12h8M8 16h5"/></svg>Заметки</button>
@@ -4258,10 +4267,10 @@ function showView(v){
   const navKey={object:'objects',check:'objects',tpl:'objects',dev:'catalog'}[v]||v;
   $$('nav button').forEach(x=>x.classList.toggle('on',x.dataset.v===navKey));
   $$('.view').forEach(s=>s.classList.toggle('on',s.id==='v-'+v));
-  $('#fab').hidden=(v==='check'||v==='catalog'||v==='dev'||v==='mine');
+  $('#fab').hidden=(v==='check'||v==='catalog'||v==='dev'||v==='mine'||v==='calc');
   window.scrollTo(0,0);
 }
-function go(v){showView(v); if(v==='catalog') renderCatalog();}
+function go(v){showView(v); if(v==='catalog') renderCatalog(); if(v==='calc') renderCalcTab();}
 $$('nav button').forEach(b=>{ b.onclick=()=>go(b.dataset.v); const tn=[...b.childNodes].find(n=>n.nodeType===3&&n.textContent.trim()); if(tn){ const s=document.createElement('span'); s.className='nl'; s.textContent=tn.textContent.trim(); b.replaceChild(s,tn); } });
 
 /* ---------- перестановка вкладок: зажать вкладку и тянуть влево/вправо ---------- */
@@ -4311,12 +4320,12 @@ $('#noteSearch').oninput=renderNotes;
 /* ---------- sheet ---------- */
 let editing=null;
 function openSheet(id){
-  $$('.form').forEach(f=>f.hidden=f.id!==id);
+  $$('.form').forEach(f=>{ if(f.closest('#calcHost')) return; f.hidden=f.id!==id; });
   $('#scrim').classList.add('on'); $('#sheet').classList.add('on'); $('#sheet').scrollTop=0;
   const first=(id==='fSet'||id==='fHours'||id==='fHrSend'||id==='fDay'||id==='fTrRep'||id==='fBuy'||id==='fTrp'||id==='fStk'||id==='fUsed'||id==='fMnRep'||id==='fObjShare'||id==='fObjImp'||id==='fCalc'||id==='fMark'||id==='fMarkList'||id==='fPhRep'||id==='fXls'||id==='fPhCap')?null:$('#'+id+' input, #'+id+' textarea'); if(first) setTimeout(()=>first.focus({preventScroll:true}),260);
 }
 function openSheetOver(id){ openSheet(id); $('#sheet').classList.add('over'); $('#scrim').classList.add('over'); }
-function closeSheet(){try{kmPick.discard();lgPick.discard()}catch(e){}try{dsPick.discard();dePick.discard()}catch(e){}try{byPick.discard();byPdf.discard()}catch(e){}try{pmPick.discard();tlPick.discard();skPick.discard()}catch(e){}$('#scrim').classList.remove('on','over');$('#sheet').classList.remove('on','over');document.activeElement&&document.activeElement.blur();}
+function closeSheet(){try{kmPick.discard();lgPick.discard()}catch(e){}try{dsPick.discard();dePick.discard()}catch(e){}try{byPick.discard();byPdf.discard()}catch(e){}try{pmPick.discard();tlPick.discard();skPick.discard()}catch(e){}$('#scrim').classList.remove('on','over');$('#sheet').classList.remove('on','over');document.activeElement&&document.activeElement.blur();try{ if(view==='calc'&&!calcTab) renderCalcTab(); }catch(e){}}
 $('#scrim').onclick=closeSheet;
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
 function segGroup(sel,attr,get,set){
@@ -5884,30 +5893,49 @@ function calcRun(){
   $('#calcNote').textContent=calcK==='det'?'Ориентировочно, по табл. '+(v.type==='heat'?'2':'1')+' СП 484.1311500.2020 для ровного потолка. Балки, стеллажи, перегородки и наклонный потолок учитываются в проекте.':calcK==='drop'?'Сопротивление меди 0,0175, алюминия 0,028 Ом·мм²/м (при 20 °C). У КСПВ в маркировке указан диаметр жилы, у КПС и ПУГВ — сечение.':'';
   return {v,R};
 }
-function openCalc(k,rec,o){
+/* калькулятор живёт во вкладке «Калькулятор»; из объекта открывается в нижней панели */
+const CALC_HOME={p:$('#fCalc').parentNode,n:$('#fCalc').nextSibling};
+let calcTab=false;
+function calcPlace(tab){ calcTab=tab; const f=$('#fCalc');
+  if(tab){ if(f.parentNode!==$('#calcHost')) $('#calcHost').appendChild(f); f.hidden=false; }
+  else if(f.parentNode!==CALC_HOME.p) CALC_HOME.p.insertBefore(f,CALC_HOME.n&&CALC_HOME.n.parentNode===CALC_HOME.p?CALC_HOME.n:null);
+  $('#fCalcH').hidden=tab; }
+function renderCalcTab(){ if(!calcTab||$('#fCalc').parentNode!==$('#calcHost')) openCalc(null,null,null,true); else calcObjOpts(null); renderCalcSaved(); }
+function calcObjOpts(o){ const cur=$('#calcObj').value; const objs=state.objects.filter(x=>x.status!=='done'||x===o);
+  $('#calcObj').innerHTML='<option value="">— в какой объект сохранить —</option>'+objs.map(x=>'<option value="'+esc(x.id)+'"'+((o?x.id===o.id:x.id===cur)?' selected':'')+'>'+esc(x.name)+'</option>').join(''); }
+function renderCalcSaved(){
+  const ul=$('#calcSaved'); ul.innerHTML=''; const L=[];
+  state.objects.forEach(o=>(o.calcs||[]).forEach(c=>L.push({c,o}))); L.sort((a,b)=>b.c.ts-a.c.ts);
+  $('#calcSavedH').hidden=!L.length;
+  L.slice(0,40).forEach(({c,o})=>{ const li=document.createElement('li'), b=document.createElement('button'); b.className='log';
+    b.innerHTML='<span class="ic"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M8 7h8M8 11h2M12 11h2M8 15h2M12 15h2M8 18h2M12 18h2"/></svg></span><span class="tbody"><span class="ttl">'+esc(c.title||CALC_T[c.kind])+'</span><span class="meta">'+esc(o.name)+' · '+esc(CALC_T[c.kind]||'')+'</span></span><span class="sum">'+esc(c.big||'')+'</span>';
+    b.onclick=()=>openCalc(c.kind,c,o); li.appendChild(b); ul.appendChild(li); });
+}
+function openCalc(k,rec,o,tab){
+  calcPlace(!!tab);
   calcRec=rec||null; calcObj=o||null; calcK=k||(rec&&rec.kind)||calcK;
   $$('#calcTabs .chip').forEach(c=>c.classList.toggle('on',c.dataset.k===calcK)); $('#calcTabs').hidden=!!rec;
   const v=rec?rec.inputs:null; $('#calcForm').innerHTML=calcForm(calcK,v);
   if(calcK==='bat'){ ((v&&v.rows&&v.rows.length)?v.rows:[{name:'Извещатели',q:10,id:0.1,ia:0.1},{name:'Оповещатели',q:4,id:0,ia:20},{name:'Прибор',q:1,id:60,ia:120}]).forEach(cbRow); $('#cbAdd').onclick=()=>{ cbRow(); calcRun(); }; }
   if(calcK==='det') $$('#cdType .chip').forEach(c=>c.onclick=()=>{ $$('#cdType .chip').forEach(x=>x.classList.toggle('on',x===c)); calcRun(); });
   $$('#calcForm .ci').forEach(x=>{ x.addEventListener('input',calcRun); x.addEventListener('change',calcRun); });
-  const objs=state.objects.filter(x=>x.status!=='done'||x===o);
-  $('#calcObj').innerHTML='<option value="">— в какой объект сохранить —</option>'+objs.map(x=>'<option value="'+esc(x.id)+'"'+(o&&x.id===o.id?' selected':'')+'>'+esc(x.name)+'</option>').join('');
+  calcObjOpts(o);
   $('#calcObj').hidden=!!o; $('#calcTitle').value=rec?rec.title||'':'';
   $('#calcDel').hidden=!rec; $('#calcSave').textContent=rec?'Сохранить':'Сохранить в объект';
   $('#fCalcH').textContent=rec?CALC_T[calcK]:'Калькуляторы';
-  calcRun(); openSheet('fCalc');
+  calcRun(); if(!tab) openSheet('fCalc');
 }
-$$('#calcTabs .chip').forEach(c=>c.onclick=()=>openCalc(c.dataset.k,null,calcObj));
+$$('#calcTabs .chip').forEach(c=>c.onclick=()=>openCalc(c.dataset.k,null,calcObj,calcTab));
 $('#calcSave').onclick=()=>{
   const o=calcObj||objById($('#calcObj').value); if(!o){ $('#calcObj').focus(); alert('Выберите объект'); return; }
   const {v,R}=calcRun(); if(!Array.isArray(o.calcs)) o.calcs=[];
   const title=$('#calcTitle').value.trim()||CALC_T[calcK];
   if(calcRec) Object.assign(calcRec,{inputs:v,result:R.text,big:R.big,title,ts:Date.now()}); else o.calcs.push({id:uid(),kind:calcK,title,inputs:v,result:R.text,big:R.big,ts:Date.now()});
-  save(); closeSheet(); if(view==='object') renderObject(); else if(confirm('Расчёт сохранён в «'+o.name+'». Открыть объект?')) showObject(o.id);
+  const wasTab=calcTab&&!calcRec; save(); if(!wasTab) closeSheet(); if(wasTab) $('#calcTitle').value='';
+  if(view==='object') renderObject(); else if(view==='calc'){ renderCalcSaved(); if(wasTab&&confirm('Расчёт сохранён в «'+o.name+'». Открыть объект?')) showObject(o.id); } else if(confirm('Расчёт сохранён в «'+o.name+'». Открыть объект?')) showObject(o.id);
 };
 $('#calcShare').onclick=()=>{ const {R}=calcRun(); shareText(CALC_T[calcK],($('#calcTitle').value.trim()?$('#calcTitle').value.trim()+'\n':'')+R.text); };
-$('#calcDel').onclick=()=>{ const o=calcObj; if(!o||!calcRec||!confirm('Удалить расчёт?')) return; o.calcs=o.calcs.filter(x=>x!==calcRec); save(); closeSheet(); renderObject(); };
+$('#calcDel').onclick=()=>{ const o=calcObj; if(!o||!calcRec||!confirm('Удалить расчёт?')) return; o.calcs=o.calcs.filter(x=>x!==calcRec); save(); closeSheet(); if(view==='calc') renderCalcSaved(); else renderObject(); };
 function renderCalcs(o){
   const ul=$('#oCalcs'); if(!ul) return; ul.innerHTML=''; const L=(o.calcs||[]).slice().sort((a,b)=>b.ts-a.ts);
   ofb('calcs',L.length?String(L.length):'');
@@ -5917,7 +5945,6 @@ function renderCalcs(o){
     b.onclick=()=>openCalc(c.kind,c,o); li.appendChild(b); ul.appendChild(li); });
 }
 $('#oAddCalc').onclick=()=>{ const o=objById(openObjId); if(o) openCalc(null,null,o); };
-$('#ctCalc').onclick=()=>openCalc(null,null,null);
 /* ---------- документы для заказчика: фотоотчёт, дефектная ведомость, таблица адресов ---------- */
 /* картинка из хранилища фото, пригодная для canvas (на Android — через байты, иначе холст «запачкан») */
 async function phImg(id){
