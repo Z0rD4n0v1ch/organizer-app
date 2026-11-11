@@ -804,6 +804,12 @@ body.has-upd .runbar{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
 .timer.run button{background:var(--accent);color:#15171C;padding:14px 20px}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .timer.run{background:var(--surface);border:1px solid var(--line)}}
 :root[data-theme="dark"] .timer.run{background:var(--surface);border:1px solid var(--line)}
+
+.dfli{position:relative;list-style:none}.dfli>.dfile{padding-right:50px}
+.dstar{position:absolute;right:4px;top:50%;transform:translateY(-50%);margin-top:3px;width:44px;height:44px;border:0;border-radius:12px;background:transparent;display:grid;place-items:center;padding:0}
+.dstar svg{width:22px;height:22px;fill:none;stroke:var(--muted);stroke-width:1.8;stroke-linejoin:round}
+.dstar.on svg{fill:var(--accent);stroke:#C2570A}
+.dfav{border:1.5px solid var(--soft)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -3552,6 +3558,25 @@ function sysGroups(o,ul,items,kind,one){
   sysGroupBy(o,ul,items,kind,keyOf,one,{none:'Добавлено вручную',count:kind==='mat'?(its=>{ const left=its.filter(x=>!x.done).length; return left!==its.length?left+' из '+its.length:its.length; }):null});
 }
 function prjDocs(o){ return (o.docs||[]).filter(d=>d.code); }
+/* что удаляется вместе с проектом: листы (ссылки на страницы), созданные из него документы и акты (по цепочке), оборудование, материалы, отметки.
+   Если это последняя редакция проекта своей системы — ещё и документы, в названии которых указана эта система (акты, протоколы, добавленные вручную). */
+function prjCascade(o,d){
+  const docs=new Set(), ids=new Set([d.id]); let grew=true;
+  while(grew){ grew=false; (o.docs||[]).forEach(x=>{ if(x===d||docs.has(x)) return; if(ids.has(x.from)||(x.kind==='ref'&&ids.has(x.of))){ docs.add(x); ids.add(x.id); grew=true; } }); }
+  const tag=d.code?prjTag(o,d.id):'', other=!!(tag&&prjDocs(o).some(x=>x!==d&&!docs.has(x)&&prjTag(o,x.id)===tag));
+  const byName=[];
+  if(tag&&!other&&d.code) (o.docs||[]).forEach(x=>{ if(x===d||docs.has(x)||x.code||x.from||x.of) return; if(sysDetect(o,x.name)===tag){ byName.push(x); docs.add(x); ids.add(x.id); } });
+  const idl=[...ids];
+  return {tag,other,byName,docs:[...docs],equip:(o.equip||[]).filter(x=>idl.includes(x.src)),mats:(o.mats||[]).filter(x=>idl.includes(x.src)),marks:(o.marks||[]).filter(m=>idl.includes(m.doc))};
+}
+function prjDelete(o,d){
+  const C=prjCascade(o,d), all=[d].concat(C.docs), gone=new Set(all.map(x=>x.id)), mats=new Set(C.mats.map(x=>x.id));
+  all.forEach(x=>{ if(x.kind==='ref'||x.kind==='link') return; if(x.kind==='img'){ try{PH.del(x.id)}catch(e){} } else { try{DOC.del(x.id)}catch(e){} } });
+  o.marks=(o.marks||[]).filter(m=>!gone.has(m.doc));
+  o.docs=(o.docs||[]).filter(x=>!gone.has(x.id));
+  o.equip=(o.equip||[]).filter(x=>!gone.has(x.src)); o.mats=(o.mats||[]).filter(x=>!gone.has(x.src));
+  (o.matsUsed||[]).forEach(u=>{ if(u.plan&&mats.has(u.plan)) u.plan=null; });   // факт расхода остаётся, только без привязки к позиции проекта
+}
 function prjLabel(o,id){ const d=(o.docs||[]).find(x=>x.id===id); if(!d) return 'Удалённый проект'; return (d.code||d.name)+(d.code&&d.name&&!d.name.includes(d.code)?' · '+d.name:''); }
 function prjTag(o,id){ const d=(o.docs||[]).find(x=>x.id===id); if(!d||!d.code) return ''; return (d.code.match(/-([А-ЯA-Z]{2,6})$/)||[])[1]||d.code; }
 /* подразделы документации: папки внутри раздела (вручную), паспорта — по производителю, несколько проектов — по проектам */
@@ -3574,11 +3599,16 @@ function renderDocs(o){
       if(d.kind==='ref'){ b.onclick=()=>{ if(!par){ if(confirm('Проект, на который ссылается «'+d.name+'», удалён. Убрать ссылку?')) drop(); return; } openPdf({obj:o,id:par.id,name:d.name,page:d.page,onDel:drop,delLabel:'Убрать'}); }; li.appendChild(b); return li; }
       if(d.kind==='link'){ b.onclick=()=>openRemotePdf(d.url,d.name,drop); li.appendChild(b); return li; }
       const isPrj=d.kind!=='img'&&!d.gen&&/проект/i.test(sec);
-      const delMsg=()=>{ const ne=o.equip.filter(x=>x.src===d.id).length, nm=o.mats.filter(x=>x.src===d.id).length, nd=o.docs.filter(x=>x.from===d.id).length;
-        return 'Удалить «'+d.name+'»?'+(ne||nm||nd?'\n\nВместе с ним удалится всё, что из него разобрано:'+(nd?'\n• записей в документации: '+nd:'')+(ne?'\n• оборудование: '+ne:'')+(nm?'\n• материалы: '+nm:''):''); };
-      b.onclick=()=>openPdf({obj:o,delMsg,onParse:isPrj?(bytes=>{ closePdf(); prjStart(o,d,bytes); }):null,id:d.id,name:d.name,img:d.kind==='img',onRename:nm=>{ d.name=nm; save(); renderObject(); },onDel:()=>{ o.marks=(o.marks||[]).filter(m=>m.doc!==d.id); if(d.kind==='img'){try{PH.del(d.id)}catch(e){}} else DOC.del(d.id); o.docs.filter(x=>x.from===d.id&&x.gen).forEach(x=>DOC.del(x.id)); o.docs=o.docs.filter(x=>x!==d&&x.from!==d.id&&!(x.kind==='ref'&&x.of===d.id)); o.equip=o.equip.filter(x=>x.src!==d.id); o.mats=o.mats.filter(x=>x.src!==d.id); save(); renderObject(); }});
+      const delMsg=()=>{ const C=prjCascade(o,d), ne=C.equip.length, nm=C.mats.length, nd=C.docs.length, nk=C.marks.length;
+        return 'Удалить «'+d.name+'»?'+(ne||nm||nd||nk?'\n\nВместе с ним удалится всё, что к нему относится:'+(nd?'\n• документы, листы и акты: '+nd+(C.byName.length?' (в том числе по названию системы '+C.tag+': '+C.byName.slice(0,4).map(x=>'«'+x.name+'»').join(', ')+(C.byName.length>4?' и ещё '+(C.byName.length-4):'')+')':''):'')+(ne?'\n• оборудование: '+ne:'')+(nm?'\n• материалы по проекту: '+nm:'')+(nk?'\n• отметки на схемах: '+nk:''):'')+(C.other?'\n\nДругая редакция проекта '+C.tag+' остаётся, её документы не тронутся.':''); };
+      b.onclick=()=>openPdf({obj:o,delMsg,onParse:isPrj?(bytes=>{ closePdf(); prjStart(o,d,bytes); }):null,id:d.id,name:d.name,img:d.kind==='img',onRename:nm=>{ d.name=nm; save(); renderObject(); },onDel:()=>{ prjDelete(o,d); save(); renderObject(); }});
       li.appendChild(b); return li;
   };
+  const fileElF=(d,sec)=>{ const li=fileEl(d,sec); li.classList.add('dfli');
+    const st=document.createElement('button'); st.className='dstar'+(d.fav?' on':''); st.setAttribute('aria-label',d.fav?'Убрать из избранного':'В избранное');
+    st.innerHTML='<svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/></svg>';
+    st.onclick=e=>{ e.stopPropagation(); d.fav=!d.fav; if(d.fav) d.favTs=Date.now(); save(); renderDocs(o); };
+    li.appendChild(st); return li; };
   /* свёрнутая группа: заголовок + список; key — для запоминания, sub — для «+» и «⋯» */
   const group=(ul,key,label,cnt,lvl,fill,opt)=>{
     const li=document.createElement('li'), op=docOpenSec[key]===true; li.className='dsub lv'+lvl+(op?' open':'');
@@ -3590,6 +3620,11 @@ function renderDocs(o){
     }
     fill(li.querySelector('ul')); ul.appendChild(li);
   };
+  const favs=o.docs.filter(d=>d.fav).sort((a,b)=>(b.favTs||0)-(a.favTs||0));
+  if(favs.length){ const w=document.createElement('div'); w.className='dsec dfav'+(docOpenSec[o.id+'|★']!==false?' open':'');
+    w.innerHTML='<div class="dsh"><button class="dst"><i class="chev"></i><span>★ Избранное</span><small>'+favs.length+'</small></button></div>';
+    w.querySelector('.dst').onclick=()=>{ const op=!w.classList.contains('open'); w.classList.toggle('open',op); docOpenSec[o.id+'|★']=op; docOpenSave(); };
+    const ul=document.createElement('ul'); ul.className='dfiles'; favs.forEach(d=>ul.appendChild(fileElF(d,d.sec))); w.appendChild(ul); box.appendChild(w); }
   docSecs(o).forEach(sec=>{
     const files=o.docs.filter(d=>d.sec===sec).sort((a,b)=>b.ts-a.ts);
     const w=document.createElement('div'); w.className='dsec'+(files.length&&docOpenSec[o.id+'|'+sec]!==false?' open':'');
@@ -3604,8 +3639,8 @@ function renderDocs(o){
     const subsLevel=(target,arr,keyBase,lvl)=>{
       const subs=docSubsList(o,sec), inSub=new Set();
       subs.forEach(sb=>{ const fs=arr.filter(d=>docSubOf(d,sec)===sb); fs.forEach(d=>inSub.add(d)); if(!fs.length&&keyBase!==o.id+'|'+sec) return;
-        group(target,keyBase+'|'+sb,sb,fs.length,lvl,u=>{ if(!fs.length) u.appendChild(Object.assign(document.createElement('li'),{className:'dempty',textContent:'Пусто. «+» — добавить файл, долгое нажатие на файле — перенести сюда'})); fs.forEach(d=>u.appendChild(fileEl(d,sec))); },{sec,sub:sb}); });
-      arr.filter(d=>!inSub.has(d)).forEach(d=>target.appendChild(fileEl(d,sec)));
+        group(target,keyBase+'|'+sb,sb,fs.length,lvl,u=>{ if(!fs.length) u.appendChild(Object.assign(document.createElement('li'),{className:'dempty',textContent:'Пусто. «+» — добавить файл, долгое нажатие на файле — перенести сюда'})); fs.forEach(d=>u.appendChild(fileElF(d,sec))); },{sec,sub:sb}); });
+      arr.filter(d=>!inSub.has(d)).forEach(d=>target.appendChild(fileElF(d,sec)));
     };
     const key=d=>{ const pid=d.from||d.of||(d.code?d.id:''); return pid?(sysTagOf(o,pid)||pid):''; }; let order=[]; files.forEach(d=>{ const k=key(d); if(!order.includes(k)) order.push(k); });
     const multi=order.length>1; order=sysOrder(o,order);
@@ -6760,7 +6795,7 @@ $('#oMatXls').onclick=async()=>{
   U.filter(u=>!u.plan||!o.mats.some(m=>m.id===u.plan)).forEach(u=>rows.push([rows.length,u.name+' (не по проекту)','','',fq(u.qty)+' '+u.unit,'',fmtD(u.date)+(u.note?' — '+u.note:'')]));
   try{ await shareXlsx(xlsxBuild('Проект и факт',rows,[5,44,12,7,12,10,60]),('Материалы '+o.name).replace(/[\\/:*?"<>|]+/g,' ').trim().slice(0,60)+'.xlsx'); }catch(e){ alert('Не получилось: '+(e.message||e)); }
 };
-window.__osh={scanParse,ZIP,oshBuild,objImportBytes,st:()=>state,showObject:id=>showObject(id),PH,DOC};
+window.__osh={prjCascade,prjDelete,scanParse,ZIP,oshBuild,objImportBytes,st:()=>state,showObject:id=>showObject(id),PH,DOC};
 applyNav();
 save(); render(); connect();
 })();
