@@ -759,6 +759,27 @@ body.has-upd .runbar{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
   .secback{display:none!important}
   .moregrid{grid-template-columns:repeat(4,minmax(0,1fr))}
 }
+
+/* карточка объекта: вкладки */
+.otabs{display:flex;gap:20px;overflow-x:auto;scrollbar-width:none;margin:16px -16px 4px;padding:0 16px;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:4;background:var(--bg)}
+.otabs::-webkit-scrollbar{display:none}
+.otabs button{flex:none;height:46px;border:0;border-bottom:3px solid transparent;background:transparent;padding:0;font-size:15px;font-weight:500;color:var(--muted);white-space:nowrap}
+.otabs button small{font-size:13px;font-weight:600;color:var(--muted)}
+.otabs button.on{border-bottom-color:var(--accent);color:var(--ink);font-weight:700}
+#v-object[data-ot] [data-otg]{display:none}
+#v-object[data-ot="ov"] [data-otg="ov"],#v-object[data-ot="work"] [data-otg="work"],#v-object[data-ot="eq"] [data-otg="eq"],#v-object[data-ot="docs"] [data-otg="docs"],#v-object[data-ot="ph"] [data-otg="ph"]{display:block}
+#v-object[data-ot="ov"] h2[data-otg="ov"],#v-object[data-ot="work"] h2[data-otg="work"],#v-object[data-ot="eq"] h2[data-otg="eq"],#v-object[data-ot="docs"] h2[data-otg="docs"],#v-object[data-ot="ph"] h2[data-otg="ph"]{display:flex}
+#v-object[data-ot] .systems[data-otg]{display:none}#v-object[data-ot="ov"] .systems[data-otg="ov"]{display:flex}
+#v-object [data-otg][hidden]{display:none!important}
+.fold.closed+.secb[data-otg]{display:none!important}
+.oprog{background:var(--surface);border-radius:20px;padding:16px;margin-top:12px}
+.optop{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px}.optop b{font-size:15px}.optop em{font-style:normal;font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+.fbar.big{height:8px;border-radius:4px}
+.opst{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}
+.opst span{display:flex;flex-direction:column;font-size:12px;color:var(--muted)}.opst b{font-size:18px;color:var(--ink)}
+.quick .qbtn{min-height:64px;justify-content:center;font-weight:600;font-size:12px;border-radius:14px}
+.quick .qbtn svg{stroke:var(--ink)}
+.ohead h1{font-size:26px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -832,8 +853,12 @@ body.has-upd .runbar{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
       <button class="qbtn" id="oEdit"><svg viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M13.5 6.5l4 4"/></svg>Изменить</button>
       <button class="qbtn" id="oShare"><svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/></svg>Поделиться</button>
     </div>
-    <dl class="info" id="oInfo"></dl>
-    <div class="systems" id="oSystems"></div>
+    <div class="otabs" id="oTabs" role="tablist">
+      <button role="tab" data-ot="ov" class="on">Обзор</button><button role="tab" data-ot="work">Дела <small id="otc_work"></small></button><button role="tab" data-ot="eq">Оборудование <small id="otc_eq"></small></button><button role="tab" data-ot="docs">Документы <small id="otc_docs"></small></button><button role="tab" data-ot="ph">Фото <small id="otc_ph"></small></button>
+    </div>
+    <div class="oprog" id="oProg" data-otg="ov"></div>
+    <dl class="info" id="oInfo" data-otg="ov"></dl>
+    <div class="systems" id="oSystems" data-otg="ov"></div>
     <h2 class="fold" data-sec="svc"><span class="ft"><i class="chev"></i><span id="oSvcTitle">Обслуживание</span><small class="fb" id="ofb_svc"></small></span><button class="link" id="oSvcSet">Настроить</button></h2>
     <div class="secb">
     <div class="svc" id="oSvc"></div>
@@ -2184,7 +2209,17 @@ function renderObjects(){
   });
 }
 function objFav(o){ o.fav=!o.fav; if(o.fav) o.favTs=Date.now(); save(); render(); }
-function showObject(id){openObjId=id;showView('object');renderObject();}
+let objTab='ov', objTabFor=null;
+const OT_SEC={svc:'ov',calcs:'ov',note:'ov',tasks:'work',defs:'work',eq:'eq',stk:'eq',mats:'eq',docs:'docs',photos:'ph'};
+(function(){ const box=document.getElementById('v-object'); if(!box) return;
+  box.querySelectorAll('h2.fold[data-sec]').forEach(h=>{ const g=OT_SEC[h.dataset.sec]; if(!g) return;
+    const holder=h.parentNode===box?h:h.parentNode; holder.dataset.otg=g; if(holder===h&&h.nextElementSibling&&!h.nextElementSibling.matches('h2')) h.nextElementSibling.dataset.otg=g; });
+})();
+function setObjTab(k){ objTab=k; const v=document.getElementById('v-object'); v.dataset.ot=k;
+  $$('#oTabs [data-ot]').forEach(b=>{ const on=b.dataset.ot===k; b.classList.toggle('on',on); b.setAttribute('aria-selected',on?'true':'false'); });
+  if(k!=='ov') $$('#v-object [data-otg="'+k+'"] h2.fold.closed, #v-object h2.fold.closed[data-otg="'+k+'"]').forEach(h=>h.classList.remove('closed')); }
+$$('#oTabs [data-ot]').forEach(b=>b.onclick=()=>{ setObjTab(b.dataset.ot); window.scrollTo({top:Math.min(window.scrollY,$('#oTabs').offsetTop-8)}); });
+function showObject(id,tab){ if(id!==objTabFor){ objTab='ov'; objTabFor=id; } if(tab) objTab=tab; openObjId=id;showView('object');setObjTab(objTab);renderObject();}
 function renderObject(){
   const o=objById(openObjId);
   if(!o){ if(view==='object') go('objects'); return; }
@@ -2215,7 +2250,18 @@ function renderObject(){
     return li;
   });
   if(document.activeElement!==$('#oNote')) $('#oNote').value=o.note||'';
-  renderPhotos(o); renderSvc(o); try{renderDocs(o)}catch(e){} try{renderMarks(o)}catch(e){} try{renderCalcs(o)}catch(e){} try{renderDefects(o)}catch(e){} try{renderObjStock(o)}catch(e){} try{renderMatTabs(o)}catch(e){} objBadges(o);
+  renderPhotos(o); renderSvc(o); try{renderDocs(o)}catch(e){} try{renderMarks(o)}catch(e){} try{renderCalcs(o)}catch(e){} try{renderDefects(o)}catch(e){} try{renderObjStock(o)}catch(e){} try{renderMatTabs(o)}catch(e){} objBadges(o); try{ renderObjTop(o); }catch(e){ console.error(e); }
+}
+function renderObjTop(o){
+  const ts=state.tasks.filter(x=>x.objId===o.id), td=ts.filter(x=>x.done).length, act=ts.length-td;
+  const eq=Array.isArray(o.equip)?o.equip:[], docs=Array.isArray(o.docs)?o.docs:[], ph=Array.isArray(o.photos)?o.photos:[], defs=(Array.isArray(o.defects)?o.defects:[]).filter(d=>!d.done&&!d.fixed).length;
+  const set=(id,n)=>{ const e=$('#'+id); if(e) e.textContent=n?String(n):''; };
+  set('otc_work',act+defs); set('otc_eq',eq.length); set('otc_docs',docs.length); set('otc_ph',ph.length);
+  let mins=0; try{ mins=state.hours.filter(h=>h.objId===o.id).reduce((a,h)=>a+(+h.mins||0),0)+(state.timer&&state.timer.objId===o.id?(Date.now()-state.timer.start)/60000:0); }catch(e){}
+  const pc=ts.length?Math.round(td/ts.length*100):0, box=$('#oProg');
+  if(!ts.length&&!mins){ box.hidden=true; return; } box.hidden=false;
+  box.innerHTML='<div class="optop"><b>Готовность</b><em>'+pc+'%</em></div><span class="fbar big"><i style="width:'+pc+'%"></i></span>'+
+    '<div class="opst"><span><b>'+td+'/'+ts.length+'</b>дел сделано</span>'+(eq.length?'<span><b>'+eq.length+'</b>оборудования</span>':'<span><b>'+ph.length+'</b>фото</span>')+'<span><b>'+esc(mins>=60?Math.round(mins/60)+' ч':Math.round(mins)+' мин')+'</b>отработано</span></div>';
 }
 let noteTimer=null;
 $('#oNote').oninput=e=>{const o=objById(openObjId); if(!o)return; o.note=e.target.value; clearTimeout(noteTimer); noteTimer=setTimeout(save,500);};
@@ -4468,7 +4514,7 @@ function openQuick(){
   const ctx=CTX_ACT[view];
   if(ctx) L.push({k:'ctx',t:ctx[0],main:1,f:()=>ctx[1]()});
   L.push({k:'task',t:'Задача',main:!ctx,f:()=>openTask(null,q())});
-  L.push({k:'photo',t:'Фото',f:()=>{ const id=q(); if(!id){ alert('Выберите объект — фото сохраняется в него'); return 'stay'; } closeSheet(); showObject(id); setTimeout(()=>$('#oCam').click(),60); }});
+  L.push({k:'photo',t:'Фото',f:()=>{ const id=q(); if(!id){ alert('Выберите объект — фото сохраняется в него'); return 'stay'; } closeSheet(); showObject(id,'ph'); setTimeout(()=>$('#oCam').click(),60); }});
   L.push({k:'buy',t:'Чек',f:()=>openBuy()});
   L.push({k:'voice',t:'Голосом',f:()=>{ openTask(null,q()); setTimeout(()=>{ const m=$('#tTitle').parentNode.querySelector('.micb'); if(m) m.click(); },80); }});
   L.push({k:'shift',t:state.timer?'Закончить смену':'Начать смену',f:()=>{ closeSheet(); if(state.timer){ if(confirm('Закончить смену?')) stopTimer(); } else startTimer(q()||''); }});
