@@ -42,8 +42,15 @@ jobs:
           name: organizer-apk
           path: organizer.apk
 
-      - name: Описание изменений
+      - name: Сборка не устарела?
+        id: fresh
         if: github.ref == 'refs/heads/main'
+        run: |
+          HEAD_NOW=$(git ls-remote origin refs/heads/main | cut -f1)
+          if [ "$HEAD_NOW" = "$GITHUB_SHA" ]; then echo "ok=1" >> "$GITHUB_OUTPUT"; else echo "В main уже есть более новый коммит ($HEAD_NOW), релиз из этой сборки не публикуется"; echo "ok=0" >> "$GITHUB_OUTPUT"; fi
+
+      - name: Описание изменений
+        if: github.ref == 'refs/heads/main' && steps.fresh.outputs.ok == '1'
         run: |
           N=${{ github.run_number }}
           PREV=$(git tag --list 'v1.*' --sort=-v:refname | head -n1)
@@ -62,7 +69,7 @@ jobs:
           cat notes.md
 
       - name: Опубликовать релиз
-        if: github.ref == 'refs/heads/main'
+        if: github.ref == 'refs/heads/main' && steps.fresh.outputs.ok == '1'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
