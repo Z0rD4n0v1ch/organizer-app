@@ -3527,6 +3527,7 @@ function sysLabel(o,k){
 }
 /* группировка по системам (СПС, СОТС, СОТ…): система берётся из проекта, к которому относится запись, или из текста */
 function sysTagOf(o,src){ const d=(o.docs||[]).find(x=>x.id===src); if(!d) return ''; return prjTag(o,src)||d.sys||d.code||d.name||''; }
+const SYS_FULL={СКУД:'Система контроля и управления доступом',СОУЭ:'Система оповещения и управления эвакуацией',СОТС:'Система охранно-тревожной сигнализации',СОТ:'Система охранная телевизионная',СФО:'Система фонового озвучивания',СПС:'Система пожарной сигнализации',ОПС:'Охранно-пожарная сигнализация',АУПТ:'Автоматическое пожаротушение',СКС:'Структурированная кабельная система'};
 function sysDetect(o,text){
   const S=[...new Set(sysList(o).concat(prjDocs(o).map(d=>prjTag(o,d.id))).filter(Boolean))].sort((a,b)=>b.length-a.length);
   const T=' '+String(text||'').toUpperCase().replace(/[^A-ZА-ЯЁ0-9]+/g,' ')+' ';
@@ -3534,9 +3535,10 @@ function sysDetect(o,text){
 }
 function sysKeyLabel(o,k){
   const d=prjDocs(o).find(x=>prjTag(o,x.id)===k||x.sys===k);
-  if(!d) return k; const full=d.sys&&d.sys!==k?d.sys:''; return full?k+' · '+full:k;
+  let full=d&&d.sys&&d.sys!==k?d.sys:(SYS_FULL[k]||'');
+  full=full.replace(/охранн\s*о\s*-\s*тревож/i,'охранно-тревож'); return full?k+' · '+full:k;
 }
-function sysOrder(o,keys){ const S=sysList(o); const ix=k=>{ const i=S.indexOf(k); return k===''?999:i<0?500:i; }; return keys.slice().sort((a,b)=>ix(a)-ix(b)||a.localeCompare(b)); }
+function sysOrder(o,keys){ const S=sysList(o); const ix=k=>{ const i=S.indexOf(k); return k===''?999:i>=0?i:/[а-яё]/.test(k)?900:500; }; return keys.slice().sort((a,b)=>ix(a)-ix(b)||a.localeCompare(b)); }
 function sysGroupBy(o,ul,items,kind,keyOf,one,opt){
   opt=opt||{};
   const kk=items.map(keyOf), keys=[...new Set(kk)];
@@ -3557,7 +3559,9 @@ function sysGroups(o,ul,items,kind,one){
   const keyOf=x=>{ if(x.src&&(o.docs||[]).some(d=>d.id===x.src)) return sysTagOf(o,x.src); return sysDetect(o,x.text||x.m||x.name||''); };
   sysGroupBy(o,ul,items,kind,keyOf,one,{none:'Добавлено вручную',count:kind==='mat'?(its=>{ const left=its.filter(x=>!x.done).length; return left!==its.length?left+' из '+its.length:its.length; }):null});
 }
-function prjDocs(o){ return (o.docs||[]).filter(d=>d.code); }
+function prjRepair(o){ let ch=false; (o.docs||[]).forEach(d=>{ const nc=nameCode(d.name); if(!nc) return; const tg=codeTag(nc);
+    if(d.code&&codeTag(d.code)!==tg){ d.code=nc; ch=true; } }); return ch; }
+function prjDocs(o){ return (o.docs||[]).filter(d=>d.code||(/проект/i.test(d.sec||'')&&!d.from&&!d.gen&&d.kind!=='ref'&&d.kind!=='link'&&d.kind!=='img')); }
 /* что удаляется вместе с проектом: листы (ссылки на страницы), созданные из него документы и акты (по цепочке), оборудование, материалы, отметки.
    Если это последняя редакция проекта своей системы — ещё и документы, в названии которых указана эта система (акты, протоколы, добавленные вручную). */
 function prjCascade(o,d){
@@ -3578,7 +3582,14 @@ function prjDelete(o,d){
   (o.matsUsed||[]).forEach(u=>{ if(u.plan&&mats.has(u.plan)) u.plan=null; });   // факт расхода остаётся, только без привязки к позиции проекта
 }
 function prjLabel(o,id){ const d=(o.docs||[]).find(x=>x.id===id); if(!d) return 'Удалённый проект'; return (d.code||d.name)+(d.code&&d.name&&!d.name.includes(d.code)?' · '+d.name:''); }
-function prjTag(o,id){ const d=(o.docs||[]).find(x=>x.id===id); if(!d||!d.code) return ''; return (d.code.match(/-([А-ЯA-Z]{2,6})$/)||[])[1]||d.code; }
+/* система проекта: сначала по имени файла («224.10.26-СКУД изм.2»), потом по шифру из штампа, потом по названию системы */
+const SYS_ABBR=[[/контрол\S*\s+и\s+управлен\S*\s+доступ/i,'СКУД'],[/оповещени\S*\s+и\s+управлен\S*\s+эваку/i,'СОУЭ'],[/охранно\s*-?\s*тревож|охранн\S*\s*о\s*-\s*тревож/i,'СОТС'],[/охранно\s*-?\s*пожар/i,'ОПС'],
+  [/охранн\S*\s+телевиз|видеонаблюд/i,'СОТ'],[/фоновог\S*\s+озвуч|звукового\s+сопров/i,'СФО'],[/пожарн\S*\s+сигнал|автоматическ\S*\s+пожарн/i,'СПС'],[/пожаротуш/i,'АУПТ'],[/дымоудал|противодымн/i,'СПДВ'],
+  [/структурированн\S*\s+кабельн/i,'СКС'],[/охранн\S*\s+сигнал/i,'СОС'],[/домофон|переговорн/i,'ДМФ'],[/диспетчер/i,'СДК'],[/радиофик|часофик/i,'СРФ']];
+function sysAbbr(s){ s=String(s||''); for(const [re,a] of SYS_ABBR) if(re.test(s)) return a; return ''; }
+function codeTag(s){ const m=String(s||'').match(/\d{1,4}\s*[.\-]\s*\d{2}\s*[.\-]\s*\d{2,4}\s*-\s*([А-ЯЁA-Z]{2,6})(?![А-ЯЁA-Zа-яё])/); return m?m[1]:''; }
+function nameCode(s){ const m=String(s||'').match(/(\d{1,4}\s*[.\-]\s*\d{2}\s*[.\-]\s*\d{2,4}\s*-\s*[А-ЯЁA-Z]{2,6})(?![А-ЯЁA-Zа-яё])/); return m?m[1].replace(/\s+/g,''):''; }
+function prjTag(o,id){ const d=(o.docs||[]).find(x=>x.id===id); if(!d) return ''; return codeTag(d.name)||codeTag(d.code)||sysAbbr(d.sys)||sysAbbr(d.name)||''; }
 /* подразделы документации: папки внутри раздела (вручную), паспорта — по производителю, несколько проектов — по проектам */
 try{ docOpenSec=JSON.parse(localStorage.getItem('doc-open')||'{}')||{}; }catch(e){ docOpenSec={}; }
 function docOpenSave(){ try{ localStorage.setItem('doc-open',JSON.stringify(docOpenSec)); }catch(e){} }
@@ -3642,7 +3653,7 @@ function renderDocs(o){
         group(target,keyBase+'|'+sb,sb,fs.length,lvl,u=>{ if(!fs.length) u.appendChild(Object.assign(document.createElement('li'),{className:'dempty',textContent:'Пусто. «+» — добавить файл, долгое нажатие на файле — перенести сюда'})); fs.forEach(d=>u.appendChild(fileElF(d,sec))); },{sec,sub:sb}); });
       arr.filter(d=>!inSub.has(d)).forEach(d=>target.appendChild(fileElF(d,sec)));
     };
-    const key=d=>{ const pid=d.from||d.of||(d.code?d.id:''); return pid?(sysTagOf(o,pid)||pid):''; }; let order=[]; files.forEach(d=>{ const k=key(d); if(!order.includes(k)) order.push(k); });
+    const key=d=>{ const pid=d.from||d.of||(prjDocs(o).includes(d)?d.id:''); return pid?(sysTagOf(o,pid)||pid):''; }; let order=[]; files.forEach(d=>{ const k=key(d); if(!order.includes(k)) order.push(k); });
     const multi=order.length>1; order=sysOrder(o,order);
     if(multi){
       order.forEach(k=>{ const fs=files.filter(d=>key(d)===k);
@@ -3742,7 +3753,7 @@ function prjAnalyze(pages){
   const all=pages.map(p=>joinTxt(p.items));
   // шифр, система, объект, адрес — с титульных листов
   const head=all.slice(0,4).join(' | ');
-  let m=head.match(/(\d{1,4}[.\-]\d{2}[.\-]\d{4}\s*-\s*[А-ЯA-Z]{2,6})/)||all.join(' ').match(/(\d{1,4}\s*\.\s*\d{2}\s*\.\s*\d{4}\s*-\s*[А-ЯA-Z]{2,6})/);
+  let m=head.match(/(\d{1,4}[.\-]\d{2}[.\-]\d{2,4}\s*-\s*[А-ЯA-Z]{2,6})(?![А-ЯЁA-Zа-яё])/)||all.join(' ').match(/(\d{1,4}\s*\.\s*\d{2}\s*\.\s*\d{2,4}\s*-\s*[А-ЯA-Z]{2,6})(?![А-ЯЁA-Zа-яё])/);
   if(m) R.code=m[1].replace(/\s+/g,'');
   m=head.match(/(Систем[аы][^|:]{5,80}?)(?=\s*ОБЪЕКТ|\s*\||\s*Объект)/i); if(m) R.system=m[1].replace(/^Сис\s*тема/,'Система').trim();
   m=head.match(/ОБЪЕКТ\s*:\s*([^|]+?)\s*,?\s*(?:,|\|)?\s*по адресу/i)||head.match(/ОБЪЕКТ\s*:\s*([^|,]+)/i); if(m) R.object=m[1].replace(/\s*,\s*$/,'').trim();
@@ -3987,7 +3998,7 @@ async function prjStart(o,docEntry,bytes,auto){
     const chars=pages.reduce((s,p)=>s+p.items.length,0);
     if(chars<20&&auto){ closeSheet(); return; }
     if(chars<20){ $('#prjBody').innerHTML='<p>В этом PDF нет текстового слоя (скан или чертёж, где надписи сохранены линиями). Разложить его по листам автоматически не получится — добавьте нужные файлы в разделы вручную.</p>'; return; }
-    const R=prjAnalyze(pages); prjCur.res=R;
+    const R=prjAnalyze(pages); { const nc=nameCode(docEntry&&docEntry.name); if(nc&&(!R.code||codeTag(R.code)!==codeTag(nc))) R.code=nc; } prjCur.res=R;
     if(auto&&!R.code&&!R.equip.length&&!R.cables.length&&!R.sheets.some(s=>s.kind==='scheme'||s.kind==='pz')){ prjCur=null; closeSheet(); return; }   // не похоже на проект
     R.items=R.equip.map(e=>Object.assign(e,{part:'eq'})).concat(R.mats.map(m=>Object.assign(m,{part:'mat'})));
     R.items.forEach(e=>{ e.match=prjMatch(e); e.cls=prjClass(e); });
@@ -4540,7 +4551,8 @@ function renderNotes(){
     b.onclick=()=>openNote(n); g.appendChild(b);
   });
 }
-function render(){if(ensureSvcTasks())save();renderRunbar();renderToday();renderTasks();renderObjects();renderObject();renderCar();renderNotes();try{renderMoney()}catch(e){}try{renderHoursTab()}catch(e){console.error(e)}try{renderMine();renderPermitAlert()}catch(e){}try{renderStock();renderStockAlert()}catch(e){}}
+let prjFixed=false;
+function render(){if(ensureSvcTasks())save(); if(!prjFixed){ prjFixed=true; try{ if(state.objects.map(prjRepair).some(Boolean)) save(); }catch(e){} }renderRunbar();renderToday();renderTasks();renderObjects();renderObject();renderCar();renderNotes();try{renderMoney()}catch(e){}try{renderHoursTab()}catch(e){console.error(e)}try{renderMine();renderPermitAlert()}catch(e){}try{renderStock();renderStockAlert()}catch(e){}}
 
 /* ---------- navigation ---------- */
 function showView(v){
