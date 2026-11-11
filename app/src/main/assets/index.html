@@ -780,6 +780,17 @@ body.has-upd .runbar{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
 .quick .qbtn{min-height:64px;justify-content:center;font-weight:600;font-size:12px;border-radius:14px}
 .quick .qbtn svg{stroke:var(--ink)}
 .ohead h1{font-size:26px}
+
+/* справочник */
+.ctsr .search{height:56px;border:2px solid var(--ink);border-radius:16px;padding:0 66px 0 16px;font-size:16px;margin:14px 0 12px}
+.ctsr .mkscan{right:6px;top:20px;bottom:auto;width:44px;height:44px;border-radius:12px;background:var(--accent);color:var(--accent-ink)}
+.ctsr .mkscan svg{stroke:var(--accent-ink)!important}
+.ctrecent{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;margin-bottom:4px}
+.ctrecent .chip{font-weight:600}
+.mkgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.mkt{min-height:76px;border:0;border-radius:16px;background:var(--surface);color:var(--ink);padding:12px 14px;text-align:left;display:flex;flex-direction:column;justify-content:space-between;gap:6px}
+.mkt b{font-size:16px;font-weight:700;word-wrap:break-word}.mkt small{font-size:13px;color:var(--muted)}
+@media (min-width:900px){ .mkgrid{grid-template-columns:repeat(4,minmax(0,1fr))} }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -981,11 +992,18 @@ body.has-upd .runbar{bottom:calc(150px + env(safe-area-inset-bottom,0px))}
   </section>
 
   <section class="view" id="v-catalog">
-    <h1>Справочник</h1>
-    <div class="makers" id="ctMakers"></div>
+    <button class="back" id="ctHomeBack" hidden><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>Все производители</button>
+    <h1 id="ctTitle">Справочник</h1>
+    <p class="sub" id="ctLead"></p>
+    <div class="makers" id="ctMakers" hidden></div>
     <div class="catupd"><span id="ctStatus"></span><span class="catbtns"><button class="link" id="ctDocs">Скачать документацию</button><button class="link" id="ctUpd">Обновить каталоги</button></span></div>
     <p class="sub" id="ctSub"></p>
     <div class="ctsr"><input class="search" id="ctSearch" type="search" placeholder="Поиск по модели или назначению"><button type="button" class="mkscan" id="ctScan" aria-label="Найти по коду"><svg viewBox="0 0 24 24"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M7 12h10"/></svg></button></div>
+    <div id="ctHome">
+      <div id="ctRecentB" hidden><p class="lbl">Недавно смотрели</p><div class="ctrecent" id="ctRecent"></div></div>
+      <h2>Производители</h2>
+      <div class="mkgrid" id="ctGrid"></div>
+    </div>
     <div class="chips" id="ctCats" style="margin-top:0"></div>
     <ul class="list" id="ctList"></ul>
   </section>
@@ -4477,7 +4495,7 @@ function showView(v){
   window.scrollTo(0,0);
 }
 function go(v){showView(v); if(v==='catalog') renderCatalog(); if(v==='calc') renderCalcTab(); if(v==='more') renderMore();}
-$$('nav button[data-v]').forEach(b=>{ b.onclick=()=>{ backTo=null; go(b.dataset.v); }; const tn=[...b.childNodes].find(n=>n.nodeType===3&&n.textContent.trim()); if(tn){ const s=document.createElement('span'); s.className='nl'; s.textContent=tn.textContent.trim(); b.replaceChild(s,tn); } });
+$$('nav button[data-v]').forEach(b=>{ b.onclick=()=>{ backTo=null; if(b.dataset.v==='catalog'&&view==='catalog'){ ctHome=true; $('#ctSearch').value=''; } go(b.dataset.v); }; const tn=[...b.childNodes].find(n=>n.nodeType===3&&n.textContent.trim()); if(tn){ const s=document.createElement('span'); s.className='nl'; s.textContent=tn.textContent.trim(); b.replaceChild(s,tn); } });
 
 /* ---------- нижняя панель: Сегодня · Объекты · «+» · закреплённый раздел · Ещё ---------- */
 function renderMore(){
@@ -5366,7 +5384,30 @@ function catItem(d,onClick,showMaker){
   b.innerHTML='<span class="tbody"><span class="ttl">'+esc(d.m)+(showMaker?'<span class="eqtag">'+esc(CATS[d._mk].name)+'</span>':'')+(/^Снято с производства/.test(d.c)?'<span class="eqtag old">снят с произв.</span>':'')+'</span><span class="meta">'+esc(d.p)+'</span></span>';
   b.onclick=()=>onClick(d); li.appendChild(b); return li;
 }
+let ctHome=true;
+function ctRecentGet(){ try{ return JSON.parse(localStorage.getItem('ct-recent')||'[]')||[]; }catch(e){ return []; } }
+function ctRecentPush(d){ try{ let L=ctRecentGet().filter(x=>!(x.k===d._mk&&x.id===d.id)); L.unshift({k:d._mk,id:d.id}); localStorage.setItem('ct-recent',JSON.stringify(L.slice(0,8))); }catch(e){} }
+function renderCatHome(){
+  const total=MAKERS.reduce((a,k)=>a+CATS[k].items.length,0);
+  $('#ctTitle').textContent='Справочник'; $('#ctHomeBack').hidden=true; $('#ctSub').hidden=true; $('#ctCats').hidden=true;
+  $('#ctLead').hidden=false; $('#ctLead').textContent=total.toLocaleString('ru-RU')+' '+plural(total,'прибор','прибора','приборов')+' от '+MAKERS.length+' '+plural(MAKERS.length,'производителя','производителей','производителей')+' · работает без интернета';
+  const q=$('#ctSearch').value.trim();
+  $('#ctHome').hidden=!!q;
+  const rec=ctRecentGet().map(x=>CATS[x.k]&&CATS[x.k].items.find(d=>d.id===x.id)).filter(Boolean);
+  $('#ctRecentB').hidden=!rec.length;
+  $('#ctRecent').innerHTML=rec.map((d,i)=>'<button class="chip" data-i="'+i+'">'+esc(d.m)+'</button>').join('');
+  $$('#ctRecent .chip').forEach(b=>b.onclick=()=>{ const d=rec[+b.dataset.i]; showDev(d,'catalog'); });
+  $('#ctGrid').innerHTML=MAKERS.map(k=>{ const n=CATS[k].items.length; return '<button class="mkt" data-k="'+k+'"><b>'+esc(CATS[k].name)+'</b><small>'+n+' '+plural(n,'прибор','прибора','приборов')+'</small></button>'; }).join('');
+  $$('#ctGrid .mkt').forEach(b=>b.onclick=()=>{ mk=b.dataset.k; catCat=''; ctHome=false; try{localStorage.setItem('org-maker',mk)}catch(e){} $('#ctSearch').value=''; renderCatalog(); window.scrollTo(0,0); });
+  const ul=$('#ctList'); ul.innerHTML='';
+  if(q){ const res=catSearch(q,'',''); if(!res.length) ul.appendChild(emptyEl('Ничего не найдено. Попробуйте часть модели, например «2000-КДЛ»'));
+    res.slice(0,80).forEach(d=>ul.appendChild(catItem(d,showDev,true))); }
+}
+$('#ctHomeBack').onclick=()=>{ ctHome=true; catCat=''; $('#ctSearch').value=''; renderCatalog(); window.scrollTo(0,0); };
 function renderCatalog(){
+  if(ctHome||!CATS[mk]){ renderCatHome(); return; }
+  $('#ctHome').hidden=true; $('#ctHomeBack').hidden=false; $('#ctLead').hidden=true; $('#ctSub').hidden=false; $('#ctCats').hidden=false;
+  $('#ctTitle').textContent=CATS[mk].name;
   const seg=$('#ctMakers');
   seg.innerHTML=MAKERS.map(k=>'<button class="mk'+(k===mk?' on':'')+'" data-k="'+k+'">'+esc(CATS[k].name)+'<small>'+CATS[k].items.length+'</small></button>').join('');
   seg.querySelectorAll('.mk').forEach(b=>b.onclick=()=>{ mk=b.dataset.k; catCat=''; try{localStorage.setItem('org-maker',mk)}catch(e){} renderCatalog(); });
@@ -5395,9 +5436,9 @@ function renderCatalogList(){
   } else res.forEach(d=>ul.appendChild(catItem(d,showDev)));
   addOther();
 }
-$('#ctSearch').oninput=renderCatalogList;
+$('#ctSearch').oninput=()=>{ if(ctHome) renderCatHome(); else renderCatalogList(); };
 function showDev(d,from){
-  devFrom=from||view; const box=$('#devBody'), c=CATS[d._mk];
+  devFrom=from||view; ctRecentPush(d); const box=$('#devBody'), c=CATS[d._mk];
   $('#devTitle').textContent=d.m; $('#devCat').textContent=c.name+', '+d.c;
   let h='<p class="devname">'+esc(d.n)+'</p><p>'+esc(d.p)+'</p>';
   if(d.s&&d.s.length) h+='<h2>Характеристики</h2><div class="specs">'+d.s.map(r=>'<div><span>'+esc(r[0])+'</span><b>'+esc(r[1])+'</b></div>').join('')+'</div>';
@@ -6025,8 +6066,8 @@ $('#eqScan').onclick=()=>scanCode(r=>{
   $('#eqScanMsg').textContent=r.dev?'В справочнике: '+CATS[r.dev._mk].name+' · '+r.dev.m:r.serial?'Заводской номер считан':'Код считан: '+r.text.slice(0,60);
 });
 $('#ctScan').onclick=()=>scanCode(r=>{
-  if(r.dev){ mk=r.dev._mk; catCat=''; $('#ctSearch').value=r.dev.m; renderCatalog(); showDev(r.dev); return; }
-  $('#ctSearch').value=r.serial||r.text.slice(0,60); renderCatalogList();
+  if(r.dev){ mk=r.dev._mk; catCat=''; ctHome=false; $('#ctSearch').value=r.dev.m; renderCatalog(); showDev(r.dev); return; }
+  $('#ctSearch').value=r.serial||r.text.slice(0,60); if(ctHome) renderCatHome(); else renderCatalogList();
 });
 /* ---------- калькуляторы монтажника ---------- */
 const CALC_T={bat:'АКБ для РИП',drop:'Падение напряжения',det:'Число извещателей'};
