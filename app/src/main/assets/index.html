@@ -264,7 +264,9 @@ h2{font:700 19px/1.2 "Golos Text",system-ui,sans-serif;margin:24px 0 10px;displa
 .dgrp:first-child{margin-top:4px}
 .sysg{list-style:none}
 .sysl>li{margin-top:6px}
-.sysl .log,.sysl .mat{background:var(--bg)}
+.sysl .log,.sysl .mat,.sysl .task{background:var(--bg)}
+.sysg>.sysl{display:none;padding:0 8px 8px}.sysg.open>.sysl{display:block}
+.sysg>.dsh{margin:0}
 .tgchats{display:flex;flex-direction:column;gap:6px;margin:-4px 0 12px}.tgchats:empty{display:none}
 .tgchat{border:0;border-radius:12px;background:var(--bg);padding:10px 12px;text-align:left;color:var(--ink)}.tgchat b{display:block;font-weight:600}.tgchat small{color:var(--muted);font-size:12px}
 .catbtns{display:flex;gap:14px;flex:none}
@@ -2267,7 +2269,7 @@ function renderObject(){
   const tl=$('#oTasks'); tl.innerHTML='';
   const ts=sortTasks(state.tasks.filter(t=>t.objId===o.id));
   if(!ts.length) tl.appendChild(emptyEl('Работ по объекту пока нет'));
-  ts.forEach(t=>tl.appendChild(taskEl(t,{showObj:false})));
+  sysGroupBy(o,tl,ts,'task',x=>x.sys||sysDetect(o,x.title),x=>taskEl(x,{showObj:false}),{none:'Общее',cls:'list',count:its=>{ const a=its.filter(x=>!x.done).length; return a!==its.length?a+' из '+its.length:its.length; }});
   const ml=$('#oMats'); ml.innerHTML='';
   sysGroups(o,ml,o.mats,'mat',(m,grouped)=>{
     const li=document.createElement('li'); li.className='mat'+(m.done?' done':''); li.dataset.id=m.id;
@@ -3517,22 +3519,37 @@ function sysLabel(o,k){
   const tag=prjTag(o,k), sys=d.sys||'';
   return (tag&&sys?tag+' · '+sys:sys||d.code||d.name);
 }
-function sysGroups(o,ul,items,kind,one){
-  const key=x=>x.src&&(o.docs||[]).some(d=>d.id===x.src)?x.src:(x.src?'?':'');
-  const keys=[...new Set(items.map(key))];
+/* группировка по системам (СПС, СОТС, СОТ…): система берётся из проекта, к которому относится запись, или из текста */
+function sysTagOf(o,src){ const d=(o.docs||[]).find(x=>x.id===src); if(!d) return ''; return prjTag(o,src)||d.sys||d.code||d.name||''; }
+function sysDetect(o,text){
+  const S=[...new Set(sysList(o).concat(prjDocs(o).map(d=>prjTag(o,d.id))).filter(Boolean))].sort((a,b)=>b.length-a.length);
+  const T=' '+String(text||'').toUpperCase().replace(/[^A-ZА-ЯЁ0-9]+/g,' ')+' ';
+  return S.find(x=>T.includes(' '+x.toUpperCase().replace(/[^A-ZА-ЯЁ0-9]+/g,' ').trim()+' '))||'';
+}
+function sysKeyLabel(o,k){
+  const d=prjDocs(o).find(x=>prjTag(o,x.id)===k||x.sys===k);
+  if(!d) return k; const full=d.sys&&d.sys!==k?d.sys:''; return full?k+' · '+full:k;
+}
+function sysOrder(o,keys){ const S=sysList(o); const ix=k=>{ const i=S.indexOf(k); return k===''?999:i<0?500:i; }; return keys.slice().sort((a,b)=>ix(a)-ix(b)||a.localeCompare(b)); }
+function sysGroupBy(o,ul,items,kind,keyOf,one,opt){
+  opt=opt||{};
+  const kk=items.map(keyOf), keys=[...new Set(kk)];
   if(keys.length<2){ items.forEach(x=>ul.appendChild(one(x,false))); return; }
-  keys.sort((a,b)=>(a===''?1:0)-(b===''?1:0));
-  keys.forEach(k=>{
-    const its=items.filter(x=>key(x)===k), fk=o.id+'|'+kind+'|'+k;
+  sysOrder(o,keys).forEach(k=>{
+    const its=items.filter((x,i)=>kk[i]===k), fk=o.id+'|'+kind+'|s:'+k;
     const li=document.createElement('li'); li.className='dsec sysg'+(grpOpen[fk]?' open':'');
-    const left=kind==='mat'?its.filter(x=>!x.done).length:0;
-    li.innerHTML='<div class="dsh"><button class="dst"><i class="chev"></i><span>'+esc(k==='?'?'Удалённый проект':sysLabel(o,k))+'</span><small>'+(kind==='mat'&&left!==its.length?left+' из '+its.length:its.length)+'</small></button></div>';
-    const sub=document.createElement('ul'); sub.className='dfiles sysl';
+    const cnt=opt.count?opt.count(its):its.length;
+    li.innerHTML='<div class="dsh"><button class="dst"><i class="chev"></i><span>'+esc(k?sysKeyLabel(o,k):(opt.none||'Без системы'))+'</span><small>'+esc(String(cnt))+'</small></button></div>';
+    const sub=document.createElement('ul'); sub.className=(opt.cls||'dfiles')+' sysl';
     its.forEach(x=>sub.appendChild(one(x,true)));
     li.appendChild(sub);
     li.querySelector('.dst').onclick=()=>{ const op=!li.classList.contains('open'); li.classList.toggle('open',op); grpOpen[fk]=op; try{ localStorage.setItem('grp-open',JSON.stringify(grpOpen)); }catch(e){} };
     ul.appendChild(li);
   });
+}
+function sysGroups(o,ul,items,kind,one){
+  const keyOf=x=>{ if(x.src&&(o.docs||[]).some(d=>d.id===x.src)) return sysTagOf(o,x.src); return sysDetect(o,x.text||x.m||x.name||''); };
+  sysGroupBy(o,ul,items,kind,keyOf,one,{none:'Добавлено вручную',count:kind==='mat'?(its=>{ const left=its.filter(x=>!x.done).length; return left!==its.length?left+' из '+its.length:its.length; }):null});
 }
 function prjDocs(o){ return (o.docs||[]).filter(d=>d.code); }
 function prjLabel(o,id){ const d=(o.docs||[]).find(x=>x.id===id); if(!d) return 'Удалённый проект'; return (d.code||d.name)+(d.code&&d.name&&!d.name.includes(d.code)?' · '+d.name:''); }
@@ -3590,11 +3607,11 @@ function renderDocs(o){
         group(target,keyBase+'|'+sb,sb,fs.length,lvl,u=>{ if(!fs.length) u.appendChild(Object.assign(document.createElement('li'),{className:'dempty',textContent:'Пусто. «+» — добавить файл, долгое нажатие на файле — перенести сюда'})); fs.forEach(d=>u.appendChild(fileEl(d,sec))); },{sec,sub:sb}); });
       arr.filter(d=>!inSub.has(d)).forEach(d=>target.appendChild(fileEl(d,sec)));
     };
-    const key=d=>d.from||(d.code?d.id:''), order=[]; files.forEach(d=>{ const k=key(d); if(!order.includes(k)) order.push(k); });
-    const multi=prjDocs(o).length>1&&!/проект/i.test(sec)&&order.length>1;
+    const key=d=>{ const pid=d.from||d.of||(d.code?d.id:''); return pid?(sysTagOf(o,pid)||pid):''; }; let order=[]; files.forEach(d=>{ const k=key(d); if(!order.includes(k)) order.push(k); });
+    const multi=order.length>1; order=sysOrder(o,order);
     if(multi){
-      order.sort((a,b)=>(a===''?1:0)-(b===''?1:0)).forEach(k=>{ const fs=files.filter(d=>key(d)===k);
-        group(ul,o.id+'|'+sec+'|p:'+k,k?prjLabel(o,k):'Добавлено вручную',fs.length,1,u=>subsLevel(u,fs,o.id+'|'+sec+'|p:'+k,2)); });
+      order.forEach(k=>{ const fs=files.filter(d=>key(d)===k);
+        group(ul,o.id+'|'+sec+'|s:'+k,k?sysKeyLabel(o,k):'Добавлено вручную',fs.length,1,u=>subsLevel(u,fs,o.id+'|'+sec+'|s:'+k,2)); });
       // пустые подразделы показываем на уровне раздела
       docSubsList(o,sec).filter(sb=>!files.some(d=>docSubOf(d,sec)===sb)).forEach(sb=>group(ul,o.id+'|'+sec+'|'+sb,sb,0,1,u=>u.appendChild(Object.assign(document.createElement('li'),{className:'dempty',textContent:'Пусто. «+» — добавить файл, долгое нажатие на файле — перенести сюда'})),{sec,sub:sb}));
     } else subsLevel(ul,files,o.id+'|'+sec,1);
@@ -6301,10 +6318,11 @@ function renderDefects(o){
   ofb('defs',L.length?(open?'открыто: '+open:'все устранены'):'', late?'bad':open?'warn':'');
   $('#oDefPdf').hidden=!L.length&&!(o.marks||[]).some(m=>m.state==='issue');
   if(!L.length){ ul.appendChild(emptyEl('Замечаний нет. «Добавить» — текст, фото, кто устраняет и срок')); return; }
-  L.forEach((d,i)=>{ const li=document.createElement('li'), b=document.createElement('button'); b.className='log'+(d.done?' dfdone':'');
+  const defEl=d=>{ const li=document.createElement('li'), b=document.createElement('button'); b.className='log'+(d.done?' dfdone':'');
     b.innerHTML=(d.photos&&d.photos[0]&&PHOTO?'<span class="odoth"><img loading="lazy" alt="" src="'+PH.url(d.photos[0])+'"></span>':'<span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg></span>')+
       '<span class="tbody"><span class="ttl">'+esc(d.text||'Замечание')+'</span><span class="meta'+(dfLate(d)?' late':'')+'">'+esc([d.who,d.due?'до '+fmtDate(d.due):'',d.done?'устранено '+fmtDate(d.doneAt||todayISO()):dfLate(d)?'просрочено':''].filter(Boolean).join(' · '))+'</span></span>'+(d.done?'<span class="sum ok">✓</span>':'');
-    b.onclick=()=>openDef(o,d); li.appendChild(b); ul.appendChild(li); });
+    b.onclick=()=>openDef(o,d); li.appendChild(b); return li; };
+  sysGroupBy(o,ul,L,'def',d=>d.sys||(d.doc?sysTagOf(o,d.doc):'')||sysDetect(o,d.text),defEl,{none:'Общее',cls:'list',count:its=>{ const a=its.filter(x=>!x.done).length; return a?'открыто '+a:its.length; }});
 }
 function openDef(o,d){
   dfEdit={o,d:d||null}; dfPhotos=d?(d.photos||[]).slice():[];
@@ -6696,10 +6714,11 @@ function renderMatTabs(o){
   const ul=$('#oUsed'); ul.innerHTML='';
   const L=(o.matsUsed||[]).slice().sort((a,b)=>cmp(b.date||'',a.date||'')||b.ts-a.ts);
   if(!L.length){ ul.appendChild(emptyEl('Что фактически ушло на объект: кабель по бухтам и этикеткам, гофра, крепёж. «Добавить» — с фото этикетки')); return; }
-  L.forEach(u=>{ const li=document.createElement('li'), b=document.createElement('button'); b.className='log'; const pm=u.plan&&o.mats.find(x=>x.id===u.plan);
+  const usedEl=u=>{ const li=document.createElement('li'), b=document.createElement('button'); b.className='log'; const pm=u.plan&&o.mats.find(x=>x.id===u.plan);
     b.innerHTML=(u.photos&&u.photos[0]&&PHOTO?'<span class="odoth"><img loading="lazy" alt="" src="'+PH.url(u.photos[0])+'">'+(u.photos.length>1?'<em class="phn">'+u.photos.length+'</em>':'')+'</span>':'<span class="ic">'+stkIcon(/кабел|кспв|кпс|utp|ftp|ввг|пугв|шввп/i.test(u.name)?'cable':/гофр|труб|канал/i.test(u.name)?'pipe':'mat')+'</span>')+
       '<span class="tbody"><span class="ttl">'+esc(u.name)+'</span><span class="meta">'+esc([u.date?fmtDate(u.date):'',pm?(matParse(pm.text).name===u.name?'по проекту':'по проекту: '+matParse(pm.text).name):'не по проекту',u.note||''].filter(Boolean).join(' · '))+'</span></span><span class="sum">'+fq(u.qty)+' '+esc(u.unit||'')+'</span>';
-    b.onclick=()=>openUsed(o,u); li.appendChild(b); ul.appendChild(li); });
+    b.onclick=()=>openUsed(o,u); li.appendChild(b); return li; };
+  sysGroupBy(o,ul,L,'used',u=>{ const pm=u.plan&&o.mats.find(x=>x.id===u.plan); return pm&&pm.src&&(o.docs||[]).some(d=>d.id===pm.src)?sysTagOf(o,pm.src):sysDetect(o,(u.name||'')+' '+(u.note||'')); },usedEl,{none:'Без системы',cls:'list'});
 }
 $$('#matTabs .chip').forEach(c=>c.onclick=()=>{ matTab=c.dataset.t; try{ localStorage.setItem('mat-tab',matTab); }catch(e){} const o=objById(openObjId); if(o) renderMatTabs(o); });
 /* запись «использовано» */
