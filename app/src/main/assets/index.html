@@ -569,6 +569,10 @@ nav .nl{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;whit
 .dydist{font:500 16px "Golos Text",sans-serif;margin:2px 0 14px;text-align:center}
 .dydist:empty{display:none}
 .odday{display:block;width:100%;text-align:left;background:var(--surface);border:0;border-radius:16px;padding:12px 14px}
+.odmon{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;padding:14px 4px 2px;list-style:none}
+.odmon b{font-size:17px;font-weight:700}.odmon span{display:flex;flex-direction:column;align-items:flex-end}
+.odmon em{font-style:normal;font-size:20px;font-weight:800;font-variant-numeric:tabular-nums}.odmon small{font-size:12px;color:var(--muted)}
+.odmon:first-child{padding-top:2px}
 .odhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:4px}
 .odhead .sum{font-weight:600;white-space:nowrap}
 .odrow{display:flex;align-items:center;gap:12px;margin-top:8px}
@@ -2884,6 +2888,16 @@ async function daySend(date){
   step(0);
 }
 
+/* пробег за месяц: последний пробег месяца минус последний пробег до него (или первый в месяце) */
+function odoMonths(){
+  const L=state.odo.filter(r=>r.date&&+r.km>0).slice().sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:(a.km-b.km)||((a.ts||0)-(b.ts||0)));
+  const res={}; let prev=null;
+  L.forEach(r=>{ const ym=r.date.slice(0,7); let m=res[ym]; if(!m){ m=res[ym]={ym,from:prev!=null?prev:+r.km,to:+r.km,days:new Set(),dayKm:0}; } m.to=Math.max(m.to,+r.km); m.days.add(r.date); prev=m.to; });
+  odoDays().forEach(g=>{ const m=res[g.date.slice(0,7)]; if(m&&g.dist>0) m.dayKm+=g.dist; });
+  Object.values(res).forEach(m=>{ m.km=Math.max(0,m.to-m.from); m.nd=m.days.size; });
+  return res;
+}
+function monthName(ym){ const d=new Date(ym+'-15T12:00:00'); const s=d.toLocaleDateString('ru-RU',{month:'long',year:'numeric'}).replace(/\s*г\.?$/,''); return s.charAt(0).toUpperCase()+s.slice(1); }
 /* список по дням */
 function renderOdoDays(){
   const ol=$('#odoList'); ol.innerHTML='';
@@ -2891,7 +2905,12 @@ function renderOdoDays(){
   if(!days.length){ ol.appendChild(emptyEl('Утром нажмите «Обновить» у пробега и запишите начальный пробег с фото и городом, вечером — конечный. Приложение посчитает, сколько проехано за день')); return; }
   const row=(r,label)=>'<div class="odrow">'+(r&&r.photo&&PHOTO?'<span class="odoth"><img loading="lazy" alt="" src="'+PH.url(r.photo)+'"></span>':'<span class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 13l4-3M8 5h8"/></svg></span>')+
     '<span class="tbody"><span class="meta">'+label+'</span><span class="ttl'+(r?'':' miss')+'">'+(r?esc(num(r.km)+' км'+(r.city?' · '+r.city:'')):'не записан')+'</span></span></div>';
+  const MO=odoMonths(); let curM='';
   days.slice(0,odoAll?days.length:14).forEach(g=>{
+    const ym=g.date.slice(0,7);
+    if(ym!==curM){ curM=ym; const m=MO[ym]; const h=document.createElement('li'); h.className='odmon';
+      h.innerHTML='<b>'+esc(monthName(ym))+'</b><span><em>'+(m?num(m.km):'0')+' км</em><small>'+(m?m.nd+' '+plural(m.nd,'день','дня','дней')+' с записями'+(m.dayKm&&m.dayKm!==m.km?' · по дням '+num(m.dayKm)+' км':''):'')+'</small></span>';
+      ol.appendChild(h); }
     const li=document.createElement('li'), b=document.createElement('button'); b.className='odday';
     const sent=g.all.length&&g.all.every(r=>r.sent);
     const dl=new Date(g.date+'T12:00:00').toLocaleDateString('ru-RU',{weekday:'short',day:'numeric',month:'long'}), rel=g.date===todayISO()?'Сегодня, ':g.date===iso(addDays(new Date(),-1))?'Вчера, ':'';
@@ -4929,7 +4948,7 @@ function carBadges(){
   const dn=DOCS.filter(([k])=>c.docs&&c.docs[k]).length; fb('docs',dn?dn+' из '+DOCS.length:'');
   fb('log',state.carLog.length?state.carLog.length+' '+plural(state.carLog.length,'запись','записи','записей'):'');
   const yr=ym.slice(0,4), ys=state.carLog.filter(l=>(l.date||'').startsWith(yr)).reduce((s,l)=>s+(+l.sum||0),0); fb('year',ys?num(Math.round(ys))+' ₽ за '+yr:'');
-  const odn=odoDays().length; fb('odo',odn?odn+' '+plural(odn,'день','дня','дней'):'');
+  const odn=odoDays().length, odm=odoMonths()[todayISO().slice(0,7)]; fb('odo',odm&&odm.km?num(odm.km)+' км за '+monthName(todayISO().slice(0,7)).split(' ')[0].toLowerCase():odn?odn+' '+plural(odn,'день','дня','дней'):'');
 }
 /* отрисовка дополнительных блоков */
 function renderCarExtra(){
